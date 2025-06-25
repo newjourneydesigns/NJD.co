@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Journey Designs Co. - Created to Create with God</title>
+    <!-- Favicon -->
+    <link rel="icon" href="https://i.imgur.com/gqL0OQp.png" type="image/png">
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom CSS Variables based on refined theme */
+        :root {
+            --color-njd-accent: #ff5100;         /* Bright Orange, used sparingly for accent */
+            --color-njd-text-primary: #1f2937;   /* Dark Slate Gray */
+            --color-njd-text-secondary: #6b7280; /* Muted Gray */
+            --color-njd-background-light: #fefffa; /* Off-white, almost white */
+            --color-njd-background-medium: #f9fafb; /* Very light gray for subtle section contrast */
+            --color-njd-border: #e5e7eb;         /* Light gray for borders */
+            --color-njd-muted-green: #58693a;    /* Original muted green, used for special elements */
+            --color-njd-light-teal: #b0d4c7;     /* Original light teal, for subtle highlights */
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--color-njd-background-light);
+            color: var(--color-njd-text-primary);
+            line-height: 1.6;
+        }
+
+        /* Utility classes for custom colors - allows direct use with Tailwind's class system */
+        .text-njd-accent { color: var(--color-njd-accent); }
+        .text-njd-primary { color: var(--color-njd-text-primary); }
+        .text-njd-secondary { color: var(--color-njd-text-secondary); }
+        .bg-njd-accent { background-color: var(--color-njd-accent); }
+        .bg-njd-background-light { background-color: var(--color-njd-background-light); }
+        .bg-njd-background-medium { background-color: var(--color-njd-background-medium); }
+        .border-njd-border { border-color: var(--color-njd-border); }
+        .hover\:text-njd-accent:hover { color: var(--color-njd-accent); }
+        .hover\:bg-njd-accent:hover { background-color: var(--color-njd-accent); }
+        .focus\:ring-njd-accent:focus { --tw-ring-color: var(--color-njd-accent); }
+
+        /* General element styling for sleekness */
+        a {
+            text-decoration: none;
+            transition: color 0.3s ease-in-out, background-color 0.3s ease-in-out;
+        }
+
+        button {
+            transition: background-color 0.3s ease-in-out, transform 0.2s ease-in-out;
+        }
+
+        /* Subtle animation for elements fading in */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+
+        /* Specific delays for staggered animation */
+        .animate-fade-in-1 { animation-delay: 0.1s; }
+        .animate-fade-in-2 { animation-delay: 0.2s; }
+        .animate-fade-in-3 { animation-delay: 0.3s; }
+        .animate-fade-in-4 { animation-delay: 0.4s; }
+
+        /* Global rounded corners and shadow consistency */
+        .rounded-element {
+            border-radius: 0.75rem; /* Equivalent to Tailwind's rounded-xl */
+        }
+        .shadow-subtle {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+        .shadow-md {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Header Section -->
+    <header class="bg-njd-background-light py-4 md:py-6 sticky top-0 z-50 shadow-subtle rounded-b-xl">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+            <!-- Logo -->
+            <a href="#hero" class="flex items-center gap-3">
+                <img src="https://i.imgur.com/gqL0OQp.png" alt="New Journey Designs Co. Logo" class="h-10 md:h-12 rounded-full shadow-sm">
+                <span class="text-2xl md:text-3xl font-bold text-njd-primary">NJD<span class="text-njd-accent">.co</span></span>
+            </a>
+
+            <!-- Mobile Menu Button -->
+            <button id="menu-button" class="md:hidden text-njd-primary focus:outline-none focus:ring-2 focus:ring-njd-accent rounded-md p-2">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
+
+            <!-- Navigation Links (Desktop) -->
+            <nav id="main-nav" class="hidden md:flex items-center gap-8 text-njd-text-secondary text-lg font-medium">
+                <a href="#about" class="hover:text-njd-accent py-1 px-2 rounded-md transition-colors duration-300">About</a>
+                <a href="#services" class="hover:text-njd-accent py-1 px-2 rounded-md transition-colors duration-300">Services</a>
+                <a href="#contact" class="bg-njd-accent text-njd-background-light py-2 px-6 rounded-full shadow-md hover:bg-opacity-90 transform hover:scale-105 transition-all duration-300">
+                    Contact Us
+                </a>
+            </nav>
+        </div>
+
+        <!-- Mobile Navigation Menu (Hidden by default) -->
+        <nav id="mobile-menu" class="hidden md:hidden mt-4 bg-njd-background-light border-t border-njd-border py-4">
+            <ul class="flex flex-col items-center gap-4 text-njd-text-secondary text-lg font-medium">
+                <li><a href="#hero" class="block w-full text-center py-2 px-4 hover:bg-njd-background-medium hover:text-njd-accent rounded-md transition-colors duration-300">Home</a></li>
+                <li><a href="#about" class="block w-full text-center py-2 px-4 hover:bg-njd-background-medium hover:text-njd-accent rounded-md transition-colors duration-300">About</a></li>
+                <li><a href="#services" class="block w-full text-center py-2 px-4 hover:bg-njd-background-medium hover:text-njd-accent rounded-md transition-colors duration-300">Services</a></li>
+                <li><a href="#contact" class="block w-full text-center py-2 px-4 hover:bg-njd-background-medium hover:text-njd-accent rounded-md transition-colors duration-300">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="hero" class="relative w-full min-h-screen flex items-center justify-center text-center p-6 bg-njd-background-light overflow-hidden">
+        <div class="relative z-10 max-w-4xl mx-auto py-12 md:py-24 animate-fade-in">
+            <h1 class="text-4xl md:text-6xl lg:text-7xl font-extrabold text-njd-primary leading-tight mb-6">
+                <span class="block">Your Journey, Our Design.</span>
+                <span class="block text-njd-accent">Created to Create with God.</span>
+            </h1>
+            <p class="text-lg md:text-xl text-njd-text-secondary mb-10 max-w-2xl mx-auto animate-fade-in-1">
+                New Journey Designs Co. transforms visions into stunning digital realities, guided by passion and purpose.
+            </p>
+            <a href="#services" class="inline-block bg-njd-accent text-njd-background-light font-bold py-3 px-8 rounded-full shadow-md hover:bg-opacity-90 transition-all duration-300 transform hover:-translate-y-1 animate-fade-in-2">
+                Explore Our Services
+            </a>
+        </div>
+        <!-- Abstract subtle background element using original muted green -->
+        <div class="absolute bottom-0 left-0 w-48 h-48 bg-[var(--color-njd-muted-green)] opacity-5 rounded-full blur-3xl transform translate-x-1/2 translate-y-1/2 z-0"></div>
+        <div class="absolute top-0 right-0 w-32 h-32 bg-[var(--color-njd-light-teal)] opacity-5 rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2 z-0"></div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="py-16 md:py-24 bg-njd-background-medium rounded-xl mx-4 sm:mx-6 lg:mx-8 mb-12 shadow-subtle">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
+            <h2 class="text-3xl md:text-5xl font-bold text-njd-primary text-center mb-12 animate-fade-in-1">
+                Our Mission & Story
+            </h2>
+            <div class="flex flex-col md:flex-row items-center gap-12">
+                <div class="md:w-1/2 flex justify-center animate-fade-in-2">
+                    <img src="https://i.imgur.com/xwNxuMh.png" alt="NJD.co Brandmark" class="w-56 h-56 md:w-full md:max-w-xs object-contain rounded-full shadow-md">
+                </div>
+                <div class="md:w-1/2 text-njd-text-secondary text-lg leading-relaxed animate-fade-in-3">
+                    <p class="mb-4">
+                        New Journey Designs Co. was founded in 2015, born from a profound passion for creativity and a commitment to serving others. We believe that <strong class="text-njd-accent">"Life is a journey with God that's meant to be embraced,"</strong> and this principle guides every pixel we place and every line of code we write.
+                    </p>
+                    <p class="mb-4">
+                        Based in Denton, TX, our home studio is a hub for innovation where we strive to create <strong class="text-njd-accent">with God as we serve others</strong>. This isn't just a tagline; it's the heart of our operation, inspiring us to deliver designs that are not only aesthetically pleasing but also purposeful and impactful.
+                    </p>
+                    <p>
+                        We specialize in graphic design, website development, and app creation, but our curiosity knows no bounds. We are always excited to explore new challenges and leverage our skills to help you navigate your unique digital journey.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Services Section -->
+    <section id="services" class="py-16 md:py-24 bg-njd-background-light">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
+            <h2 class="text-3xl md:text-5xl font-bold text-njd-primary text-center mb-12 animate-fade-in-1">
+                Our Creative Offerings
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Service Card 1: Graphic Design -->
+                <div class="bg-njd-background-medium p-8 rounded-xl shadow-subtle transform hover:-translate-y-2 transition-transform duration-300 animate-fade-in-2">
+                    <div class="flex items-center justify-center w-16 h-16 bg-njd-accent rounded-full mb-6 mx-auto">
+                        <svg class="w-8 h-8 text-njd-background-light" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-center mb-4 text-njd-primary">Graphic Design</h3>
+                    <p class="text-center text-njd-text-secondary">
+                        Visually communicate your brand's essence with bespoke logos, comprehensive brand guides, striking marketing collateral, and engaging social media assets.
+                    </p>
+                </div>
+
+                <!-- Service Card 2: Website Design -->
+                <div class="bg-njd-background-medium p-8 rounded-xl shadow-subtle transform hover:-translate-y-2 transition-transform duration-300 animate-fade-in-3">
+                    <div class="flex items-center justify-center w-16 h-16 bg-njd-accent rounded-full mb-6 mx-auto">
+                        <svg class="w-8 h-8 text-njd-background-light" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-center mb-4 text-njd-primary">Website Design</h3>
+                    <p class="text-center text-njd-text-secondary">
+                        Develop elegant, responsive, and user-centric websites that deliver seamless experiences across all devices and effectively convert visitors into customers.
+                    </p>
+                </div>
+
+                <!-- Service Card 3: App Development -->
+                <div class="bg-njd-background-medium p-8 rounded-xl shadow-subtle transform hover:-translate-y-2 transition-transform duration-300 animate-fade-in-4">
+                    <div class="flex items-center justify-center w-16 h-16 bg-njd-accent rounded-full mb-6 mx-auto">
+                        <svg class="w-8 h-8 text-njd-background-light" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-center mb-4 text-njd-primary">App Development</h3>
+                    <p class="text-center text-njd-text-secondary">
+                        Bring your innovative ideas to life with robust and intuitive mobile applications, ensuring a captivating user experience from concept to deployment.
+                    </p>
+                </div>
+
+                <!-- Service Card 4: Creative Exploration -->
+                <div class="bg-njd-background-medium p-8 rounded-xl shadow-subtle transform hover:-translate-y-2 transition-transform duration-300 animate-fade-in-2 md:col-span-2 lg:col-span-1 lg:col-start-2">
+                    <div class="flex items-center justify-center w-16 h-16 bg-njd-accent rounded-full mb-6 mx-auto">
+                        <svg class="w-8 h-8 text-njd-background-light" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2 2m-2-2v4m2-4H9m7 10l2 2m-2-2v4m2-4h-4M5 12h14"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-center mb-4 text-njd-primary">Creative Exploration</h3>
+                    <p class="text-center text-njd-text-secondary">
+                        Our journey is about continuous discovery. If your unique project excites us and aligns with our passion for creation, we're ready to collaborate and bring it to fruition.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call to Action / Contact Section -->
+    <section id="contact" class="py-16 md:py-24 bg-njd-background-medium rounded-xl mx-4 sm:mx-6 lg:mx-8 shadow-subtle mb-12 text-center">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
+            <h2 class="text-3xl md:text-5xl font-bold text-njd-primary mb-8 animate-fade-in-1">
+                Let's Create Together
+            </h2>
+            <p class="text-lg md:text-xl text-njd-text-secondary mb-12 animate-fade-in-2">
+                Ready to embark on a new design journey? We're eager to hear about your ideas and help you achieve your goals. Reach out today!
+            </p>
+            <a href="mailto:newjourneydesigns.co@gmail.com" class="inline-block bg-njd-accent text-njd-background-light font-bold py-4 px-10 rounded-full shadow-md hover:bg-opacity-90 transition-all duration-300 transform hover:-translate-y-1 animate-fade-in-3">
+                Connect With Us
+            </a>
+            <p class="mt-8 text-njd-text-secondary text-base animate-fade-in-4">
+                Alternatively, you can email us directly: <a href="mailto:newjourneydesigns.co@gmail.com" class="text-njd-accent hover:underline">newjourneydesigns.co@gmail.com</a>
+            </p>
+        </div>
+    </section>
+
+    <!-- Footer Section -->
+    <footer class="bg-njd-text-primary text-njd-background-light py-8 rounded-t-xl">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm">
+            <p>&copy; 2015 - <span id="current-year"></span> New Journey Designs Co. All rights reserved.</p>
+            <p class="mt-2">Home-based in Denton, TX | Created to Create with God.</p>
+            <!-- Social Media Icons (Placeholder - using simple links for minimalism) -->
+            <div class="flex justify-center gap-6 mt-4">
+                <a href="#" class="text-njd-background-light hover:text-njd-accent transition-colors duration-300" aria-label="Facebook">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33V22H12c5.523 0 10-4.477 10-10z"/></svg>
+                </a>
+                <a href="#" class="text-njd-background-light hover:text-njd-accent transition-colors duration-300" aria-label="Instagram">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2c2.71 0 3.057.01 4.123.06c.928.04 1.432.178 1.83.332a4.12 4.12 0 012.316 2.316c.154.398.292.902.332 1.83.05 1.066.06 1.416.06 4.123s-.01 3.057-.06 4.123c-.04.928-.178 1.432-.332 1.83a4.12 4.12 0 01-2.316 2.316c-.398.154-.902.292-1.83.332-1.066.05-1.416.06-4.123.06s-3.057-.01-4.123-.06c-.928-.04-1.432-.178-1.83-.332a4.12 4.12 0 01-2.316-2.316c-.154-.398-.292-.902-.332-1.83-.05-1.066-.06-1.416-.06-4.123s.01-3.057.06-4.123c.04-.928.178-1.432.332-1.83a4.12 4.12 0 012.316-2.316c.398-.154.902-.292 1.83-.332C8.943 2.01 9.289 2 12 2zm0 2.222c-2.433 0-2.735.01-3.693.055-.78.037-1.196.16-1.487.272a2.492 2.492 0 00-1.402 1.402c-.112.29-.235.707-.272 1.487-.045.958-.055 1.26-.055 3.693s.01 2.735.055 3.693c.037.78.16 1.196.272 1.487a2.492 2.492 0 001.402 1.402c.29.112.707.235 1.487.272.958.045 1.26.055 3.693.055s2.735-.01 3.693-.055c.78-.037 1.196-.16 1.487-.272a2.492 2.492 0 001.402-1.402c.112-.29.235-.707.272-1.487.045-.958.055-1.26.055-3.693s-.01-2.735-.055-3.693c-.037-.78-.16-1.196-.272-1.487a2.492 2.492 0 00-1.402-1.402c-.29-.112-.707-.235-1.487-.272C14.735 4.232 14.433 4.222 12 4.222zm0 2.666a5.11 5.11 0 100 10.222 5.11 5.11 0 000-10.222zm0 2.222a2.888 2.888 0 110 5.778 2.888 2.888 0 010-5.778zM18.8 5.7c-.412 0-.75.338-.75.75s.338.75.75.75.75-.338.75-.75-.338-.75-.75-.75z"/></svg>
+                </a>
+                <a href="#" class="text-njd-background-light hover:text-njd-accent transition-colors duration-300" aria-label="LinkedIn">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M16 0H8C3.58 0 0 3.58 0 8v8c0 4.42 3.58 8 8 8h8c4.42 0 8-3.58 8-8V8c0-4.42-3.58-8-8-8zM7.25 19h-2.5V8h2.5v11zm-1.25-12c-.966 0-1.75-.784-1.75-1.75S5.034 3.5 6 3.5s1.75.784 1.75 1.75S6.966 7 6 7zm13 12h-2.5v-4.75c0-1.44-.026-3.3-2.01-3.3-2.013 0-2.32 1.57-2.32 3.2V19h-2.5V8h2.4v1.07h.03c.333-.647 1.15-1.32 2.37-1.32 2.54 0 3.01 1.67 3.01 3.84V19h-.01z"/></svg>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Set current year in footer
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+
+        // Mobile menu toggle functionality
+        const menuButton = document.getElementById('menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const mainNavLinks = document.querySelectorAll('#mobile-menu a'); // Get all links in mobile menu
+
+        menuButton.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // Close mobile menu when a link is clicked
+        mainNavLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                mobileMenu.classList.add('hidden');
+            });
+        });
+    </script>
+</body>
+</html>

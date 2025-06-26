@@ -24,6 +24,15 @@
             --color-light-grey: #c7c7c7;
         }
 
+        /* ----- universal scroll fix for iOS ----- */
+        html,
+        body {
+          height: auto;                 /* allow natural height */
+          overflow-x: hidden;           /* stop sideways scroll */
+          overflow-y: auto;             /* enable vertical scroll */
+          -webkit-overflow-scrolling: touch; /* one‑finger momentum scroll */
+        }
+
         /* Configure Tailwind to use custom colors */
         .tailwind-colors {
             background-color: var(--color-deep-dark);
@@ -113,7 +122,7 @@
         }
     </style>
 </head>
-<body class="bg-[#1e1d1d] text-[#c7c7c7] font-sans block p-4 overflow-x-hidden">
+<body class="bg-[#1e1d1d] text-[#c7c7c7] font-sans block p-4 overflow-x-hidden overflow-y-auto">
     <div class="container mx-auto p-8 bg-[#454545] rounded-3xl shadow-2xl max-w-4xl w-full min-h-screen">
         <div class="flex flex-col items-center mb-8">
             <img src="https://i.imgur.com/jfxAh6K.png" alt="App Logo" class="h-24 w-24 object-contain mb-4 rounded-full shadow-lg border-4 border-[#b31515] bg-white p-1">
@@ -285,7 +294,5 @@
     }
     </script>
 
-    <!-- Spacer to ensure enough content height for scrolling -->
-    <div style="height: 200vh; pointer-events: none;"></div>
 </body>
 </html>

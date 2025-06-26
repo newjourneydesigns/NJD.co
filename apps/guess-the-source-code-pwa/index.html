@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>Guess The Source Code</title>
+    <!-- Favicon: Custom image -->
+    <link rel="icon" type="image/png" href="https://i.imgur.com/6nVAa29.png">
+    
+    <!-- iPhone Homepage Icon (Apple Touch Icon): Custom image -->
+    <link rel="apple-touch-icon" href="https://i.imgur.com/6nVAa29.png">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom colors for Valley Creek theme - Now with shades of brighter green */
+        :root {
+            /* Main palette for a vibrant, energetic feel (shades of #43B02A) */
+            --primary-color: #43B02A; /* Bright Green */
+            --secondary-color: #67D44F; /* Lighter, more vibrant green */
+            --dark-color: #2B701B; /* Darker green for contrast */
+
+            /* Background gradient colors - subtle greens */
+            --background-start-color: #F0FAE5; /* Very Light Green */
+            --background-end-color: #D9E8C7; /* Light Green */
+
+            /* Puzzle letter box colors (neutral base, gold for revealed) */
+            --puzzle-field-start: #CFD8DC; /* Light Grey Blue (Keeping neutral base) */
+            --puzzle-field-end: #ECEFF1; /* Lighter Grey Blue (Keeping neutral base) */
+            --puzzle-letter-revealed-start: #FFD700; /* Gold (Retained for solved letters) */
+            --puzzle-letter-revealed-end: #FFA000; /* Darker Gold/Orange (Retained for solved letters) */
+
+            /* Text and feedback colors */
+            --text-dark: #333333; /* Standard dark text */
+            --correct-message-color: #348B25; /* Clear, bright green for correct feedback */
+            --incorrect-message-color: #F44336; /* Standard red for incorrect feedback */
+        }
+
+        html, body {
+            height: auto; /* Allow height to expand */
+            min-height: 100vh; /* Ensure it takes at least full viewport height */
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+            overflow-y: auto; /* Enable vertical scrolling */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Center content vertically */
+            align-items: center; /* Center content horizontally */
+            padding: 0.5rem; /* Overall body padding */
+            box-sizing: border-box;
+            position: relative; /* For confetti canvas positioning */
+
+            /* Background shimmer properties for the entire page - now using primary and secondary colors */
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 50%, var(--primary-color) 100%);
+            background-size: 400% 400%; /* Make gradient larger than viewport to enable animation */
+            animation: backgroundShimmer 15s ease infinite alternate; /* Longer animation for subtlety */
+        }
+
+        /* Keyframes for background shimmer animation */
+        @keyframes backgroundShimmer {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 100% 100%; }
+        }
+
+        .container {
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+            padding: 1.5rem; /* Standard container padding */
+            width: 95%; /* Maximize width on small screens */
+            max-width: 500px; /* Adjusted max-width for better mobile fit */
+            text-align: center;
+            margin-bottom: 1rem; /* Standard margin bottom */
+            transition: all 0.3s ease-in-out;
+        }
+
+        /* Styling for the main title at the top with shimmer and sign style */
+        .main-title-style {
+            font-family: 'Inter', sans-serif;
+            font-size: 2.5rem; /* Slightly larger than 3xl for emphasis */
+            font-weight: bold;
+            color: white; /* Changed text color to white for better contrast on green */
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2); /* Slightly darker shadow for contrast */
+            margin-bottom: 1.5rem; /* Space below the title */
+            text-transform: uppercase; /* All caps */
+            padding: 0.8rem 1.2rem; /* Added padding for the sign effect */
+            border: 3px solid var(--dark-color); /* Added a border */
+            border-radius: 0.8rem; /* Rounded corners for the sign */
+            
+            /* Shimmer effect properties */
+            background: linear-gradient(to right, var(--primary-color) 0%, var(--secondary-color) 20%, var(--primary-color) 40%);
+            /* Use a gradient of greens for the background to make it look like a sign */
+            background-size: 200% auto;
+            animation: shimmer 3s linear infinite;
+        }
+
+        /* Keyframes for shimmer animation */
+        @keyframes shimmer {
+            to {
+                background-position: 200% center;
+            }
+        }
+
+        /* Puzzle Elements Container - Hidden by default */
+        #puzzle-elements {
+            opacity: 0;
+            height: 0; /* Collapse element when hidden */
+            overflow: hidden; /* Hide content that might overflow during collapse */
+            transition: opacity 0.5s ease-in-out, height 0.5s ease-in-out;
+        }
+
+        #puzzle-elements.show {
+            opacity: 1;
+            height: auto; /* Allow height to be determined by content when shown */
+        }
+
+        .puzzle-display {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem; /* Reduced margin bottom for category display */
+            min-height: 120px;
+            gap: 0.8rem 0;
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .puzzle-display.show {
+            opacity: 1;
+        }
+
+        .word-container {
+            display: flex;
+            margin: 0 0.8rem;
+            gap: 0.3rem;
+        }
+
+        .letter-box {
+            width: 38px;
+            height: 50px;
+            background-image: linear-gradient(45deg, var(--puzzle-field-start) 0%, var(--puzzle-field-end) 100%);
+            border: 2px solid var(--primary-color);
+            border-radius: 0.6rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: var(--text-dark);
+            text-transform: uppercase;
+            transition: background-image 0.3s ease, color 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease;
+        }
+
+        .letter-box.revealed {
+            background-image: linear-gradient(45deg, var(--puzzle-letter-revealed-start) 0%, var(--puzzle-letter-revealed-end) 100%);
+            color: var(--dark-color); /* Keep this as dark green for contrast with gold */
+            border-color: var(--dark-color);
+            transform: scale(1.05);
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.7);
+        }
+
+        .letter-box.space {
+            background-color: transparent;
+            background-image: none;
+            border: none;
+            width: 15px;
+        }
+        
+        .letter-box.punctuation {
+            background-color: transparent;
+            background-image: none;
+            border: none;
+            font-size: 1.8rem;
+            width: auto;
+            padding: 0 2px;
+        }
+        
+        /* New style for special characters like hyphen and apostrophe */
+        .letter-box.special-char {
+            background-color: transparent; /* Or a subtle background if preferred */
+            background-image: none;
+            border: none; /* No border */
+            font-size: 2.2rem; /* Match letter size for these */
+            font-weight: bold;
+            color: var(--text-dark); /* Ensure it's readable */
+            width: auto; /* Allow natural width */
+            padding: 0 2px; /* Small padding */
+        }
+
+        .category-display {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--dark-color);
+            margin-top: 0.5rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.5s ease-in-out;
+        }
+        .category-display.show {
+            opacity: 1;
+        }
+
+        .input-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1.5rem; /* Restore margin-top for bottom position */
+            margin-bottom: 0.5rem; /* Adjust margin-bottom for bottom position */
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.5s ease-in-out;
+        }
+        .input-section.show {
+            opacity: 1;
+        }
+
+        .guess-input { /* Styles for the guess input */
+            padding: 0.8rem 1.2rem;
+            border: 3px solid var(--primary-color);
+            border-radius: 0.8rem;
+            font-size: 1.4rem;
+            width: 100%;
+            max-width: 250px; /* Increased max-width */
+            text-align: center;
+            text-transform: uppercase;
+            outline: none;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+            box-sizing: border-box; /* Ensure padding and border are included in the width */
+        }
+
+        .guess-input:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 5px rgba(67, 176, 42, 0.35); /* Adjusted for new primary green */
+            transform: scale(1.02);
+        }
+
+        .btn {
+            color: white;
+            padding: 0.8rem 1.6rem;
+            border-radius: 0.8rem;
+            font-weight: bold;
+            font-size: 1.1rem;
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease, background-image 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+            cursor: pointer;
+            border: none;
+            width: 100%;
+            max-width: 250px;
+            position: relative;
+            overflow: hidden;
+            background-image: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        }
+
+        .btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.35);
+            background-image: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:disabled {
+            background-color: #cccccc;
+            background-image: none;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            color: #999;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            transition: width 0.4s ease-out, height 0.4s ease-out, opacity 0.4s ease-out;
+            z-index: 0;
+        }
+
+        .btn:active::before {
+            width: 200%;
+            height: 200%;
+            opacity: 1;
+        }
+
+        .feedback-message {
+            margin-top: 1.5rem;
+            font-size: 1.3rem;
+            font-weight: bold;
+            min-height: 30px;
+            animation: fadeInOut 2.5s forwards;
+        }
+
+        .feedback-message.correct {
+            color: var(--correct-message-color);
+            text-shadow: 1px 1px 3px rgba(52, 139, 37, 0.6); /* Adjusted for new correct green */
+        }
+
+        .feedback-message.incorrect {
+            color: var(--incorrect-message-color);
+            text-shadow: 1px 1px 3px rgba(244, 67, 54, 0.6);
+        }
+
+        .completion-message {
+            font-size: 2.2rem;
+            color: var(--primary-color);
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.4), 0 0 20px rgba(67, 176, 42, 0.9); /* Adjusted for new primary green */
+            margin-top: 2rem;
+            font-weight: bold;
+            animation: bounceIn 1.2s ease-out forwards;
+        }
+
+        #guessed-letters {
+            margin-top: 1rem;
+            font-size: 1rem;
+            color: #444;
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.5s ease-in-out;
+        }
+        #guessed-letters.show {
+            opacity: 1;
+        }
+
+
+        /* Confetti Canvas Styles */
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        /* Timer and Popover Styles */
+        .timer-display {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            min-height: 30px; /* Ensure space even when empty */
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.5s ease-in-out;
+        }
+        .timer-display.show {
+            opacity: 1;
+        }
+
+        .popover {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 1.5rem 2rem;
+            border-radius: 1rem;
+            font-size: 2rem;
+            font-weight: bold;
+            text-align: center;
+            z-index: 10000;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            display: flex; /* Use flexbox for content alignment */
+            flex-direction: column;
+            gap: 1rem; /* Space between message and button */
+        }
+
+        .popover.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .popover-message {
+            margin-bottom: 0.5rem; /* Space between message and button */
+        }
+
+        .popover-btn {
+            background-image: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); /* Green gradient */
+            color: white; /* White text */
+            padding: 0.6rem 1.2rem;
+            border-radius: 0.6rem;
+            font-weight: bold;
+            font-size: 1.1rem;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .popover-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        .popover-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+
+        /* Game mode selection buttons container */
+        #game-mode-selection {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 2rem; /* Adjusted to be in the middle */
+            align-items: center;
+        }
+        #game-mode-selection.hide {
+            display: none;
+        }
+
+        /* New Puzzle Button always at the bottom, centered */
+        #new-puzzle-button {
+            margin-top: 1.5rem; /* Space from other elements */
+            display: none; /* Hidden by default, shown when game elements are active */
+            margin-left: auto; /* Center the button */
+            margin-right: auto; /* Center the button */
+        }
+
+
+        /* Keyframe Animations */
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-10px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(10px); }
+        }
+
+        @keyframes bounceIn {
+            0%, 20%, 40%, 60%, 80%, 100% {
+                transition-timing-function: cubic-bezier(0.215, 0.610, 0.355, 1.000);
+            }
+            0% {
+                opacity: 0;
+                transform: scale3d(.2, .2, .2);
+            }
+            20% {
+                transform: scale3d(1.1, 1.1, 1.1);
+            }
+            40% {
+                transform: scale3d(.95, .95, .95);
+            }
+            60% {
+                opacity: 1;
+                transform: scale3d(1.02, 1.02, 1.02);
+            }
+            80% {
+                transform: scale3d(.99, .99, .99);
+            }
+            100% {
+                opacity: 1;
+                transform: scale3d(1, 1, 1);
+            }
+        }
+
+        /* --- Mobile Specific Adjustments (Media Queries) --- */
+        @media (max-width: 640px) { /* Applies to screens 640px wide or less (typical mobile portrait) */
+            .container {
+                padding: 0.8rem; /* Further reduce padding on container */
+                margin-bottom: 0.5rem; /* Reduce bottom margin to save space */
+                width: 98%; /* Maximize use of screen width */
+            }
+
+            .main-title-style {
+                font-size: 1.8rem; /* Smaller font size for mobile */
+                margin-bottom: 1rem; /* Adjust margin for mobile */
+                padding: 0.6rem 0.8rem; /* Adjust padding for mobile sign */
+            }
+
+            .puzzle-display {
+                margin-top: 0.5rem; /* Reduced top margin for puzzle */
+                margin-bottom: 0.8rem; /* Reduced bottom margin for puzzle */
+                min-height: 80px; /* Adjust min-height for very small screens */
+                /* Adjusted gap for better wrapping */
+                gap: 0.4rem 0.1rem; /* Smaller vertical and horizontal gaps between words */
+            }
+
+            .word-container {
+                /* Adjusted margin and gap for better wrapping */
+                margin: 0 0.2rem; /* Reduced space between words */
+                gap: 0.1rem; /* Reduced space between letters within a word */
+            }
+
+            .letter-box {
+                width: 26px; /* Significantly smaller letter boxes for mobile */
+                height: 36px;
+                font-size: 1.4rem; /* Smaller font size for letters */
+                border-radius: 0.4rem; /* Slightly less rounded corners */
+            }
+
+            .letter-box.space {
+                width: 6px; /* Smaller space width */
+            }
+
+            .letter-box.punctuation, .letter-box.special-char { /* Apply smaller font to special chars too */
+                font-size: 1.1rem; /* Smaller punctuation/special char font size */
+                padding: 0 0px; /* Minimal padding for punctuation */
+            }
+
+            .category-display {
+                font-size: 0.9rem; /* Smaller font size for category on mobile */
+                margin-top: 0.4rem;
+                margin-bottom: 0.8rem;
+            }
+
+            .input-section {
+                gap: 0.6rem; /* Reduced gap between input and buttons */
+                margin-top: 0.8rem; /* Reduced margin top for input section */
+            }
+
+            .guess-input {
+                padding: 0.6rem 0.8rem; /* Smaller input padding */
+                font-size: 1.1rem; /* Smaller input font size */
+                border-width: 2px; /* Slightly thinner border for input */
+                max-width: 200px; /* Adjusted max-width for mobile input */
+            }
+
+            .btn {
+                padding: 0.6rem 1.2rem; /* Smaller button padding */
+                font-size: 0.9rem; /* Smaller button font size */
+                border-radius: 0.6rem; /* Slightly less rounded buttons */
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Lighter shadow for buttons */
+            }
+
+            .feedback-message {
+                margin-top: 0.8rem;
+                font-size: 1rem;
+                min-height: 20px;
+            }
+
+            .completion-message {
+                font-size: 1.6rem;
+                margin-top: 1rem;
+            }
+
+            #guessed-letters {
+                font-size: 0.8rem; /* Smaller guessed letters font */
+                margin-top: 0.5rem;
+            }
+
+            .timer-display {
+                font-size: 1.4rem;
+                margin-bottom: 0.8rem;
+            }
+
+            .popover {
+                padding: 1rem 1.5rem;
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Confetti Canvas -->
+    <canvas id="confetti-canvas"></canvas>
+
+    <div id="game-container" class="container">
+        <!-- Main title at the top -->
+        <h1 class="main-title-style">GUESS THE SOURCE CODE</h1>
+
+        <p class="feedback-message" id="feedback-message"></p>
+        <p id="guessed-letters" class="guessed-letters-display">Guessed Letters: </p>
+
+        <!-- Puzzle and Category Display - Hidden by default -->
+        <div id="puzzle-elements">
+            <div class="puzzle-display" id="puzzle-display">
+                <!-- Puzzle letters will be rendered here -->
+            </div>
+            <!-- Category Display below the puzzle -->
+            <p id="category-display" class="category-display"></p>
+            <!-- Timer Display -->
+            <div id="timer-display" class="timer-display"></div>
+            <!-- Input section at the bottom -->
+            <div class="input-section" id="input-section">
+                <input type="text" id="guess-input" class="guess-input" maxlength="1" placeholder="Enter letter">
+                <button id="guess-button" class="btn">Guess Letter</button>
+                <button id="solve-puzzle-button" class="btn">Solve Puzzle</button>
+            </div>
+        </div>
+
+        <!-- Game Mode Selection Buttons -->
+        <div id="game-mode-selection">
+            <button id="start-timed-button" class="btn">Start Timed Round</button>
+            <button id="start-untimed-button" class="btn" style="background-image: linear-gradient(135deg, #7A7A7A 0%, #5A5A5A 100%);">Start Untimed Round</button>
+        </div>
+        
+        <!-- New Puzzle Button (always at the bottom, initially hidden) -->
+        <button id="new-puzzle-button" class="btn mx-auto" style="background-image: linear-gradient(135deg, #A0A0A0 0%, #707070 100%);">New Puzzle</button>
+    </div>
+
+    <!-- Popover for "Out of time!" message -->
+    <div id="time-up-popover" class="popover">
+        <p id="popover-message" class="popover-message"></p>
+        <button id="popover-continue-btn" class="popover-btn">Continue</button>
+    </div>
+
+    <script>
+        // List of all puzzles with their categories
+        const allPuzzles = [
+            { text: "We are Jesus-focused, Spirit-filled, Life-Giving", category: "Kingdom Value" },
+            { text: "We are quick to repent", category: "Kingdom Value" },
+            { text: "We pursue unity with everything we have", category: "Kingdom Value" },
+            { text: "We are a family on mission", category: "Kingdom Value" },
+            { text: "We do everything with all our heart", category: "Kingdom Value" },
+            { text: "We are passionate about the presence of God", category: "Kingdom Value" },
+            { text: "We love God's word", category: "Kingdom Value" }, // Corrected: Added apostrophe
+            { text: "We embrace the process", category: "Kingdom Value" },
+            { text: "We have a responsibility to give what we have received", category: "Kingdom Value" },
+            { text: "We believe there’s always more", category: "Kingdom Value" },
+            { text: "We are a movement of hope for the city and beyond", category: "VCC Source Code" },
+            { text: "Raising up generations of hope carrier by helping people take the next step on their journey with Jesus", category: "VCC Source Code" },
+            { text: "We are disciples first", category: "Staff Code" },
+            { text: "We are responsible for our own journey", category: "Staff Code" },
+            { text: "We tend our garden with passion and excellence", category: "Staff Code" },
+            { text: "We are committed to becoming people of love", category: "Staff Code" },
+            { text: "Our life is our message", category: "Staff Code" }
+        ];
+
+        let currentPuzzle = {}; // Now an object to store text and category
+        let revealedLetters = new Set();
+        let guessedLetters = new Set();
+        let puzzleSolved = false;
+        let isTimedRound = false; // New global variable to track if the current round is timed
+        let shouldResetPuzzleAfterPopover = false; // New global to control popover continue behavior
+
+
+        // Timer variables
+        let timerInterval = null;
+        let timeLeft = 10;
+        const timerDuration = 10; // seconds
+
+        // DOM elements
+        const gameContainer = document.getElementById('game-container'); 
+
+        const puzzleDisplay = document.getElementById('puzzle-display');
+        const guessInput = document.getElementById('guess-input');
+        const guessButton = document.getElementById('guess-button');
+        const solvePuzzleButton = document.getElementById('solve-puzzle-button');
+        const feedbackMessage = document.getElementById('feedback-message');
+        const guessedLettersDisplay = document.getElementById('guessed-letters'); // Now a global element
+        const categoryDisplay = document.getElementById('category-display'); // Category display element
+        const timerDisplay = document.getElementById('timer-display'); // Timer display element
+        const timeUpPopover = document.getElementById('time-up-popover'); // Popover element
+        const popoverMessage = document.getElementById('popover-message'); // Popover message element
+        const popoverContinueBtn = document.getElementById('popover-continue-btn'); // Popover continue button
+        const puzzleElements = document.getElementById('puzzle-elements'); // Container for puzzle display, category, timer, input
+        
+        // New game mode selection buttons
+        const gameModeSelection = document.getElementById('game-mode-selection');
+        const startTimedButton = document.getElementById('start-timed-button');
+        const startUntimedButton = document.getElementById('start-untimed-button');
+        const newPuzzleButton = document.getElementById('new-puzzle-button'); // New Puzzle button (always at the bottom)
+
+        // Confetti Canvas elements
+        const confettiCanvas = document.getElementById('confetti-canvas');
+        const confettiCtx = confettiCanvas.getContext('2d');
+        let confettiParticles = [];
+        let animationFrameId = null;
+
+        // Variables for non-repeating puzzles, moved to global scope
+        window.puzzlesAvailable = [];
+
+
+        // --- Confetti Functions ---
+        function resizeConfettiCanvas() {
+            confettiCanvas.width = window.innerWidth;
+            confettiCanvas.height = window.innerHeight;
+        }
+
+        function createConfettiParticle(x, y) {
+            const colors = [
+                '#FF6F61', // Coral
+                '#FFD166', // Sunglow
+                '#06D6A0', // Caribbean Green
+                '#1B9AAA', // Blue-green
+                '#EF476F', // Radical Red
+                '#00BFFF' // Deep Sky Blue
+            ];
+            return {
+                x: x,
+                y: y,
+                size: Math.random() * 8 + 4,
+                speedX: Math.random() * 10 - 5,
+                speedY: Math.random() * -15 - 5,
+                gravity: 0.5,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                rotation: Math.random() * 360,
+                rotationSpeed: Math.random() * 10 - 5
+            };
+        }
+
+        function updateConfettiParticles() {
+            confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+
+            for (let i = confettiParticles.length - 1; i >= 0; i--) {
+                const p = confettiParticles[i];
+
+                p.speedY += p.gravity;
+                p.x += p.speedX;
+                p.y += p.speedY;
+                p.rotation += p.rotationSpeed;
+
+                confettiCtx.save();
+                confettiCtx.translate(p.x, p.y);
+                confettiCtx.rotate(p.rotation * Math.PI / 180);
+                confettiCtx.fillStyle = p.color;
+                confettiCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                confettiCtx.restore();
+
+                if (p.y > confettiCanvas.height) {
+                    confettiParticles.splice(i, 1);
+                }
+            }
+
+            if (confettiParticles.length > 0) {
+                animationFrameId = requestAnimationFrame(updateConfettiParticles);
+            } else {
+                confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCtx.canvas.height);
+                animationFrameId = null;
+            }
+        }
+
+        function launchConfetti() {
+            confettiParticles = [];
+            const centerX = confettiCanvas.width / 2;
+            const centerY = confettiCanvas.height / 2;
+
+            for (let i = 0; i < 200; i++) {
+                confettiParticles.push(createConfettiParticle(centerX, centerY));
+            }
+
+            if (!animationFrameId) {
+                updateConfettiParticles();
+            }
+        }
+
+        function clearConfetti() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            confettiParticles = [];
+            confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCtx.canvas.height);
+        }
+
+        // --- Timer Functions ---
+        function startTimer() {
+            if (!isTimedRound) { // Only start timer if it's a timed round
+                timerDisplay.classList.remove('show'); // Ensure it's hidden for untimed rounds
+                return;
+            }
+
+            timerDisplay.classList.add('show'); // Show timer for timed rounds
+            clearInterval(timerInterval); // Clear any existing timer
+            timeLeft = timerDuration; // Reset time
+            updateTimerDisplay(); // Update display immediately
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    timerExpired();
+                }
+            }, 1000); // Update every 1 second
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            timeLeft = timerDuration;
+            updateTimerDisplay();
+            hidePopover();
+        }
+
+        function updateTimerDisplay() {
+            timerDisplay.textContent = `Time left: ${timeLeft}s`;
+            if (timeLeft <= 5 && timeLeft > 0) { // Highlight last 5 seconds
+                timerDisplay.style.color = 'var(--incorrect-message-color)';
+                timerDisplay.style.transform = 'scale(1.1)';
+            } else if (timeLeft <= 0) {
+                timerDisplay.textContent = 'Time left: 0s';
+                timerDisplay.style.color = 'var(--text-dark)'; // Reset color after time up
+                timerDisplay.style.transform = 'scale(1)';
+            }
+            else {
+                timerDisplay.style.color = 'var(--primary-color)';
+                timerDisplay.style.transform = 'scale(1)';
+            }
+        }
+
+        function timerExpired() {
+            // Disable inputs when time is up
+            disableGameInputs(); 
+            // Now, timer expired also leads to continuation of the same puzzle
+            showPopover("Out of time! Next Player!", false); // Pass false for not resetting puzzle
+            clearInterval(timerInterval); // Stop the timer
+        }
+
+        /**
+         * Shows the popover with a message and controls game elements.
+         * @param {string} message The message to display in the popover.
+         * @param {boolean} resetPuzzleOnContinue If true, clicking continue starts a new puzzle; otherwise, continues current.
+         */
+        function showPopover(message, resetPuzzleOnContinue) {
+            popoverMessage.textContent = message;
+            timeUpPopover.classList.add('show');
+            shouldResetPuzzleAfterPopover = resetPuzzleOnContinue; // Store the behavior
+            
+            disableGameInputs(); // Disable inputs while popover is shown
+            clearInterval(timerInterval); // Stop timer when popover is up
+
+            if (resetPuzzleOnContinue) {
+                // If we are truly ending the round (e.g., solved), hide elements to reset the board
+                hideGameElementsForTurnEnd(); 
+            } else {
+                // If it's just an incorrect guess or timeout, keep the puzzle visible but clear feedback/input
+                feedbackMessage.textContent = ''; // Clear feedback
+                guessInput.value = ''; // Clear input
+            }
+        }
+
+        function hidePopover() {
+            timeUpPopover.classList.remove('show');
+        }
+
+        /**
+         * Function to call when "Continue" button is pressed on popover.
+         */
+        function continueGame() {
+            hidePopover();
+            if (shouldResetPuzzleAfterPopover) {
+                initializePuzzle(isTimedRound); 
+            } else {
+                // Continue the current puzzle after an incorrect guess or timeout
+                enableGameInputs();
+                guessInput.focus();
+                if (isTimedRound) { // Resume timer only if it was a timed round
+                    startTimer();
+                }
+            }
+        }
+
+        /**
+         * Initializes a new puzzle for single-player mode.
+         * @param {boolean} timed True if the round should be timed, false otherwise.
+         */
+        function initializePuzzle(timed) {
+            isTimedRound = timed; // Set the global flag
+            clearConfetti();
+            puzzleSolved = false;
+            revealedLetters.clear();
+            guessedLetters.clear();
+            guessInput.value = '';
+            feedbackMessage.textContent = '';
+            feedbackMessage.className = 'feedback-message';
+            guessedLettersDisplay.textContent = 'Guessed Letters: '; // Clear text on new puzzle
+            
+            // Ensure puzzlesAvailable is always an array and populate it
+            if (!Array.isArray(window.puzzlesAvailable) || window.puzzlesAvailable.length === 0) {
+                window.puzzlesAvailable = [...allPuzzles]; // Copy all puzzles to the available list
+            }
+
+            // Select a random puzzle from the available list
+            const randomIndex = Math.floor(Math.random() * window.puzzlesAvailable.length);
+            currentPuzzle = window.puzzlesAvailable[randomIndex]; // Now an object
+            window.puzzlesAvailable.splice(randomIndex, 1); // Remove selected puzzle from available list
+
+            // Show game elements
+            showGameElements();
+
+            // Hide game mode selection buttons
+            gameModeSelection.classList.add('hide');
+            newPuzzleButton.style.display = 'block'; // Show the "New Puzzle" button
+
+            // Re-enable inputs
+            enableGameInputs();
+
+            renderPuzzle(); // Render with no letters revealed initially
+            categoryDisplay.textContent = currentPuzzle.category; // Display the category
+            guessInput.focus(); // Focus on the main input for guessing
+            // Smooth scroll to input field initially (now at the bottom)
+            guessInput.scrollIntoView({ behavior: 'smooth', block: 'end' }); /* block: 'end' for bottom */
+            
+            // Start timer only if it's a timed round
+            if (isTimedRound) {
+                startTimer();
+            } else {
+                timerDisplay.classList.remove('show'); // Ensure timer is hidden for untimed rounds
+                clearInterval(timerInterval); // Stop any running timer
+            }
+        }
+
+        /**
+         * Renders the puzzle based on revealed letters.
+         */
+        function renderPuzzle() {
+            puzzleDisplay.innerHTML = '';
+            let htmlContent = '';
+            
+            // Use currentPuzzle.text for rendering the puzzle string
+            currentPuzzle.text.split(' ').forEach(word => {
+                htmlContent += `<div class="word-container">`;
+                word.split('').forEach(char => {
+                    const isLetter = /[A-Za-z]/.test(char); // Check for both uppercase and lowercase letters
+                    const isPunctuation = /[.,!?;:]/.test(char);
+                    const isSpecialChar = /[-']/.test(char); /* Check for hyphens and apostrophes */
+
+                    if (isLetter) {
+                        const isRevealed = revealedLetters.has(char.toUpperCase()); // Check against uppercase revealed letters
+                        htmlContent += `<div class="letter-box ${isRevealed ? 'revealed' : ''}">${isRevealed ? char.toUpperCase() : ''}</div>`; // Display as uppercase
+                    } else if (isPunctuation || isSpecialChar) { /* Include special chars here */
+                         htmlContent += `<div class="letter-box ${isSpecialChar ? 'special-char' : 'punctuation'}">${char}</div>`;
+                    } else { /* This handles spaces */
+                        htmlContent += `<div class="letter-box space"></div>`;
+                    }
+                });
+                htmlContent += `</div>`;
+            });
+            puzzleDisplay.innerHTML = htmlContent;
+
+            checkPuzzleSolved();
+        }
+
+        /**
+         * Handles a letter guess from the user.
+         */
+        function handleGuess() {
+            if (puzzleSolved || guessInput.disabled) return; // Prevent guessing if solved or input disabled
+
+            const guess = guessInput.value.toUpperCase(); // Convert input to uppercase
+            guessInput.value = ''; // Clear input field immediately
+
+            if (!guess || guess.length !== 1 || !/[A-Z]/.test(guess)) {
+                // Do not display feedback if the input is empty or not a letter (e.g., after clearing)
+                if (guess !== '') {
+                    displayFeedback("Please enter a single letter.", 'incorrect');
+                }
+                return;
+            }
+
+            if (guessedLetters.has(guess)) {
+                displayFeedback(`You already guessed '${guess}'. Try a different letter!`, 'incorrect');
+                return;
+            }
+
+            guessedLetters.add(guess);
+            updateGuessedLettersDisplay();
+
+            // Check if the uppercase guessed letter is present in the currentPuzzle.text (case-insensitively)
+            if (currentPuzzle.text.toUpperCase().includes(guess)) { // Convert currentPuzzle.text to uppercase for check
+                revealedLetters.add(guess); // Add uppercase guess to revealed set
+                displayFeedback(`Correct! '${guess}' is in the puzzle.`, 'correct');
+                renderPuzzle(); // Re-render to show new revealed letters
+            } else {
+                // Incorrect guess: show popover and disable inputs
+                showPopover(`Sorry. '${guess}' is not in this puzzle. Next Player.`, false); // False for not resetting puzzle
+                // The timer interval is cleared within showPopover.
+                // The game inputs are disabled within showPopover.
+                return; // Exit function after showing popover
+            }
+            guessInput.focus(); // Explicitly ensure focus remains
+            
+            // Scroll to guessed letters display
+            guessedLettersDisplay.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start' // This will bring the top of the guessedLettersDisplay into view
+            });
+
+            // Restart timer only if it's a timed round and the guess was correct
+            if (isTimedRound) {
+                startTimer();
+            }
+        }
+
+        /**
+         * Displays a feedback message to the user.
+         * @param {string} message The message to display.
+         * @param {string} type 'correct', 'incorrect', 'completion', or empty for general.
+         */
+        function displayFeedback(message, type = '') {
+            feedbackMessage.textContent = message;
+            feedbackMessage.className = 'feedback-message ' + type;
+            feedbackMessage.addEventListener('animationend', () => {
+                feedbackMessage.classList.remove('fadeInOut');
+            }, { once: true });
+            feedbackMessage.classList.add('fadeInOut');
+        }
+
+        /**
+         * Updates the display of all guessed letters.
+         */
+        function updateGuessedLettersDisplay() {
+            guessedLettersDisplay.textContent = 'Guessed Letters: ' + Array.from(guessedLetters).sort().join(', ');
+        }
+
+        /**
+         * Checks if the puzzle has been solved (all letters revealed).
+         */
+        function checkPuzzleSolved() {
+            let allLettersRevealed = true;
+            // Iterate over the original puzzle text to check all letter positions
+            for (const char of currentPuzzle.text) {
+                if (/[A-Za-z]/.test(char) && !revealedLetters.has(char.toUpperCase())) { // Check if original letter (uppercased) is in revealedLetters
+                    allLettersRevealed = false;
+                    break;
+                }
+            }
+
+            if (allLettersRevealed && !puzzleSolved) {
+                puzzleSolved = true;
+                displayFeedback(`You're a hope carrier!`, 'completion');
+                launchConfetti();
+                disableGameInputs(); // Disable inputs, but keep puzzle visible
+                clearInterval(timerInterval); // Stop the timer when puzzle is solved
+                
+                gameModeSelection.classList.add('hide'); // Keep mode selection hidden
+                newPuzzleButton.style.display = 'block'; // Show New Puzzle button
+            }
+        }
+
+        /**
+         * Reveals the entire puzzle directly when the "Solve Puzzle" button is clicked.
+         */
+        function solvePuzzleDirectly() {
+            if (puzzleSolved) return;
+
+            // Reveal all letters
+            for (const char of currentPuzzle.text) {
+                if (/[A-Za-z]/.test(char)) { // Only add letters (uppercase or lowercase)
+                    revealedLetters.add(char.toUpperCase()); // Add uppercase version to revealed set
+                }
+            }
+            renderPuzzle(); // Re-render to show all letters
+            
+            puzzleSolved = true;
+            displayFeedback(`You're a hope carrier!`, 'completion');
+            launchConfetti();
+            disableGameInputs(); // Disable inputs, but keep puzzle visible
+            clearInterval(timerInterval); // Stop the timer when puzzle is solved
+            
+            gameModeSelection.classList.add('hide'); // Keep mode selection hidden
+            newPuzzleButton.style.display = 'block'; // Show New Puzzle button
+        }
+
+        /**
+         * Disables all interactive inputs and buttons within the game elements.
+         */
+        function disableGameInputs() {
+            guessInput.disabled = true;
+            guessButton.disabled = true;
+            solvePuzzleButton.disabled = true;
+        }
+
+        /**
+         * Enables all interactive inputs and buttons within the game elements.
+         */
+        function enableGameInputs() {
+            guessInput.disabled = false;
+            guessButton.disabled = false;
+            solvePuzzleButton.disabled = false;
+        }
+
+        /**
+         * Hides all game elements (puzzle, inputs, timer, category).
+         * Used specifically when a turn ends (timeout or incorrect guess).
+         */
+        function hideGameElementsForTurnEnd() {
+            // These will now trigger the CSS transitions
+            puzzleElements.classList.remove('show');
+            // The individual elements within puzzleElements also need their 'show' removed if applied directly
+            puzzleDisplay.classList.remove('show');
+            categoryDisplay.classList.remove('show');
+            timerDisplay.classList.remove('show');
+            document.getElementById('input-section').classList.remove('show'); 
+            guessedLettersDisplay.classList.remove('show'); // Hide guessed letters display
+            guessedLettersDisplay.textContent = 'Guessed Letters: '; // Clear guessed letters display
+            feedbackMessage.textContent = ''; // Clear feedback message
+
+            // Ensure mode selection buttons are shown after a turn ends
+            gameModeSelection.classList.remove('hide');
+            newPuzzleButton.style.display = 'none'; // Hide New Puzzle button
+        }
+
+        /**
+         * Shows all game elements (puzzle, inputs, timer, category).
+         */
+        function showGameElements() {
+            // These will now trigger the CSS transitions
+            puzzleElements.classList.add('show');
+            puzzleDisplay.classList.add('show');
+            categoryDisplay.classList.add('show');
+            guessedLettersDisplay.classList.add('show'); // Show guessed letters display
+            // Timer visibility handled by startTimer/initializePuzzle based on isTimedRound
+            document.getElementById('input-section').classList.add('show');
+        }
+
+        // Event Listeners
+        guessButton.addEventListener('click', handleGuess);
+        guessInput.addEventListener('input', handleGuess);
+        
+        // This input listener is specifically for scrolling
+        guessInput.addEventListener('input', () => {
+            // Check if the input field is currently visible in the viewport
+            const rect = guessInput.getBoundingClientRect();
+            const isVisible = (
+                rect.top >= 0 &&
+                rect.left >= 0 &&
+                rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+                rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+            );
+
+            // If not visible, scroll it into view smoothly.
+            if (!isVisible) {
+                guessInput.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'end' // Position the input at the bottom of the visible area
+                });
+            }
+        });
+
+        solvePuzzleButton.addEventListener('click', solvePuzzleDirectly);
+
+        startTimedButton.addEventListener('click', () => {
+            initializePuzzle(true); // Start a timed round
+        });
+
+        startUntimedButton.addEventListener('click', () => {
+            initializePuzzle(false); // Start an untimed round
+        });
+
+        newPuzzleButton.addEventListener('click', () => {
+            // This button now functions as a "Next Puzzle" button after a solve
+            // It uses the last chosen game mode (timed or untimed)
+            initializePuzzle(isTimedRound);
+        });
+
+        // Event listener for the popover's continue button
+        popoverContinueBtn.addEventListener('click', continueGame);
+
+        // Initialize on window load
+        window.onload = function() {
+            resizeConfettiCanvas();
+            // Initially hide game elements and show game mode selection
+            hideGameElementsForTurnEnd(); // Use this to ensure everything is hidden and mode selection shown
+            gameModeSelection.classList.remove('hide'); // Ensure game mode selection is visible
+            newPuzzleButton.style.display = 'none'; // Ensure new puzzle button is hidden initially
+        };
+        window.addEventListener('resize', resizeConfettiCanvas);
+    </script>
+</body>
+</html>

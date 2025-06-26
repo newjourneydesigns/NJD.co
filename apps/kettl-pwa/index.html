@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Kettl*</title>
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Kettl*">
+
+    <link rel="icon" href="https://i.imgur.com/QxMX1K9.png">
+    <link rel="apple-touch-icon" href="https://i.imgur.com/QxMX1K9.png">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        /* CSS Variables for the new color theme */
+        :root {
+            --orange: #ff5100;
+            --cyan: #37f5ff;
+            --teal: #43a2a7;
+            --dark-gray: #4f4f4f;
+            --light-gray: #d5d5d5;
+            --app-bg: #272727;
+            --red-error: #e57373;
+            --mid-gray-for-button: #888888;
+
+
+            /* Semantic mapping */
+            --background: var(--app-bg);
+            --surface: var(--dark-gray);
+            --text-primary: var(--light-gray);
+            --text-secondary: var(--orange);
+            --border-color: var(--teal);
+            --accent-color-1: var(--orange);
+            --accent-color-2: var(--cyan);
+        }
+
+        /* Basic Reset and Global Styles */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background);
+            color: var(--text-primary);
+            overscroll-behavior: none;
+        }
+        #app-container {
+            display: flex; flex-direction: column; 
+            height: 100vh;
+            max-width: 450px; margin: 0 auto; background-color: var(--background);
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        header {
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between;
+            padding: 20px; 
+            background-color: var(--surface);
+            border-bottom: 2px solid var(--border-color);
+            z-index: 20;
+        }
+        header h1 { font-size: 2.2rem; font-weight: bold; color: var(--accent-color-1); }
+        header h1 .star { color: var(--accent-color-2); }
+        main { 
+            flex-grow: 1; 
+            display: flex; 
+            flex-direction: column; 
+            padding: 15px;
+            gap: 20px; 
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Hamburger Menu Icon */
+        .hamburger-icon {
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .hamburger-icon img {
+            width: 100%;
+            height: auto;
+        }
+
+        #hamburger-menu {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100;
+            transform: translateX(100%);
+            transition: transform 0.3s ease-out;
+        }
+        #hamburger-menu.open { transform: translateX(0); }
+        #hamburger-menu .close-btn { position: absolute; top: 20px; right: 20px; font-size: 2.5rem; color: var(--text-primary); cursor: pointer; }
+        #hamburger-menu .menu-item {
+            background-color: var(--surface); color: var(--text-primary);
+            font-size: 1.5rem; padding: 15px 30px; margin: 10px 0;
+            border: 1px solid var(--border-color); border-radius: 8px;
+            width: 80%; max-width: 300px; text-align: center; cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #hamburger-menu #new-workout-btn { color: var(--accent-color-1); border-color: var(--accent-color-1); }
+        .menu-footer {
+            position: absolute;
+            bottom: 20px;
+            font-size: 0.8rem;
+            color: var(--dark-gray);
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        /* Workout Builder View */
+        #workout-builder-view {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 10px;
+            flex-grow: 1;
+        }
+        #workout-builder-view h2 {
+            text-align: center;
+            color: var(--text-secondary);
+        }
+        .builder-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            background-color: var(--surface);
+            padding: 20px;
+            border-radius: 12px;
+        }
+        .builder-form .input-group, #workout-builder-view .input-group {
+             display: flex;
+             flex-direction: column;
+             gap: 5px;
+        }
+        .builder-form .full-width {
+            grid-column: 1 / -1;
+        }
+        .builder-form label, #workout-builder-view label {
+            font-weight: 500;
+        }
+        .builder-input, .modal-input {
+            padding: 12px; font-size: 1rem; border-radius: 8px;
+            border: 1px solid var(--border-color); background-color: #696773; /* Using old mid-gray for contrast */
+            color: var(--text-primary); width: 100%;
+        }
+        #builder-add-exercise-btn {
+            grid-column: 1 / -1;
+            padding: 12px; font-size: 1.1rem; font-weight: bold; color: var(--app-bg);
+            background-color: var(--accent-color-2); border: none; border-radius: 8px;
+            cursor: pointer;
+        }
+        #builder-exercise-list {
+            flex-grow: 1;
+            background-color: var(--surface);
+            border-radius: 12px;
+            padding: 10px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 150px;
+        }
+        .builder-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--app-bg);
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .drag-handle {
+            cursor: grab;
+            touch-action: none; /* Important for touch devices */
+            margin-right: 10px;
+            font-size: 1.5rem;
+            color: var(--teal);
+        }
+        .builder-list-item.dragging {
+            opacity: 0.5;
+        }
+        .drag-over {
+            border-top: 2px solid var(--accent-color-1);
+        }
+        .builder-list-item.editing {
+            outline: 2px solid var(--accent-color-1);
+        }
+        .builder-list-item span {
+            font-weight: bold;
+            pointer-events: none;
+            flex-grow: 1;
+        }
+        .builder-list-item .remove-btn {
+            background: none;
+            border: none;
+            color: var(--red-error);
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .builder-actions { display: flex; gap: 10px; margin-top: auto; padding-top: 10px; margin-bottom: 10px;}
+        #builder-save-btn {
+             padding: 18px; font-size: 1.3rem; font-weight: bold; color: var(--app-bg);
+             background-color: var(--accent-color-2); border: none; border-radius: 12px;
+             cursor: pointer; flex-grow: 1;
+        }
+        #builder-start-workout-btn {
+             padding: 18px; font-size: 1.3rem; font-weight: bold; color: var(--app-bg);
+             background-color: var(--accent-color-1); border: none; border-radius: 12px;
+             cursor: pointer; flex-grow: 2;
+        }
+        #builder-start-workout-btn:disabled {
+            background-color: var(--dark-gray);
+            cursor: not-allowed;
+        }
+
+
+        /* Exercise Navigation */
+        #exercise-nav { 
+            display: flex; 
+            overflow-x: auto;
+            padding-bottom: 10px;
+            gap: 10px;
+            scrollbar-width: none; /* Firefox */
+        }
+        #exercise-nav::-webkit-scrollbar { display: none; } /* Chrome, Safari, and Opera */
+        .nav-button {
+            padding: 8px 15px; font-size: 0.9rem; font-weight: bold; 
+            color: var(--text-primary); background-color: var(--dark-gray);
+            border: 1px solid var(--border-color); border-radius: 8px; 
+            cursor: pointer; transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+            white-space: nowrap;
+        }
+        .nav-button.active-exercise { background-color: var(--accent-color-2); color: var(--app-bg); }
+        .nav-button.current-selected { background-color: var(--accent-color-1); color: var(--app-bg); }
+        .nav-button.completed { opacity: 0.6; background-color: var(--accent-color-2); }
+
+        /* Main Workout View */
+        #main-workout-view { display: flex; flex-direction: column; gap: 15px; flex-grow: 1; }
+        #current-exercise-display { text-align: center; }
+        #exercise-name { font-size: 2rem; font-weight: bold; color: var(--text-secondary); }
+        #exercise-info-btn { background: none; border: none; color: var(--dark-gray); font-size: 1.5rem; cursor: pointer; margin-left: 5px; }
+        #set-tracker { font-size: 1.5rem; color: var(--text-primary); margin-top: 5px; }
+        #main-workout-view .inputs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex-grow: 1; align-content: center; }
+        #main-workout-view .input-group { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        #main-workout-view .input-group label { font-size: 1.1rem; font-weight: 500; }
+        #main-workout-view .input-select {
+            padding: 30px 12px;
+            font-size: 1.8rem;
+            height: 100%;
+            -webkit-appearance: none; /* For iOS to remove default styling */
+            -moz-appearance: none;
+            appearance: none;
+        }
+        .input-select {
+            border-radius: 8px;
+            border: 1px solid var(--border-color); background-color: var(--surface);
+            color: var(--text-primary); font-weight: bold; width: 100%; text-align: center;
+            text-align-last: center;
+        }
+        #complete-set-btn {
+            padding: 20px; font-size: 1.5rem; font-weight: bold; color: var(--app-bg);
+            background-color: var(--accent-color-1); border: none; border-radius: 12px;
+            cursor: pointer; transition: transform 0.1s;
+        }
+        #complete-set-btn:active { transform: scale(0.97); }
+        
+        /* Overall Progress & Action Buttons */
+        #workout-controls {
+            margin-top: auto; /* Pushes to the bottom */
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #finish-workout-btn {
+            padding: 12px; font-size: 1rem; font-weight: 500;
+            background-color: transparent; border-radius: 8px; cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+            border: 1px solid var(--mid-gray-for-button);
+            color: var(--mid-gray-for-button);
+        }
+
+        .progress-container {
+            width: 100%; background-color: var(--surface); border-radius: 15px; height: 30px;
+            position: relative; display: flex; align-items: center; justify-content: center;
+            overflow: hidden; border: 2px solid var(--border-color);
+        }
+        .progress-bar {
+            position: absolute; top: 0; left: 0; height: 100%; width: 0%;
+            background-color: var(--accent-color-2);
+            transition: width 0.3s ease-in-out;
+        }
+        .progress-display { position: relative; z-index: 1; font-weight: bold; color: var(--app-bg); text-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+
+        /* Modals (General) */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8);
+            display: flex; align-items: center; justify-content: center; z-index: 1000;
+            opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s;
+        }
+        .modal-overlay.visible { opacity: 1; visibility: visible; }
+        .modal-dialog {
+            background-color: var(--surface); padding: 25px; border-radius: 15px;
+            width: 90%; max-width: 350px; border: 1px solid var(--border-color);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+            transform: scale(0.9); transition: transform 0.3s;
+        }
+        .modal-overlay.visible .modal-dialog { transform: scale(1); }
+        .modal-dialog h2 { margin-bottom: 15px; color: var(--text-secondary); text-align: center; }
+        .modal-dialog p { margin-bottom: 20px; font-size: 1rem; color: var(--text-primary); line-height: 1.5; text-align: left; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-button {
+            padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer;
+            font-size: 1rem; font-weight: bold; flex-grow: 1;
+        }
+        
+        /* Specific Modals */
+        .modal-buttons-column { flex-direction: column; gap: 10px; }
+        #modal-save-btn, #modal-update-btn, #modal-save-as-new-btn { background-color: var(--accent-color-2); color: var(--app-bg); }
+        #modal-dont-save-btn, #finish-prompt-cancel-btn, #error-ok-btn, #modal-cancel-save-btn { background-color: var(--dark-gray); color: var(--light-gray); }
+        #finish-prompt-confirm-btn { background-color: var(--red-error); color: var(--light-gray); }
+
+        #saved-workouts-modal .modal-dialog { display: flex; flex-direction: column; }
+        #saved-workouts-list { max-height: 400px; overflow-y: auto; margin-bottom: 20px; flex-grow: 1; }
+        .saved-workout-item { display: flex; justify-content: space-between; align-items: center; background-color: var(--app-bg); padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+        .saved-workout-item span { flex-grow: 1; text-align: left; }
+        .saved-workout-item .item-buttons { display: flex; gap: 5px; }
+        .item-buttons button { border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold;}
+        .load-btn { background-color: var(--accent-color-2); color: var(--app-bg); }
+        .edit-btn { background-color: var(--dark-gray); color: var(--light-gray); }
+        .delete-btn { background-color: var(--red-error); color: var(--light-gray); }
+
+        /* Rest Timer Modal styles */
+        #rest-timer-modal .modal-dialog { text-align: center; }
+        #rest-timer-display { font-size: 6rem; font-weight: bold; color: var(--yellow); }
+        #next-exercise-info { font-weight: bold; text-align: center; font-size: 1.2rem; margin-top: -10px; margin-bottom: 5px; }
+        #next-exercise-weight { font-size: 1.8rem; font-weight: bold; color: var(--orange); margin-bottom: 10px; text-align: center; }
+        #technique-tip { font-size: 0.9rem; color: var(--light-gray); margin-bottom: 20px; font-style: italic; }
+        #skip-rest-btn { background-color: var(--dark-gray); color: var(--light-gray); margin-top: 15px; }
+        
+        #info-modal h3 { color: var(--accent-color-2); margin-top: 15px; margin-bottom: 5px; text-align: left; }
+        #info-modal #info-close-btn { background-color: var(--accent-color-1); color: var(--app-bg); }
+
+        .celebration-dialog { text-align: center; }
+        #celebration-gif { width: 100%; height: auto; max-height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 10px; background-color: #000; }
+        #celebration-subtitle { font-size: 1.1rem; text-align: center; }
+        #celebration-summary { background-color: var(--app-bg); padding: 10px; margin: 15px 0; border-radius: 8px; max-height: 150px; overflow-y: auto; text-align: left; }
+        #celebration-summary h3 { font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 10px; text-align: center; }
+        #celebration-summary p { font-size: 0.9rem; margin: 0; line-height: 1.5; text-align: left; }
+        #celebration-share-btn { background-color: var(--accent-color-2); color: var(--app-bg); }
+        #celebration-ok-button { background-color: var(--accent-color-1); color: var(--app-bg); }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <header>
+            <h1>Kettl<span class="star">*</span></h1>
+            <div class="hamburger-icon" id="hamburger-icon">
+                <img src="https://i.imgur.com/QxMX1K9.png" alt="Menu">
+            </div>
+        </header>
+
+        <main>
+             <!-- Workout Builder -->
+            <div id="workout-builder-view">
+                <h2>Build Your Workout</h2>
+                
+                <div class="builder-form">
+                    <div class="input-group full-width">
+                        <label for="builder-workout-name">Workout Name</label>
+                        <input type="text" id="builder-workout-name" class="builder-input" placeholder="e.g., Full Body Blast">
+                    </div>
+                     <div class="input-group full-width">
+                        <label for="builder-rest-select">Rest Period</label>
+                        <select id="builder-rest-select" class="builder-input"></select>
+                    </div>
+                    <div class="input-group full-width">
+                        <label for="builder-exercise-select">Exercise</label>
+                        <select id="builder-exercise-select" class="builder-input"></select>
+                    </div>
+                    <div class="input-group">
+                        <label for="builder-sets-select">Sets</label>
+                        <select id="builder-sets-select" class="builder-input"></select>
+                    </div>
+                    <div class="input-group">
+                        <label for="builder-reps-select">Reps</label>
+                        <select id="builder-reps-select" class="builder-input"></select>
+                    </div>
+                    <div class="input-group full-width">
+                        <label for="builder-weight-select">Weight (lbs)</label>
+                        <select id="builder-weight-select" class="builder-input"></select>
+                    </div>
+                    <button id="builder-add-exercise-btn" class="full-width">Add Exercise</button>
+                </div>
+                
+                <div id="builder-exercise-list"></div>
+                <div class="builder-actions">
+                    <button id="builder-save-btn">Save</button>
+                    <button id="builder-start-workout-btn" disabled>Start</button>
+                </div>
+            </div>
+
+
+            <!-- Main Workout View (hidden initially) -->
+            <div id="main-workout-view" class="hidden">
+                <nav id="exercise-nav"></nav>
+                <div id="current-exercise-display">
+                    <h2 id="exercise-name"></h2>
+                    <p id="set-tracker"></p>
+                </div>
+
+                <div class="inputs-grid">
+                    <div class="input-group">
+                        <label for="weight-select">Weight (lbs)</label>
+                        <select id="weight-select" class="input-select"></select>
+                    </div>
+                    <div class="input-group">
+                        <label for="reps-input">Reps</label>
+                        <select id="reps-input" class="input-select"></select>
+                    </div>
+                </div>
+                
+                <button id="complete-set-btn">Complete Set</button>
+                
+                <div id="workout-controls">
+                     <label>Workout Progress</label>
+                    <div class="progress-container">
+                        <div id="overall-progress-bar" class="progress-bar"></div>
+                        <span id="overall-progress-display" class="progress-display"></span>
+                    </div>
+                    <button id="finish-workout-btn">Finish Workout Early</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Hamburger Menu Overlay -->
+    <div id="hamburger-menu">
+        <span class="close-btn" id="close-menu-btn">&times;</span>
+        <button class="menu-item" id="new-workout-btn">New Workout</button>
+        <button class="menu-item" id="saved-workouts-btn">Saved Workouts</button>
+        <div class="menu-footer">
+            Created for the betterment of your body, mind, and soul by NewJourneyDesigns v2.5
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="saved-workouts-modal">
+        <div class="modal-dialog">
+            <h2>Saved Workouts</h2>
+            <div id="saved-workouts-list"></div>
+            <div class="modal-buttons modal-buttons-column">
+                 <button id="saved-workouts-close-btn" class="modal-button">Close</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="error-modal">
+        <div class="modal-dialog">
+            <h2>Error</h2>
+            <p id="error-message"></p>
+            <div class="modal-buttons">
+                <button id="error-ok-btn" class="modal-button">OK</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="finish-prompt-modal">
+        <div class="modal-dialog">
+            <h2>End Workout?</h2>
+            <p>Are you sure you want to end this workout early?</p>
+            <div class="modal-buttons">
+                <button id="finish-prompt-confirm-btn" class="modal-button">End Workout</button>
+                <button id="finish-prompt-cancel-btn" class="modal-button">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="save-prompt-modal">
+        <div class="modal-dialog">
+            <h2 id="save-prompt-title">Save Workout?</h2>
+            <p id="save-prompt-message"></p>
+            <div class="modal-buttons modal-buttons-column">
+                <button id="modal-update-btn" class="modal-button">Update Existing</button>
+                <button id="modal-save-as-new-btn" class="modal-button">Save as New</button>
+                <button id="modal-dont-save-btn" class="modal-button">Don't Save</button>
+                <button id="modal-cancel-save-btn" class="modal-button">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="rest-timer-modal">
+        <div class="modal-dialog">
+            <h2>Rest</h2>
+            <p id="next-exercise-info"></p>
+            <p id="next-exercise-weight"></p>
+            <p id="technique-tip"></p>
+            <div id="rest-timer-display">00:45</div>
+            <div class="modal-buttons">
+                <button class="modal-button" id="skip-rest-btn">Skip Rest</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="info-modal">
+        <div class="modal-dialog">
+            <h2 id="info-title"></h2>
+            <h3>How to Do It</h3>
+            <p id="info-how-to"></p>
+            <h3>Common Pitfall</h3>
+            <p id="info-pitfall"></p>
+            <div class="modal-buttons">
+                <button class="modal-button" id="info-close-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="celebration-modal">
+        <div class="celebration-dialog modal-dialog">
+            <h2 id="celebration-title">Workout Complete!</h2>
+            <p id="celebration-subtitle">You crushed it! Well done.</p>
+            <img id="celebration-gif" src="https://media.tenor.com/pxj6qU_dJLYAAAAM/sylvester-stallone-rocky.gif" alt="Workout complete GIF">
+            <div id="celebration-summary"></div>
+            <div class="modal-buttons modal-buttons-column">
+                 <button id="celebration-share-btn" class="modal-button">Send A Message</button>
+                 <button id="celebration-ok-button" class="modal-button">Awesome!</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DATABASE HELPER ---
+            const dbHelper = {
+                db: null,
+                init(callback) {
+                    const request = indexedDB.open('KettlDB', 1);
+                    request.onerror = (event) => console.error("Database error:", event.target.errorCode);
+                    request.onsuccess = (event) => {
+                        this.db = event.target.result;
+                        if (callback) callback();
+                    };
+                    request.onupgradeneeded = (event) => {
+                        let db = event.target.result;
+                        db.createObjectStore('workouts', { keyPath: 'name' });
+                    };
+                },
+                saveWorkout(workout, callback) {
+                    if (!this.db) return;
+                    const transaction = this.db.transaction(['workouts'], 'readwrite');
+                    const store = transaction.objectStore('workouts');
+                    const request = store.put(workout);
+                    request.onsuccess = () => callback ? callback(true) : null;
+                    request.onerror = () => {
+                        console.error('Save failed:', request.error);
+                        callback ? callback(false) : null;
+                    };
+                },
+                getWorkouts(callback) {
+                    if (!this.db) {
+                        callback([]);
+                        return;
+                    };
+                    const transaction = this.db.transaction(['workouts']);
+                    const store = transaction.objectStore('workouts');
+                    const request = store.getAll();
+                    request.onsuccess = () => callback(request.result);
+                },
+                deleteWorkout(name, callback) {
+                    if (!this.db) return;
+                    const transaction = this.db.transaction(['workouts'], 'readwrite');
+                    const store = transaction.objectStore('workouts');
+                    const request = store.delete(name);
+                    request.onsuccess = () => callback(true);
+                }
+            };
+
+            // --- DATA & STATE MANAGEMENT ---
+            const allExercises = {
+                'kettlebell-swing': { name: 'Kettlebell Swings', defaultReps: 15, defaultWeight: 20, howTo: 'Hinge at the hips, hike the bell back, then snap your hips forward to drive the bell to chest height. Let it float down.', pitfall: 'Lifting with your arms instead of “snapping” with your hips.' },
+                'goblet-squat': { name: 'Goblet Squats', defaultReps: 10, defaultWeight: 20, howTo: 'Hold the bell by the horns at your chest. Sit your hips back and down, keeping your chest tall. Drive through your feet to stand.', pitfall: 'Letting the bell drift away from your chest.' },
+                'bicep-curl': { name: 'Bicep Curls', defaultReps: 10, defaultWeight: 12, howTo: 'Stand tall, core braced. Hold the kettlebell by the handle and curl smoothly, keeping your elbow pinned to your side.', pitfall: 'Swinging the bell or leaning back to cheat the weight up.' },
+                'shoulder-press': { name: 'Shoulder Press (R/L)', defaultReps: 6, defaultWeight: 12, howTo: 'Clean the bell to the racked position. Brace your core and press straight up until your bicep is by your ear.', pitfall: 'Leaning back to cheat the weight up. Use a lighter bell.' },
+                'dead-bug': { name: 'Dead Bug', defaultReps: 10, defaultWeight: 0, howTo: 'Lie on your back, arms and legs in the air. Slowly lower opposite arm and leg, keeping your lower back flat on the floor.', pitfall: 'Arching your lower back off the floor.' },
+                'reverse-lunge': { name: 'Reverse Lunge', defaultReps: 8, defaultWeight: 12, howTo: 'Step one foot straight back, lowering both knees to about 90 degrees. Push off the back foot to return to standing.', pitfall: 'Leaning too far forward or letting your front knee go past your toes.' },
+                'glute-bridge': { name: 'Glute Bridge', defaultReps: 12, defaultWeight: 20, howTo: 'Lie on your back, knees bent. Drive through your heels to lift your hips, squeezing your glutes. Add weight on hips if desired.', pitfall: 'Hyperextending your lower back at the top.' },
+                'plank-hold': { name: 'Plank Hold', defaultReps: 30, defaultWeight: 0, howTo: 'On your forearms, create a straight line from head to heels. Brace your core and hold. Reps are seconds.', pitfall: 'Letting your hips sag or rise too high.' },
+                'single-arm-row': { name: 'Single-Arm Row (R/L)', defaultReps: 8, defaultWeight: 20, howTo: 'Hinge at the hips with a flat back. Pull the kettlebell towards your ribs, squeezing your shoulder blade.', pitfall: 'Using momentum or twisting your torso.' },
+                'russian-twists': { name: 'Russian Twists', defaultReps: 10, defaultWeight: 12, howTo: 'Sit on the floor, lean back slightly, and lift your feet. Twist your torso to tap the bell gently on the floor beside you.', pitfall: 'Rushing the movement. Control the twist.' },
+            };
+            const funnyWorkoutNames = [
+                "The Bell-igerent", "Swing City Swole", "Goblet of Fire", "The Russian Revolution", "Heavy Metal Mayhem", "Bell-istic Therapy", 
+                "The Iron Cyclone", "Grip & Rip", "The Kettle-pocalypse", "Full Throttle Bell", "Sweat Storm", "Armageddon", "The Reaper",
+                "Quadzilla", "Leg Day Oblivion", "The Punisher", "Death by Kettlebell", "The Annihilator", "Berserker Blitz", "Viking Power",
+                "The Juggernaut", "Unstoppable Force", "Pain Train", "Maximum Overdrive", "Atomic Swing", "Bell from Hell", "The Crusher",
+                "Total Domination", "Iron Will", "Forged in Fire", "The Gauntlet", "Final Boss", "The Titan", "Herculean Effort", 
+                "Gladiator Grind", "The Spartan", "The Warrior's Path", "Path of Pain", "The Crucible", "No Mercy", "Zero Dark Thirty",
+                "The Exterminator", "The Demolisher", "Wrecking Ball", "The Finisher", "Ironclad", "The Colossus", "The Behemoth",
+                "The Leviathan", "The Kraken", "The Maelstrom", "The Vortex", "The Hurricane", "The Tornado", "The Tsunami",
+            ];
+
+            const bowflexWeights = [8, 12, 20, 25, 35, 40];
+            const repOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30, 45, 60];
+            const setOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+            const restOptions = [30, 45, 60];
+
+            let appState = {
+                customWorkoutList: [],
+                editingExerciseIndex: null,
+                currentWorkout: null,
+                currentWorkoutOriginal: null, // To check for changes
+                currentExerciseIndex: 0,
+                restTimer: null,
+                isResting: false
+            };
+
+            // DOM Elements
+            const DOMElements = {
+                mainWorkoutView: document.getElementById('main-workout-view'),
+                workoutBuilderView: document.getElementById('workout-builder-view'),
+                hamburgerIcon: document.getElementById('hamburger-icon'),
+                hamburgerMenu: document.getElementById('hamburger-menu'),
+                closeMenuBtn: document.getElementById('close-menu-btn'),
+                newWorkoutBtn: document.getElementById('new-workout-btn'),
+                savedWorkoutsBtn: document.getElementById('saved-workouts-btn'),
+                builderWorkoutName: document.getElementById('builder-workout-name'),
+                builderExerciseSelect: document.getElementById('builder-exercise-select'),
+                builderSetsSelect: document.getElementById('builder-sets-select'),
+                builderRepsSelect: document.getElementById('builder-reps-select'),
+                builderWeightSelect: document.getElementById('builder-weight-select'),
+                builderRestSelect: document.getElementById('builder-rest-select'),
+                builderAddBtn: document.getElementById('builder-add-exercise-btn'),
+                builderExerciseList: document.getElementById('builder-exercise-list'),
+                builderStartBtn: document.getElementById('builder-start-workout-btn'),
+                builderSaveBtn: document.getElementById('builder-save-btn'),
+                nav: document.getElementById('exercise-nav'),
+                exerciseName: document.getElementById('exercise-name'),
+                setTracker: document.getElementById('set-tracker'),
+                weightSelect: document.getElementById('weight-select'),
+                repsInput: document.getElementById('reps-input'),
+                completeSetBtn: document.getElementById('complete-set-btn'),
+                overallProgressBar: document.getElementById('overall-progress-bar'),
+                overallProgressDisplay: document.getElementById('overall-progress-display'),
+                finishWorkoutBtn: document.getElementById('finish-workout-btn'),
+                finishPromptModal: document.getElementById('finish-prompt-modal'),
+                finishPromptConfirmBtn: document.getElementById('finish-prompt-confirm-btn'),
+                finishPromptCancelBtn: document.getElementById('finish-prompt-cancel-btn'),
+                savePromptModal: document.getElementById('save-prompt-modal'),
+                savePromptTitle: document.getElementById('save-prompt-title'),
+                savePromptMessage: document.getElementById('save-prompt-message'),
+                modalUpdateBtn: document.getElementById('modal-update-btn'),
+                modalSaveAsNewBtn: document.getElementById('modal-save-as-new-btn'),
+                modalDontSaveBtn: document.getElementById('modal-dont-save-btn'),
+                modalCancelSaveBtn: document.getElementById('modal-cancel-save-btn'),
+                errorModal: document.getElementById('error-modal'),
+                errorMessage: document.getElementById('error-message'),
+                errorOkBtn: document.getElementById('error-ok-btn'),
+                savedWorkoutsModal: document.getElementById('saved-workouts-modal'),
+                savedWorkoutsList: document.getElementById('saved-workouts-list'),
+                savedWorkoutsCloseBtn: document.getElementById('saved-workouts-close-btn'),
+                restTimerModal: document.getElementById('rest-timer-modal'),
+                restTimerDisplay: document.getElementById('rest-timer-display'),
+                nextExerciseInfo: document.getElementById('next-exercise-info'),
+                nextExerciseWeight: document.getElementById('next-exercise-weight'),
+                techniqueTip: document.getElementById('technique-tip'),
+                skipRestBtn: document.getElementById('skip-rest-btn'),
+                infoModal: document.getElementById('info-modal'),
+                celebrationModal: document.getElementById('celebration-modal'),
+                celebrationOkBtn: document.getElementById('celebration-ok-button'),
+                celebrationShareBtn: document.getElementById('celebration-share-btn'),
+                celebrationSummary: document.getElementById('celebration-summary'),
+            };
+
+            function init() {
+                dbHelper.init(() => {
+                    // Event Listeners
+                    DOMElements.builderAddBtn.addEventListener('click', handleAddOrUpdateExercise);
+                    DOMElements.builderStartBtn.addEventListener('click', handleStartWorkout);
+                    DOMElements.builderSaveBtn.addEventListener('click', handleSaveWorkout);
+                    DOMElements.builderExerciseList.addEventListener('click', handleBuilderListClick);
+                    DOMElements.builderExerciseList.addEventListener('dragstart', handleDragStart);
+                    DOMElements.builderExerciseList.addEventListener('dragover', handleDragOver);
+                    DOMElements.builderExerciseList.addEventListener('dragleave', handleDragLeave);
+                    DOMElements.builderExerciseList.addEventListener('drop', handleDrop);
+                    // Add Touch handlers
+                    DOMElements.builderExerciseList.addEventListener('touchstart', handleTouchStart, {passive: false});
+                    DOMElements.builderExerciseList.addEventListener('touchmove', handleTouchMove, {passive: false});
+                    DOMElements.builderExerciseList.addEventListener('touchend', handleDrop);
+                    
+                    DOMElements.builderExerciseSelect.addEventListener('change', updateBuilderDefaults);
+                    DOMElements.nav.addEventListener('click', handleNavClick);
+                    DOMElements.completeSetBtn.addEventListener('click', handleCompleteSet);
+                    DOMElements.skipRestBtn.addEventListener('click', handleSkipRest);
+                    DOMElements.hamburgerIcon.addEventListener('click', () => DOMElements.hamburgerMenu.classList.add('open'));
+                    DOMElements.closeMenuBtn.addEventListener('click', () => DOMElements.hamburgerMenu.classList.remove('open'));
+                    DOMElements.newWorkoutBtn.addEventListener('click', handleNewWorkoutClick);
+                    DOMElements.savedWorkoutsBtn.addEventListener('click', showSavedWorkoutsModal);
+                    DOMElements.finishWorkoutBtn.addEventListener('click', () => DOMElements.finishPromptModal.classList.add('visible'));
+                    DOMElements.finishPromptConfirmBtn.addEventListener('click', handleFinishWorkoutConfirm);
+                    DOMElements.finishPromptCancelBtn.addEventListener('click', () => DOMElements.finishPromptModal.classList.remove('visible'));
+                    DOMElements.celebrationOkBtn.addEventListener('click', handleCelebrationOk);
+                    DOMElements.celebrationShareBtn.addEventListener('click', handleShareWorkout);
+                    DOMElements.errorOkBtn.addEventListener('click', () => DOMElements.errorModal.classList.remove('visible'));
+                    
+                    // Populate builder selects
+                    populateSelect(DOMElements.builderSetsSelect, setOptions);
+                    populateSelect(DOMElements.builderRepsSelect, repOptions);
+                    populateSelect(DOMElements.builderWeightSelect, [0, ...bowflexWeights], ' lbs');
+                    populateSelect(DOMElements.builderRestSelect, restOptions, ' sec');
+                    DOMElements.builderExerciseSelect.innerHTML = '';
+                    for (const key in allExercises) {
+                        const option = new Option(allExercises[key].name, key);
+                        DOMElements.builderExerciseSelect.add(option);
+                    }
+                    
+                    // Populate workout view selects
+                    populateSelect(DOMElements.weightSelect, [0, ...bowflexWeights], ' lbs');
+                    populateSelect(DOMElements.repsInput, repOptions);
+
+                    showBuilder();
+                });
+            }
+
+            // --- UI & RENDER FUNCTIONS ---
+            function populateSelect(selectEl, opts, suffix = '') {
+                selectEl.innerHTML = '';
+                opts.forEach(o => selectEl.add(new Option(o + suffix, o)));
+            }
+            
+            function renderBuilderList() {
+                DOMElements.builderExerciseList.innerHTML = '';
+                if (appState.customWorkoutList.length === 0) {
+                    DOMElements.builderExerciseList.innerHTML = '<p style="text-align:center; color: var(--text-primary);">Add exercises to your workout.</p>';
+                } else {
+                    appState.customWorkoutList.forEach((ex, index) => {
+                        const item = document.createElement('div');
+                        item.classList.add('builder-list-item');
+                        item.dataset.index = index;
+                        item.draggable = true;
+                        if(index === appState.editingExerciseIndex) {
+                            item.classList.add('editing');
+                        }
+                        item.innerHTML = `
+                            <span class="drag-handle">::</span>
+                            <span class="exercise-text">${allExercises[ex.key].name} (${ex.sets}x${ex.reps} @ ${ex.weight}lbs)</span>
+                            <button class="remove-btn" data-index="${index}">&times;</button>`;
+                        DOMElements.builderExerciseList.appendChild(item);
+                    });
+                }
+                DOMElements.builderStartBtn.disabled = appState.customWorkoutList.length === 0;
+            }
+
+            function renderNav() {
+                DOMElements.nav.innerHTML = '';
+                appState.currentWorkout.exercises.forEach((ex, index) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'nav-button';
+                    btn.dataset.index = index;
+                    btn.textContent = allExercises[ex.key].name;
+                    if (index === appState.currentExerciseIndex) btn.classList.add('current-selected');
+                    else if (ex.performedSets.length >= ex.sets) btn.classList.add('completed');
+                    else if (ex.performedSets.length > 0) btn.classList.add('active-exercise');
+                    DOMElements.nav.appendChild(btn);
+                });
+                const currentBtn = DOMElements.nav.querySelector('.current-selected');
+                if (currentBtn) currentBtn.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+            }
+            
+            function renderCurrentExercise() {
+                if (isWorkoutComplete()) { showCelebration(); return; }
+                const ex = appState.currentWorkout.exercises[appState.currentExerciseIndex];
+                const details = allExercises[ex.key];
+                DOMElements.exerciseName.innerHTML = `${details.name} <button id="exercise-info-btn">ⓘ</button>`;
+                document.getElementById('exercise-info-btn').addEventListener('click', () => showInfo(ex.key));
+                DOMElements.setTracker.textContent = `Set ${ex.performedSets.length + 1} of ${ex.sets}`;
+                
+                DOMElements.repsInput.value = ex.reps;
+                DOMElements.weightSelect.value = ex.weight;
+
+                const isLastSet = ex.performedSets.length + 1 >= ex.sets;
+                const isLastEx = appState.currentExerciseIndex === appState.currentWorkout.exercises.length - 1;
+                DOMElements.completeSetBtn.textContent = isLastSet && isLastEx ? "Finish Workout" : isLastSet ? "Final Set" : "Complete Set";
+                renderNav();
+            }
+
+            function updateOverallProgress() {
+                if (!appState.currentWorkout) return;
+                const total = appState.currentWorkout.exercises.length;
+                const completed = appState.currentWorkout.exercises.filter(ex => ex.performedSets.length >= ex.sets).length;
+                DOMElements.overallProgressDisplay.textContent = `${completed} / ${total}`;
+                DOMElements.overallProgressBar.style.width = `${total > 0 ? (completed / total) * 100 : 0}%`;
+            }
+
+            function showRestTimer() {
+                appState.isResting = true;
+                let timeLeft = appState.currentWorkout.rest || 60;
+                const nextIndex = getNextExerciseIndex();
+                if (nextIndex !== -1) {
+                    const nextExercise = appState.currentWorkout.exercises[nextIndex];
+                    const nextExerciseDetails = allExercises[nextExercise.key];
+                    DOMElements.nextExerciseInfo.textContent = `Next: ${nextExerciseDetails.name}`;
+                    DOMElements.nextExerciseWeight.textContent = `${nextExercise.weight} lbs`;
+                    DOMElements.techniqueTip.textContent = `Technique Tip: ${nextExerciseDetails.pitfall}`;
+                } else {
+                     DOMElements.nextExerciseInfo.textContent = "Final exercise coming up!";
+                     DOMElements.nextExerciseWeight.textContent = "";
+                     DOMElements.techniqueTip.textContent = "Finish strong!";
+                }
+
+                DOMElements.restTimerModal.classList.add('visible');
+                DOMElements.restTimerDisplay.textContent = formatTime(timeLeft);
+                appState.restTimer = setInterval(() => {
+                    timeLeft--;
+                    DOMElements.restTimerDisplay.textContent = formatTime(timeLeft);
+                    if (timeLeft <= 0) endRest();
+                }, 1000);
+            }
+
+            function showErrorModal(message) {
+                DOMElements.errorMessage.textContent = message;
+                DOMElements.errorModal.classList.add('visible');
+            }
+            
+            // --- LOGIC & HANDLERS ---
+            function handleNewWorkoutClick() {
+                 showBuilder();
+            }
+            
+            function handleFinishWorkoutConfirm() {
+                 DOMElements.finishPromptModal.classList.remove('visible');
+                 if(appState.isResting) {
+                     clearInterval(appState.restTimer);
+                     appState.isResting = false;
+                     DOMElements.restTimerModal.classList.remove('visible');
+                 }
+                 showCelebration();
+            }
+            
+            function showSavedWorkoutsModal() {
+                DOMElements.hamburgerMenu.classList.remove('open');
+                dbHelper.getWorkouts(workouts => {
+                    DOMElements.savedWorkoutsList.innerHTML = '';
+                    if (workouts.length === 0) {
+                        DOMElements.savedWorkoutsList.innerHTML = '<p>No saved workouts found.</p>';
+                    } else {
+                        workouts.forEach(w => {
+                            const item = document.createElement('div');
+                            item.className = 'saved-workout-item';
+                            item.innerHTML = `<span>${w.name}</span><div class="item-buttons"><button class="load-btn" data-name="${w.name}">Load</button><button class="edit-btn" data-name="${w.name}">Edit</button><button class="delete-btn" data-name="${w.name}">Del</button></div>`;
+                            DOMElements.savedWorkoutsList.appendChild(item);
+                        });
+                    }
+                    DOMElements.savedWorkoutsList.onclick = (e) => {
+                        const name = e.target.dataset.name;
+                        if (!name) return;
+                        const workoutToHandle = workouts.find(w => w.name === name);
+
+                        if (e.target.classList.contains('load-btn')) {
+                            loadWorkout(workoutToHandle);
+                            DOMElements.savedWorkoutsModal.classList.remove('visible');
+                        } else if (e.target.classList.contains('edit-btn')) {
+                            showBuilder(workoutToHandle);
+                            DOMElements.savedWorkoutsModal.classList.remove('visible');
+                        } else if (e.target.classList.contains('delete-btn')) {
+                            dbHelper.deleteWorkout(name, () => showSavedWorkoutsModal());
+                        }
+                    };
+                    DOMElements.savedWorkoutsModal.classList.add('visible');
+                    DOMElements.savedWorkoutsCloseBtn.onclick = () => DOMElements.savedWorkoutsModal.classList.remove('visible');
+                });
+            }
+
+            function handleAddOrUpdateExercise() {
+                const exerciseData = {
+                    key: DOMElements.builderExerciseSelect.value,
+                    sets: parseInt(DOMElements.builderSetsSelect.value),
+                    reps: parseInt(DOMElements.builderRepsSelect.value),
+                    weight: parseInt(DOMElements.builderWeightSelect.value),
+                };
+
+                if (appState.editingExerciseIndex !== null) {
+                    appState.customWorkoutList[appState.editingExerciseIndex] = exerciseData;
+                } else {
+                    appState.customWorkoutList.push(exerciseData);
+                }
+                resetBuilderForm();
+                renderBuilderList();
+            }
+            
+            function handleBuilderListClick(e) {
+                if(e.target.classList.contains('remove-btn')) {
+                    e.stopPropagation(); 
+                    const indexToRemove = parseInt(e.target.dataset.index);
+                    appState.customWorkoutList.splice(indexToRemove, 1);
+                    if(appState.editingExerciseIndex === indexToRemove) {
+                        resetBuilderForm();
+                    } else if (appState.editingExerciseIndex !== null && appState.editingExerciseIndex > indexToRemove) {
+                        appState.editingExerciseIndex--; 
+                    }
+                    renderBuilderList();
+                } else if (e.target.closest('.builder-list-item')) {
+                     const indexToEdit = parseInt(e.target.closest('.builder-list-item').dataset.index);
+                     populateBuilderForEdit(indexToEdit);
+                }
+            }
+            
+            function handleSaveWorkout() {
+                const workoutName = DOMElements.builderWorkoutName.value.trim();
+                if (!workoutName) {
+                    showErrorModal("Please give your workout a name before saving.");
+                    return;
+                }
+                 const workoutToSave = {
+                        name: workoutName,
+                        rest: parseInt(DOMElements.builderRestSelect.value),
+                        exercises: appState.customWorkoutList
+                    };
+                dbHelper.saveWorkout(workoutToSave, (success) => {
+                    if(!success) {
+                       showErrorModal('Save failed. A workout with this name may already exist.');
+                    }
+                });
+            }
+
+            function handleStartWorkout() {
+                let workoutName = DOMElements.builderWorkoutName.value.trim();
+                if (appState.customWorkoutList.length === 0) return;
+                if (!workoutName) { 
+                    workoutName = funnyWorkoutNames[Math.floor(Math.random() * funnyWorkoutNames.length)];
+                }
+                
+                const workout = {
+                    name: workoutName,
+                    rest: parseInt(DOMElements.builderRestSelect.value),
+                    exercises: JSON.parse(JSON.stringify(appState.customWorkoutList))
+                };
+                loadWorkout(workout);
+            }
+
+            function loadWorkout(workout) {
+                appState.currentWorkout = workout;
+                appState.currentWorkoutOriginal = JSON.parse(JSON.stringify(workout));
+                appState.currentWorkout.exercises.forEach(ex => {
+                    ex.performedSets = []; 
+                });
+                appState.currentExerciseIndex = 0;
+                DOMElements.workoutBuilderView.classList.add('hidden');
+                DOMElements.mainWorkoutView.classList.remove('hidden');
+                renderNav();
+                renderCurrentExercise();
+                updateOverallProgress();
+            }
+
+            function handleCompleteSet() {
+                const ex = appState.currentWorkout.exercises[appState.currentExerciseIndex];
+                
+                const performedSet = {
+                    reps: parseInt(DOMElements.repsInput.value),
+                    weight: parseInt(DOMElements.weightSelect.value)
+                };
+                ex.performedSets.push(performedSet);
+                
+                ex.reps = performedSet.reps;
+                ex.weight = performedSet.weight;
+
+                if (ex.performedSets.length >= ex.sets) updateOverallProgress();
+                if (isWorkoutComplete()) { showCelebration(); return; }
+                showRestTimer();
+            }
+
+            function handleCelebrationOk() {
+                DOMElements.celebrationModal.classList.remove('visible');
+                
+                const performedWorkoutExercises = appState.currentWorkout.exercises.map(ex => {
+                    const lastPerformed = ex.performedSets.length > 0 ? ex.performedSets[ex.performedSets.length-1] : {reps: ex.reps, weight: ex.weight};
+                    return { key: ex.key, sets: ex.sets, reps: lastPerformed.reps, weight: lastPerformed.weight };
+                });
+                
+                const hasChanged = JSON.stringify(appState.currentWorkoutOriginal.exercises) !== JSON.stringify(performedWorkoutExercises);
+                
+                if (hasChanged) {
+                    showUpdateSavePrompt(performedWorkoutExercises);
+                } else {
+                    showBuilder();
+                }
+            }
+
+            function showUpdateSavePrompt(performedExercises) {
+                const modal = DOMElements.savePromptModal;
+                modal.querySelector('#save-prompt-title').textContent = "Save Updates?";
+                modal.querySelector('#save-prompt-message').textContent = `You changed the reps/weights for "${appState.currentWorkout.name}". How would you like to save it?`;
+                modal.classList.add('visible');
+                
+                modal.querySelector('#modal-update-btn').onclick = () => {
+                    const updatedWorkout = {
+                        name: appState.currentWorkout.name,
+                        rest: appState.currentWorkout.rest,
+                        exercises: performedExercises
+                    };
+                    dbHelper.saveWorkout(updatedWorkout, () => {
+                        localStorage.setItem('lastKettlWorkout', JSON.stringify(updatedWorkout));
+                        modal.classList.remove('visible');
+                        showBuilder();
+                    });
+                };
+                
+                modal.querySelector('#modal-save-as-new-btn').onclick = () => {
+                    const newName = prompt("Enter a new name for this updated workout:", `${appState.currentWorkout.name} V2`);
+                    if (newName) {
+                        const newWorkout = {
+                            name: newName,
+                            rest: appState.currentWorkout.rest,
+                            exercises: performedExercises
+                        };
+                        dbHelper.saveWorkout(newWorkout, (success) => {
+                             if (!success) showErrorModal('Save failed. A workout with this new name may already exist.');
+                             localStorage.setItem('lastKettlWorkout', JSON.stringify(newWorkout));
+                             modal.classList.remove('visible');
+                             showBuilder();
+                        });
+                    }
+                };
+
+                modal.querySelector('#modal-dont-save-btn').onclick = () => {
+                    modal.classList.remove('visible');
+                    showBuilder();
+                };
+                 modal.querySelector('#modal-cancel-save-btn').onclick = () => {
+                    modal.classList.remove('visible');
+                 };
+            }
+            
+            function generateWorkoutSummary() {
+                if (!appState.currentWorkout) return { html: '', text: '' };
+                let totalWeight = 0;
+                let html = `<h3>${appState.currentWorkout.name}</h3>`;
+                let text = `${appState.currentWorkout.name}\n\n`;
+
+                appState.currentWorkout.exercises.forEach(ex => {
+                    const details = allExercises[ex.key];
+                    const setsDone = ex.performedSets.length;
+                    html += `<p>${details.name}: ${setsDone} of ${ex.sets} sets</p>`;
+                    text += `${details.name}: ${setsDone} of ${ex.sets} sets\n`;
+                    ex.performedSets.forEach(set => {
+                        totalWeight += set.reps * set.weight;
+                    });
+                });
+                 html += `<br><p><strong>Total Weight Pushed: ${totalWeight.toLocaleString()} lbs</strong></p>`;
+                 text += `\nTotal Weight Pushed: ${totalWeight.toLocaleString()} lbs`;
+                return { html, text };
+            }
+
+            async function handleShareWorkout() {
+                const shareButton = DOMElements.celebrationShareBtn;
+                shareButton.textContent = 'Generating...';
+                const summary = generateWorkoutSummary();
+                const elementToCapture = DOMElements.celebrationModal.querySelector('.modal-dialog');
+
+                const sharePlainText = async () => {
+                     await navigator.share({
+                        title: `I crushed the ${appState.currentWorkout.name} workout!`,
+                        text: `Check out my Kettl workout summary:\n\n${summary.text}`,
+                    });
+                };
+
+                try {
+                    const canvas = await html2canvas(elementToCapture, { 
+                        backgroundColor: "#3a3a3a",
+                        logging: false,
+                        useCORS: true 
+                    });
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                    const file = new File([blob], 'kettl-workout.png', { type: 'image/png' });
+                    
+                    if (navigator.share && navigator.canShare({ files: [file] })) {
+                        await navigator.share({ files: [file] });
+                    } else if (navigator.share) {
+                        await sharePlainText();
+                    } else {
+                        showErrorModal("Sharing is not supported on this browser.");
+                    }
+                } catch (err) {
+                    console.error("Share failed", err);
+                    try {
+                        await sharePlainText();
+                    } catch (shareErr) {
+                         showErrorModal("Could not share workout summary.");
+                    }
+                } finally {
+                    shareButton.textContent = 'Send A Message';
+                }
+            }
+            
+            function resetBuilderForm() {
+                appState.editingExerciseIndex = null;
+                DOMElements.builderAddBtn.textContent = 'Add Exercise';
+                document.querySelectorAll('.builder-list-item.editing').forEach(el => el.classList.remove('editing'));
+                updateBuilderDefaults();
+            }
+
+            function populateBuilderForEdit(index) {
+                appState.editingExerciseIndex = index;
+                const exercise = appState.customWorkoutList[index];
+                DOMElements.builderExerciseSelect.value = exercise.key;
+                DOMElements.builderSetsSelect.value = exercise.sets;
+                DOMElements.builderRepsSelect.value = exercise.reps;
+                DOMElements.builderWeightSelect.value = exercise.weight;
+                DOMElements.builderAddBtn.textContent = 'Update Exercise';
+                renderBuilderList(); // To highlight the editing item
+            }
+
+            function updateBuilderDefaults() {
+                const key = DOMElements.builderExerciseSelect.value;
+                const details = allExercises[key];
+                DOMElements.builderRepsSelect.value = details.defaultReps;
+                DOMElements.builderWeightSelect.value = details.defaultWeight;
+            }
+
+            let draggedItem = null;
+            function handleTouchStart(e) {
+                if (e.target.classList.contains('drag-handle')) {
+                    e.preventDefault(); // Prevent scrolling
+                    handleDragStart(e);
+                }
+            }
+            
+            function handleTouchMove(e) {
+                if (draggedItem) {
+                     e.preventDefault(); // Prevent scrolling
+                     handleDragOver(e);
+                }
+            }
+
+            function handleDragStart(e) {
+                if(e.target.classList.contains('drag-handle')) {
+                    draggedItem = e.target.closest('.builder-list-item');
+                    setTimeout(() => {
+                        if(draggedItem) draggedItem.classList.add('dragging');
+                    }, 0);
+                }
+            }
+
+            function handleDragOver(e) {
+                e.preventDefault();
+                let y;
+                 if(e.type === 'touchmove') {
+                    y = e.touches[0].clientY;
+                 } else {
+                    y = e.clientY;
+                 }
+
+                const list = DOMElements.builderExerciseList;
+                const afterElement = getDragAfterElement(list, y);
+                const currentDragged = document.querySelector('.dragging');
+                if (currentDragged) {
+                    if (afterElement == null) {
+                        list.appendChild(currentDragged);
+                    } else {
+                        list.insertBefore(currentDragged, afterElement);
+                    }
+                }
+            }
+            
+            function handleDragLeave(e) { /* No specific action needed */ }
+
+            function handleDrop(e) {
+                e.preventDefault();
+                if (draggedItem) {
+                    draggedItem.classList.remove('dragging');
+                    const newOrderIndices = [...DOMElements.builderExerciseList.querySelectorAll('.builder-list-item')].map(item => parseInt(item.dataset.index));
+                    
+                    appState.customWorkoutList = newOrderIndices.map(index => appState.customWorkoutList[index]);
+                    
+                    renderBuilderList();
+                    draggedItem = null;
+                }
+            }
+
+            function getDragAfterElement(container, y) {
+                const draggableElements = [...container.querySelectorAll('.builder-list-item:not(.dragging)')];
+
+                return draggableElements.reduce((closest, child) => {
+                    const box = child.getBoundingClientRect();
+                    const offset = y - box.top - box.height / 2;
+                    if (offset < 0 && offset > closest.offset) {
+                        return { offset: offset, element: child };
+                    } else {
+                        return closest;
+                    }
+                }, { offset: Number.NEGATIVE_INFINITY }).element;
+            }
+
+
+            function endRest() { clearInterval(appState.restTimer); appState.isResting = false; DOMElements.restTimerModal.classList.remove('visible'); moveToNextExercise(); }
+            function moveToNextExercise() { const nextIndex = getNextExerciseIndex(); if(nextIndex !== -1) { appState.currentExerciseIndex = nextIndex; } else { showCelebration(); return; } renderCurrentExercise(); }
+            function getNextExerciseIndex() { let currentIndex = appState.currentExerciseIndex; for (let i = 0; i < appState.currentWorkout.exercises.length; i++) { let nextIndex = (currentIndex + 1 + i) % appState.currentWorkout.exercises.length; if (appState.currentWorkout.exercises[nextIndex].performedSets.length < appState.currentWorkout.exercises[nextIndex].sets) { return nextIndex; } } return -1; }
+            function handleNavClick(e) { if (appState.isResting) return; const index = e.target.dataset.index; if (index) { appState.currentExerciseIndex = parseInt(index); renderCurrentExercise(); } }
+            function showInfo(exerciseKey) { const details = allExercises[exerciseKey]; DOMElements.infoModal.classList.add('visible'); DOMElements.infoModal.querySelector('#info-title').textContent = details.name; DOMElements.infoModal.querySelector('#info-how-to').textContent = details.howTo; DOMElements.infoModal.querySelector('#info-pitfall').textContent = details.pitfall; DOMElements.infoModal.querySelector('#info-close-btn').onclick = () => DOMElements.infoModal.classList.remove('visible'); }
+            function showCelebration() { 
+                const summary = generateWorkoutSummary();
+                DOMElements.celebrationSummary.innerHTML = summary.html;
+                localStorage.setItem('lastKettlWorkout', JSON.stringify(appState.currentWorkout));
+                DOMElements.celebrationModal.classList.add('visible'); 
+            }
+            function showBuilder(workoutToEdit = null) { 
+                if (workoutToEdit) { 
+                    DOMElements.builderWorkoutName.value = workoutToEdit.name; 
+                    DOMElements.builderRestSelect.value = workoutToEdit.rest || 60; 
+                    appState.customWorkoutList = JSON.parse(JSON.stringify(workoutToEdit.exercises)); 
+                } else { 
+                    const lastWorkout = localStorage.getItem('lastKettlWorkout');
+                    if (lastWorkout) {
+                       const parsed = JSON.parse(lastWorkout);
+                       DOMElements.builderWorkoutName.value = parsed.name;
+                       DOMElements.builderRestSelect.value = parsed.rest || 60;
+                       appState.customWorkoutList = parsed.exercises.map(ex => ({key: ex.key, sets: ex.sets, reps: ex.reps, weight: ex.weight}));
+                    } else {
+                        appState.customWorkoutList = []; 
+                        DOMElements.builderWorkoutName.value = funnyWorkoutNames[Math.floor(Math.random() * funnyWorkoutNames.length)];
+                    }
+                } 
+                appState.currentWorkout = null; 
+                appState.currentWorkoutOriginal = null;
+                appState.editingExerciseIndex = null; 
+                appState.currentExerciseIndex = 0; 
+                DOMElements.hamburgerMenu.classList.remove('open'); 
+                DOMElements.mainWorkoutView.classList.add('hidden'); 
+                DOMElements.workoutBuilderView.classList.remove('hidden'); 
+                renderBuilderList(); 
+                resetBuilderForm();
+            }
+            function isWorkoutComplete() { if (!appState.currentWorkout) return false; return appState.currentWorkout.exercises.every(ex => ex.performedSets.length >= ex.sets); }
+            function formatTime(seconds) { const mins = Math.floor(seconds / 60).toString().padStart(2, '0'); const secs = (seconds % 60).toString().padStart(2, '0'); return `${mins}:${secs}`; }
+            function handleSkipRest() { endRest(); }
+            
+            init();
+        });
+    </script>
+</body>
+</html>

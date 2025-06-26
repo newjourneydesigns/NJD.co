@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Push*t</title>
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Push*t">
+
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlncmh0PSIxMDAiIHZpZXdCb3g9IjAgMCAxMDAgMTAwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzI3MjcyNyIvPgo8dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9ImNlbnRyYWwiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZWQ3NjYiIGZvbnQtc2l6ZT0iNjAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgSGVsdmV0aWNhLCBzYW5zLXNlcmVmIiBmb250LXdlaWdodD0iYm9sZCI+ClA8dHNwYW4gZmlsbD0iIzAwOWZiNyI+Kjwv dHNwYW4+CjwvdGV4dD4KPC9zdmc+Cg==">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlncmh0PSIxMDAiIHZpZXdCb3g9IjAgMCAxMDAgMTAwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5uZXQvMjAwMC9zdmciPgo8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzI3MjcyNyIvPgo8dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9ImNlbnRyYWwiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZWQ3NjYiIGZvbnQtc2l6ZT0iNjAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgSGVsdmV0aWNhLCBzYW5zLXNlcmVmIiBmb250LXdlaWdodD0iYm9sZCI+ClA8dHNwYW4gZmlsbD0iIzAwOWZiNyI+Kjwv dHNwYW4+CjwvdGV4dD4KPC9zdmc+Cg==">
+
+    <style>
+        /* CSS Variables for the NEW color theme */
+        :root {
+            --dark-gray: #272727;
+            --yellow: #fed766;
+            --blue: #009fb7;
+            --mid-gray: #696773;
+            --light-gray: #eff1f3;
+            --red-error: #e57373; /* Added for consistency */
+
+            --background: var(--dark-gray);
+            --surface: #3a3a3a; /* A slightly lighter dark for surfaces */
+            --text-primary: var(--light-gray);
+            --text-secondary: var(--yellow);
+            --border-color: var(--mid-gray);
+            --accent-color-1: var(--yellow);
+            --accent-color-2: var(--blue);
+        }
+
+        /* Basic Reset and Global Styles */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background);
+            color: var(--text-primary);
+            overscroll-behavior: none;
+        }
+        #app-container {
+            display: flex; flex-direction: column; 
+            height: 100vh; /* Ensure it fills the viewport height */
+            max-width: 450px; margin: 0 auto; background-color: var(--background);
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            position: relative; /* Needed for z-index of menu */
+            overflow: hidden; /* Keep overall app within bounds, main content scrolls */
+        }
+        header {
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; /* Space between title and menu */
+            padding: 20px; 
+            background-color: var(--surface);
+            border-bottom: 2px solid var(--border-color);
+            position: relative; /* For stacking context */
+            z-index: 20; /* Keep header above menu */
+        }
+        header h1 { font-size: 2.2rem; font-weight: bold; color: var(--accent-color-1); }
+        header h1 .star { color: var(--accent-color-2); }
+        main { 
+            flex-grow: 1; 
+            display: flex; 
+            flex-direction: column; 
+            padding: 10px; /* Adjusted padding */
+            gap: 20px; 
+            overflow-y: auto; /* Allow content to scroll vertically if it overflows */
+            -webkit-overflow-scrolling: touch; /* Enable smooth scrolling on iOS */
+        }
+
+        /* Hamburger Menu Icon */
+        .hamburger-icon {
+            font-size: 2rem; /* Size of the icon */
+            color: var(--text-secondary); /* Color of the icon */
+            cursor: pointer;
+            padding: 5px; /* Increase tap area */
+            line-height: 1; /* Align vertically */
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Hamburger Menu Overlay */
+        /* Changed to .modal-overlay.visible for consistency with other modals */
+        #hamburger-menu.modal-overlay { /* Target specific ID and class */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9); /* Darker overlay */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100; /* Above main content, below modals */
+            transform: translateX(100%); /* Start off-screen to the right */
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out; /* Add opacity transition */
+            opacity: 0; /* Start invisible */
+            visibility: hidden; /* Prevent interaction when invisible */
+        }
+        #hamburger-menu.modal-overlay.visible { /* Use .visible class for opening */
+            transform: translateX(0); /* Slide into view */
+            opacity: 1;
+            visibility: visible;
+        }
+        /* No need for #hamburger-menu.open anymore */
+
+        #hamburger-menu .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 2.5rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #hamburger-menu .menu-item {
+            background-color: var(--surface);
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            padding: 15px 30px;
+            margin: 10px 0;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            width: 80%; /* Menu item width */
+            max-width: 300px;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #hamburger-menu .menu-item:hover {
+            background-color: var(--mid-gray);
+        }
+        /* Style for the Reset All button within the menu */
+        #hamburger-menu #reset-workout-btn-menu {
+            color: var(--yellow); /* Match its original color */
+            border-color: var(--yellow);
+        }
+
+        /* New: Footer text in hamburger menu */
+        #hamburger-menu .app-footer-text {
+            color: var(--text-primary);
+            font-size: 0.8rem;
+            text-align: center;
+            margin-top: 20px; /* Space above the text */
+            padding: 0 20px;
+            line-height: 1.4;
+            max-width: 300px;
+        }
+
+
+        /* Exercise Navigation */
+        #exercise-nav { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); /* Default to 2 columns for smaller screens */
+            gap: 10px; 
+        }
+
+        @media (min-width: 400px) { /* Adjust to 3 columns for slightly wider mobile screens */
+            #exercise-nav {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (min-width: 500px) { /* Adjust to 4 columns for wider screens/desktop */
+            #exercise-nav {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+
+        .nav-button {
+            padding: 8px 5px; /* Adjusted padding to give more space */
+            font-size: 0.85rem; /* Slightly smaller font for better fit */
+            font-weight: bold; 
+            color: var(--text-primary);
+            background-color: var(--mid-gray); /* Default inactive/skipped color */
+            border: 1px solid var(--border-color);
+            border-radius: 8px; 
+            cursor: pointer; 
+            transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+            word-break: break-word; /* Allow words to break if too long */
+            overflow-wrap: break-word; /* For better word wrapping */
+            min-height: 40px; /* Ensure a minimum height for all buttons */
+            display: flex; /* Use flexbox to center text vertically */
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            flex-shrink: 0; /* Prevent buttons from shrinking too much */
+            min-width: 0; /* Allow grid items to shrink below their content size */
+        }
+        
+        /* New state for active (goal/duration > 0) but not selected */
+        .nav-button.active-exercise { 
+            background-color: var(--blue); 
+            color: var(--light-gray);
+        }
+        /* Current selected exercise */
+        .nav-button.current-selected { 
+            background-color: var(--yellow); 
+            color: var(--dark-gray); 
+        }
+        /* Completed state - currently matches active-exercise, but kept for clarity */
+        .nav-button.completed { 
+            background-color: var(--blue); /* Remains blue, consistent with active */
+            color: var(--light-gray);
+        }
+
+
+        /* Shared View Styles */
+        .exercise-view { display: flex; flex-direction: column; gap: 20px; flex-grow: 1; }
+        .exercise-name-display { /* Style for the new exercise name display */
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: 10px; /* Space between name and goal/duration */
+        }
+        .setting-group { display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .setting-group label { font-size: 1.1rem; font-weight: 500; color: var(--text-primary); /* Changed to text-primary for better contrast */ }
+        .setting-select {
+            padding: 8px; font-size: 1rem; border-radius: 8px;
+            border: 1px solid var(--border-color); background-color: var(--mid-gray);
+            color: var(--text-primary); font-weight: bold;
+        }
+        .progress-container {
+            width: 100%; background-color: var(--surface); border-radius: 15px; height: 50px;
+            position: relative; display: flex; align-items: center; justify-content: center;
+            overflow: hidden; border: 2px solid var(--border-color);
+        }
+        .progress-bar {
+            position: absolute; top: 0; left: 0; height: 100%; width: 0%;
+            background-color: var(--accent-color-2); border-radius: 12px 0 0 12px;
+            transition: width 0.2s ease-in-out;
+        }
+        .progress-display {
+            position: relative; z-index: 1; font-size: 1.8rem; font-weight: bold;
+            color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+
+        /* Counter View */
+        #counter-view { flex-grow: 1; }
+        #increment-buttons { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 10px; /* Reduced gap */
+            flex-grow: 1; 
+            padding: 0 5px; /* Added small horizontal padding to container */
+        }
+        .inc-button {
+            height: 120px; /* Explicit height to make them 3 times taller */
+            padding: 0; /* Removed padding, content will be centered by flex */
+            min-width: 80px; /* Ensure a minimum width */
+            font-size: 2rem; /* Slightly smaller font to fit better */
+            font-weight: bold; 
+            color: var(--dark-gray); 
+            border: none; 
+            border-radius: 20px;
+            cursor: pointer; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+            display: flex; /* Use flex to center content */
+            align-items: center; 
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .inc-button:active { transform: scale(0.96); box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        #add-1 { background: var(--light-gray); }
+        #add-5 { background: var(--yellow); }
+        #add-10 { background: var(--blue); color: var(--light-gray); }
+
+        /* Timer View */
+        #timer-view { flex-grow: 1; justify-content: center; align-items: center; }
+        #timer-display { font-size: 8rem; font-weight: bold; color: var(--yellow); }
+        #timer-controls { display: flex; gap: 20px; margin-top: 20px; }
+        .timer-button {
+            font-size: 1.5rem; font-weight: bold; color: var(--light-gray); border-radius: 15px;
+            padding: 15px 30px; border: none; cursor: pointer;
+        }
+        #start-timer-btn { background-color: var(--blue); }
+        #reset-timer-btn { background-color: var(--mid-gray); }
+
+        /* Overall Progress & Action Buttons */
+        #overall-progress-container { width: 100%; }
+        #overall-progress-container label { 
+            text-align: center; 
+            display: block; 
+            margin-bottom: 5px; 
+            color: var(--text-secondary); 
+            white-space: normal; /* Allow text to wrap */
+            overflow-wrap: break-word; /* Ensure long words break */
+        }
+        #action-controls { display: flex; flex-direction: column; gap: 10px;}
+        .action-button {
+            padding: 12px; font-size: 1rem; font-weight: 500;
+            background-color: transparent; border-radius: 8px; cursor: pointer;
+            transition: background-color 0.2s, color 0.2s; border: 1px solid;
+        }
+        #finish-workout-btn { color: var(--blue); border-color: var(--blue); }
+        #reset-exercise-btn { color: var(--mid-gray); border-color: var(--mid-gray); }
+        #reset-workout-btn { color: var(--yellow); border-color: var(--yellow); }
+
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7);
+            display: flex; /* Always flex so transition works */
+            align-items: center; justify-content: center; z-index: 1000;
+            opacity: 0; /* Start invisible */
+            visibility: hidden; /* Prevent interaction when invisible */
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-dialog {
+            background-color: var(--surface); padding: 25px; border-radius: 15px; text-align: center;
+            width: 90%; max-width: 320px; border: 1px solid var(--border-color);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+        }
+        .modal-dialog p { margin-bottom: 20px; font-size: 1.1rem; color: var(--text-primary); }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-button {
+            padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer;
+            font-size: 1rem; font-weight: bold; flex-grow: 1; color: var(--dark-gray);
+        }
+        #modal-confirm { background-color: var(--yellow); }
+        #modal-cancel { background-color: var(--mid-gray); color: var(--light-gray); }
+        
+        /* Error Modal Specific Styles */
+        #error-modal .modal-dialog h2 { color: var(--red-error); }
+        #error-modal .modal-button { background-color: var(--mid-gray); color: var(--light-gray); }
+
+        .celebration-overlay { z-index: 1001; }
+        .celebration-dialog {
+             background-color: var(--surface); padding: 20px; border-radius: 15px;
+             text-align: center; width: 90%; max-width: 350px; border: 1px solid var(--border-color);
+        }
+        #celebration-gif {
+            max-width: 100%; height: 150px; object-fit: cover;
+            border-radius: 8px; margin-bottom: 15px; background-color: #000;
+        }
+        #celebration-title { font-size: 1.8rem; font-weight: bold; margin-bottom: 8px; color: var(--yellow); }
+        #celebration-subtitle { font-size: 1.1rem; margin-bottom: 15px; }
+        #celebration-summary { 
+            font-size: 0.9rem; text-align: left; padding: 10px; 
+            background-color: rgba(0,0,0,0.2); border-radius: 8px; margin-bottom: 20px;
+        }
+        #celebration-summary p { font-size: 0.9rem; margin: 0; line-height: 1.5; }
+        .celebration-buttons { display: flex; flex-direction: column; gap: 10px; }
+        .celebration-button {
+            padding: 12px; border: none; border-radius: 8px; font-size: 1rem;
+            font-weight: bold; cursor: pointer; transition: background-color 0.2s;
+        }
+        #celebration-share-button { background-color: var(--blue); color: var(--light-gray); }
+        #celebration-ok-button { background-color: var(--yellow); color: var(--dark-gray); }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <header>
+            <h1>Push<span class="star">*</span>t</h1>
+            <div class="hamburger-icon" id="hamburger-icon">&#9776;</div> <!-- Hamburger icon -->
+        </header>
+
+        <main>
+            <!-- Exercise Navigation -->
+            <nav id="exercise-nav">
+                <!-- Dynamically populated based on all exercises -->
+            </nav>
+
+            <!-- Counter View (for Push-ups, Squats, Crunches, etc.) -->
+            <div id="counter-view" class="exercise-view">
+                <div id="counter-exercise-name" class="exercise-name-display"></div> <!-- New: Exercise name display -->
+                <div class="setting-group">
+                    <label for="counter-goal">Goal:</label>
+                    <select id="counter-goal" class="setting-select"></select>
+                </div>
+                <div class="progress-container">
+                    <div id="counter-progress-bar" class="progress-bar"></div>
+                    <span id="counter-display" class="progress-display">0 / 100</span>
+                </div>
+                <div id="increment-buttons">
+                    <button class="inc-button" id="add-1" data-increment="1">+1</button>
+                    <button class="inc-button" id="add-5" data-increment="5">+5</button>
+                    <button class="inc-button" id="add-10" data-increment="10">+10</button>
+                </div>
+            </div>
+
+            <!-- Timer View (for Plank, Wall Sit, etc.) -->
+            <div id="timer-view" class="exercise-view hidden">
+                <div id="timer-exercise-name" class="exercise-name-display"></div> <!-- New: Exercise name display -->
+                 <div class="setting-group">
+                    <label for="timer-duration">Duration:</label>
+                    <select id="timer-duration" class="setting-select"></select>
+                </div>
+                <div id="timer-display">00:30</div>
+                <div id="timer-controls">
+                    <button id="start-timer-btn" class="timer-button">Start</button>
+                    <button id="reset-timer-btn" class="timer-button">Reset</button>
+                </div>
+            </div>
+            
+            <!-- Spacer to push content up -->
+            <div style="flex-grow: 1;"></div>
+            
+            <!-- Overall Progress -->
+            <div id="overall-progress-container">
+                <label>Overall Workout Progress</label>
+                <div class="progress-container">
+                    <div id="overall-progress-bar" class="progress-bar"></div>
+                    <span id="overall-progress-display" class="progress-display">0 / 4</span>
+                </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div id="action-controls">
+                <button id="finish-workout-btn" class="action-button">Finish Early</button>
+                <button id="reset-exercise-btn" class="action-button">Reset Exercise</button>
+                <button id="reset-workout-btn" class="action-button">Reset All</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Hamburger Menu Overlay -->
+    <div class="modal-overlay" id="hamburger-menu">
+        <div class="modal-dialog">
+            <span class="close-btn" id="close-menu-btn">&times;</span>
+            <button class="menu-item" id="check-updates-btn">Check for Updates</button>
+            <button class="menu-item" id="share-app-btn">Share App</button>
+            <button class="menu-item" id="reset-workout-btn-menu">Reset All Workout</button>
+            <div class="app-footer-text">
+                Created for the betterment of your body, mind, and soul by NewJourneyDesign. v<span id="app-version"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="reset-modal">
+        <div class="modal-dialog">
+            <p id="reset-modal-text">Are you sure?</p>
+            <div class="modal-buttons">
+                <button class="modal-button" id="modal-cancel">Cancel</button>
+                <button class="modal-button" id="modal-confirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal (NEW) -->
+    <div class="modal-overlay" id="error-modal">
+        <div class="modal-dialog">
+            <h2>Error</h2>
+            <p id="error-message"></p>
+            <div class="modal-buttons">
+                <button id="error-ok-btn" class="modal-button">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- The 'hidden' class ensures it is not displayed on load -->
+    <div class="modal-overlay celebration-overlay" id="celebration-modal">
+        <div class="celebration-dialog">
+            <img id="celebration-gif" src="" alt="Workout complete GIF">
+            <h2 id="celebration-title">WAY TO PUSH<span class="star">*</span>T!</h2>
+            <p id="celebration-subtitle">Great work!</p>
+            <div id="celebration-summary"></div>
+            <div class="celebration-buttons">
+                 <button class="celebration-button" id="celebration-share-button">Send A Message</button>
+                 <button class="celebration-button" id="celebration-ok-button">Awesome!</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // State Management
+            let workoutState; // Stores current workout progress and configuration for each exercise
+            let activeExercise; // Key of the currently viewed exercise
+
+            let timerInterval;
+            let confettiInterval = null; // Initialize confettiInterval to null
+
+            // DOM Elements
+            const elements = {
+                appContainer: document.getElementById('app-container'),
+                nav: document.getElementById('exercise-nav'),
+                counterView: document.getElementById('counter-view'),
+                timerView: document.getElementById('timer-view'),
+                counterExerciseName: document.getElementById('counter-exercise-name'), 
+                timerExerciseName: document.getElementById('timer-exercise-name'), 
+                counterGoalSelect: document.getElementById('counter-goal'),
+                counterProgressBar: document.getElementById('counter-progress-bar'),
+                counterDisplay: document.getElementById('counter-display'),
+                incrementButtons: document.getElementById('increment-buttons'),
+                timerDurationSelect: document.getElementById('timer-duration'),
+                timerDisplay: document.getElementById('timer-display'),
+                startTimerBtn: document.getElementById('start-timer-btn'),
+                resetTimerBtn: document.getElementById('reset-timer-btn'),
+                overallProgressBar: document.getElementById('overall-progress-bar'),
+                overallProgressDisplay: document.getElementById('overall-progress-display'),
+                overallProgressContainer: document.getElementById('overall-progress-container'), 
+                finishWorkoutBtn: document.getElementById('finish-workout-btn'),
+                resetExerciseBtn: document.getElementById('reset-exercise-btn'),
+                resetWorkoutBtn: document.getElementById('reset-workout-btn'),
+                resetModal: document.getElementById('reset-modal'),
+                resetModalText: document.getElementById('reset-modal-text'),
+                modalConfirmBtn: document.getElementById('modal-confirm'),
+                modalCancelBtn: document.getElementById('modal-cancel'),
+                celebrationModal: document.getElementById('celebration-modal'),
+                celebrationDialog: document.querySelector('#celebration-modal .celebration-dialog'), // Select the inner dialog
+                celebrationGif: document.getElementById('celebration-gif'),
+                celebrationOkBtn: document.getElementById('celebration-ok-button'),
+                celebrationShareBtn: document.getElementById('celebration-share-button'),
+                celebrationSubtitle: document.getElementById('celebration-subtitle'),
+                celebrationSummary: document.getElementById('celebration-summary'),
+                actionControls: document.getElementById('action-controls'), 
+                hamburgerIcon: document.getElementById('hamburger-icon'), 
+                hamburgerMenu: document.getElementById('hamburger-menu'),   
+                closeMenuBtn: document.getElementById('close-menu-btn'),   
+                checkUpdatesBtn: document.getElementById('check-updates-btn'), 
+                shareAppBtn: document.getElementById('share-app-btn'),     
+                resetWorkoutBtnMenu: document.getElementById('reset-workout-btn-menu'), 
+                appVersionSpan: document.getElementById('app-version'), 
+                errorModal: document.getElementById('error-modal'), // NEW
+                errorMessage: document.getElementById('error-message'), // NEW
+                errorOkBtn: document.getElementById('error-ok-btn'), // NEW
+            };
+
+            // Full list of available exercises with their default properties
+            // The goal/duration set here are the *initial* defaults if localStorage is empty
+            const allAvailableExercises = {
+                pushups: { name: 'Push-ups', type: 'counter', goal: 100, count: 0, completed: false },
+                squats: { name: 'Squats', type: 'counter', goal: 50, count: 0, completed: false },
+                crunches: { name: 'Crunches', type: 'counter', goal: 50, count: 0, completed: false },
+                plank: { name: 'Plank', type: 'timer', duration: 30, remaining: 30, completed: false, isRunning: false },
+                lunges: { name: 'Lunges', type: 'counter', goal: 40, count: 0, completed: false },
+                'bicep-curls': { name: 'Bicep Curls', type: 'counter', goal: 30, count: 0, completed: false },
+                'tricep-dips': { name: 'Tricep Dips', type: 'counter', goal: 30, count: 0, completed: false },
+                'wall-sit': { name: 'Wall Sit', type: 'timer', duration: 60, remaining: 60, completed: false, isRunning: false }
+            };
+
+            const celebrationGifs = [
+                'https://media.tenor.com/pxj6qU_dJLYAAAAM/sylvester-stallone-rocky.gif',
+                'https://media.tenor.com/chS8BFLkaz4AAAAM/rocky-rocky-balboa.gif',
+                'https://media.tenor.com/IyD0tYLuN_4AAAAM/rocky-balboa-sled.gif',
+                'https://media.tenor.com/t-Irh2wSyQIAAAAM/meat-boxing.gif',
+                'https://media.tenor.com/oM9TDAJNSPcAAAAM/rocky3-training.gif',
+                'https://media.tenor.com/mDD1Jeq9XUQAAAAM/rocky-hug.gif'
+            ];
+
+            // --- Persistence ---
+            function saveState() {
+                localStorage.setItem('workoutState', JSON.stringify(workoutState));
+            }
+
+            function loadState() {
+                const savedState = localStorage.getItem('workoutState');
+                if (savedState) {
+                    const parsedSavedState = JSON.parse(savedState);
+                    workoutState = {};
+                    // Merge saved state with all available exercises to ensure all exist and new ones are added
+                    for (const key in allAvailableExercises) {
+                        if (parsedSavedState[key]) {
+                            workoutState[key] = { ...allAvailableExercises[key], ...parsedSavedState[key] };
+                            // Ensure completion status for 0-goal/duration exercises on load
+                            if (workoutState[key].type === 'counter' && workoutState[key].goal === 0) {
+                                workoutState[key].completed = true;
+                                workoutState[key].count = 0; // Ensure count is 0 if goal is 0
+                            } else if (workoutState[key].type === 'timer' && workoutState[key].duration === 0) {
+                                workoutState[key].completed = true;
+                                workoutState[key].remaining = 0; // Ensure remaining is 0 if duration is 0
+                            }
+                        } else {
+                            workoutState[key] = JSON.parse(JSON.stringify(allAvailableExercises[key])); // Deep copy
+                        }
+                    }
+                    // Remove any exercises from workoutState that are no longer in allAvailableExercises (if any were removed from the master list)
+                    for (const key in workoutState) {
+                        if (!allAvailableExercises[key]) {
+                            delete workoutState[key];
+                        }
+                    }
+                } else {
+                    // Initialize workoutState from allAvailableExercises (deep copy to avoid reference issues)
+                    workoutState = JSON.parse(JSON.stringify(allAvailableExercises));
+                }
+            }
+
+            // --- UI Update Functions ---
+            function renderNavButtons() {
+                elements.nav.innerHTML = '';
+                // Render all exercises, regardless of their goal/duration
+                Object.keys(workoutState).forEach(key => {
+                    const button = document.createElement('button');
+                    button.classList.add('nav-button');
+                    button.dataset.exercise = key;
+                    button.textContent = workoutState[key].name;
+                    elements.nav.appendChild(button);
+                });
+                updateNavButtons(); // Update active/completed states after rendering
+
+                // Ensure correct view is shown after nav buttons are rendered and activeExercise is set
+                // If activeExercise is not set or invalid, find the first available to show
+                if (!activeExercise || !workoutState[activeExercise]) {
+                    const firstExerciseKey = Object.keys(workoutState)[0];
+                    if (firstExerciseKey) {
+                        activeExercise = firstExerciseKey;
+                    } else {
+                        // Truly no exercises defined (shouldn't happen with default setup)
+                        activeExercise = null;
+                        elements.counterView.classList.add('hidden');
+                        elements.timerView.classList.add('hidden');
+                        elements.nav.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No exercises defined.</p>';
+                        return; // Exit if no exercises at all
+                    }
+                }
+                switchView(activeExercise);
+            }
+
+
+            function switchView(exerciseKey) {
+                // If there's no exerciseKey (e.g., all exercises are skipped/inactive)
+                if (!exerciseKey || !workoutState[exerciseKey]) {
+                    elements.counterView.classList.add('hidden');
+                    elements.timerView.classList.add('hidden');
+                    return; 
+                }
+
+                activeExercise = exerciseKey;
+                const state = workoutState[exerciseKey];
+
+                elements.counterView.classList.add('hidden');
+                elements.timerView.classList.add('hidden');
+
+                if (state.type === 'counter') {
+                    elements.counterView.classList.remove('hidden');
+                    elements.counterExerciseName.textContent = state.name; // Set exercise name
+                    updateCounterView();
+                } else { // timer
+                    elements.timerView.classList.remove('hidden');
+                    elements.timerExerciseName.textContent = state.name; // Set exercise name
+                    updateTimerView();
+                }
+
+                updateNavButtons(); // Always update nav buttons after view switch to apply correct highlighting
+            }
+
+            function updateCounterView() {
+                const state = workoutState[activeExercise];
+                elements.counterGoalSelect.innerHTML = ''; 
+                elements.counterGoalSelect.add(new Option('0', 0)); // Add 0 option
+                for (let i = 10; i <= 200; i += 10) {
+                    elements.counterGoalSelect.add(new Option(i, i));
+                }
+                elements.counterGoalSelect.value = state.goal;
+                elements.counterDisplay.textContent = `${state.count} / ${state.goal}`;
+                const progress = state.goal > 0 ? (state.count / state.goal) * 100 : 0;
+                elements.counterProgressBar.style.width = `${Math.min(progress, 100)}%`;
+            }
+
+            function updateTimerView() {
+                const state = workoutState[activeExercise]; 
+                elements.timerDurationSelect.innerHTML = ''; 
+                elements.timerDurationSelect.add(new Option('0 sec', 0)); // Added "0 sec" option
+                for (let i = 15; i <= 90; i += 15) {
+                    elements.timerDurationSelect.add(new Option(`${i} sec`, i));
+                }
+                elements.timerDurationSelect.value = state.duration;
+                const minutes = Math.floor(state.remaining / 60).toString().padStart(2, '0');
+                const seconds = (state.remaining % 60).toString().padStart(2, '0');
+                elements.timerDisplay.textContent = `${minutes}:${seconds}`;
+                elements.startTimerBtn.textContent = state.isRunning ? 'Pause' : 'Start';
+            }
+            
+            function updateNavButtons() {
+                document.querySelectorAll('.nav-button').forEach(btn => {
+                    btn.classList.remove('active-exercise', 'current-selected', 'completed'); // Remove all custom color classes
+                    const exerciseKey = btn.dataset.exercise;
+                    const ex = workoutState[exerciseKey];
+
+                    if (!ex) return; // Should not happen, but for safety
+
+                    if ((ex.type === 'counter' && ex.goal === 0) || (ex.type === 'timer' && ex.duration === 0)) {
+                        // Inactive/skipped exercises - default is var(--mid-gray) which is gray
+                        // No specific class needed for gray, it's the base style
+                    } else {
+                        // Active exercises (goal/duration > 0)
+                        btn.classList.add('active-exercise'); // Blue background
+                    }
+
+                    // If the exercise is completed and not skipped (goal/duration > 0), keep it blue
+                    if (ex.completed && ((ex.type === 'counter' && ex.goal > 0) || (ex.type === 'timer' && ex.duration > 0))) {
+                        btn.classList.add('completed'); 
+                    }
+
+                    // Apply yellow for the currently selected exercise, overriding others
+                    if (exerciseKey === activeExercise) { 
+                         btn.classList.add('current-selected');
+                         // Ensure it's not also blue if it's currently selected
+                         btn.classList.remove('active-exercise', 'completed'); 
+                    }
+                });
+            }
+            
+            function updateOverallProgress() {
+                // Only count exercises that have a non-zero goal or duration
+                const activeExercisesInWorkout = Object.values(workoutState).filter(ex => 
+                    (ex.type === 'counter' && ex.goal > 0) || (ex.type === 'timer' && ex.duration > 0)
+                );
+                const totalActiveExercises = activeExercisesInWorkout.length;
+                const completedActiveExercises = activeExercisesInWorkout.filter(ex => ex.completed).length;
+                
+                elements.overallProgressDisplay.textContent = `${completedActiveExercises} / ${totalActiveExercises}`;
+                // Handle division by zero if no active exercises
+                elements.overallProgressBar.style.width = `${totalActiveExercises > 0 ? (completedActiveExercises / totalActiveExercises) * 100 : 0}%`;
+                
+                if (totalActiveExercises > 0 && completedActiveExercises === totalActiveExercises && !elements.celebrationModal.classList.contains('visible')) {
+                    showCelebrationModal("You completed the entire workout!");
+                }
+            }
+
+            // --- Logic Functions ---
+            function checkCompletion(exerciseKey) {
+                const state = workoutState[exerciseKey];
+                if (!state) return; // Guard against deleted exercises
+                let justCompleted = false;
+
+                if (state.type === 'counter') {
+                    if (state.goal === 0 && !state.completed) {
+                        state.completed = true;
+                        state.count = 0; // Ensure count is 0 if goal is 0
+                        justCompleted = true;
+                    } else if (state.count >= state.goal && state.goal > 0 && !state.completed) {
+                        state.completed = true;
+                        justCompleted = true;
+                    } else if (state.count < state.goal && state.goal > 0 && state.completed) {
+                        // If goal was increased or count decreased after completion, unmark as completed
+                        state.completed = false;
+                    }
+                } else if (state.type === 'timer') {
+                    if (state.duration === 0 && !state.completed) {
+                        state.completed = true;
+                        state.remaining = 0; // Ensure remaining is 0 if duration is 0
+                        justCompleted = true;
+                    } else if (state.remaining <= 0 && state.duration > 0 && !state.completed) {
+                        state.completed = true;
+                        justCompleted = true;
+                    } else if (state.remaining > 0 && state.duration > 0 && state.completed) {
+                        // If duration was increased or timer reset after completion, unmark as completed
+                        state.completed = false;
+                    }
+                }
+                
+                if (justCompleted || (state.completed === false && ((state.type === 'counter' && state.goal > 0) || (state.type === 'timer' && state.duration > 0)))) {
+                    saveState();
+                    updateNavButtons(); // Re-render nav to update status
+                    updateOverallProgress(); 
+                    // Only trigger confetti if a non-zero exercise just completed
+                    if (justCompleted && ((state.type === 'counter' && state.goal > 0) || (state.type === 'timer' && state.duration > 0))) {
+                        confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+                    }
+                }
+            }
+
+            function startTimer() {
+                const state = workoutState[activeExercise]; 
+                if (state.isRunning || state.completed) return; // Cannot start if already completed/skipped
+                
+                state.isRunning = true;
+                elements.startTimerBtn.textContent = 'Pause';
+                
+                timerInterval = setInterval(() => {
+                    state.remaining--;
+                    updateTimerView();
+                    if (state.remaining <= 0) {
+                        clearInterval(timerInterval);
+                        state.isRunning = false;
+                        checkCompletion(activeExercise); 
+                    }
+                    saveState();
+                }, 1000);
+            }
+
+            function pauseTimer() {
+                 const state = workoutState[activeExercise]; 
+                 if (!state.isRunning) return;
+                 state.isRunning = false;
+                 clearInterval(timerInterval);
+                 elements.startTimerBtn.textContent = 'Start';
+                 saveState();
+            }
+
+            function resetTimer() {
+                pauseTimer();
+                const state = workoutState[activeExercise]; 
+                state.remaining = state.duration;
+                // Reset completed status only if duration is non-zero (i.e., not a skipped exercise)
+                if(state.duration > 0) { 
+                    state.completed = false;
+                } else {
+                    state.completed = true; // If duration is 0, it's always completed/skipped
+                }
+                updateNavButtons();
+                updateOverallProgress();
+                updateTimerView();
+                saveState();
+            }
+
+            function resetEntireWorkout() {
+                pauseTimer(); // Stop any running timer
+                if (confettiInterval) { // Clear confetti if active
+                    clearInterval(confettiInterval);
+                    confettiInterval = null;
+                }
+                workoutState = JSON.parse(JSON.stringify(allAvailableExercises)); // Reset to initial default exercises
+                localStorage.removeItem('workoutState'); // Clear localStorage completely
+                saveState(); // Save the reset state
+                renderNavButtons(); // Re-render nav bar
+                updateOverallProgress();
+
+                // Find the first active exercise to switch to
+                const firstExerciseKey = Object.keys(workoutState)[0]; 
+                if (firstExerciseKey) {
+                    switchView(firstExerciseKey);
+                } else {
+                    elements.counterView.classList.add('hidden');
+                    elements.timerView.classList.add('hidden');
+                    elements.nav.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No exercises defined.</p>';
+                }
+            }
+            
+            // --- Event Handlers ---
+            elements.nav.addEventListener('click', (e) => {
+                if (e.target.matches('.nav-button')) {
+                    switchView(e.target.dataset.exercise);
+                }
+            });
+
+            elements.incrementButtons.addEventListener('click', (e) => {
+                const state = workoutState[activeExercise];
+                if (!state || (state.completed && state.goal > 0)) return; // Cannot increment if completed and not a 0-goal exercise
+                
+                const increment = parseInt(e.target.closest('.inc-button')?.dataset.increment);
+                if (increment) {
+                    state.count += increment;
+                    updateCounterView();
+                    checkCompletion(activeExercise);
+                    saveState();
+                }
+            });
+
+            elements.counterGoalSelect.addEventListener('change', (e) => {
+                const state = workoutState[activeExercise];
+                if (!state) return;
+                state.goal = parseInt(e.target.value);
+                state.count = 0; // Reset count when goal changes
+                checkCompletion(activeExercise); // Check if setting to 0 completes it
+                updateCounterView(); // Re-render to reflect new goal
+                renderNavButtons(); // Potentially update nav buttons if goal became 0 or vice versa
+                updateOverallProgress(); // Re-evaluate overall progress
+                saveState();
+            });
+
+            elements.timerDurationSelect.addEventListener('change', (e) => {
+                const state = workoutState[activeExercise]; 
+                if (!state) return;
+                if (state.isRunning) pauseTimer(); // Pause if running to change duration
+                state.duration = parseInt(e.target.value);
+                state.remaining = state.duration; // Reset remaining when duration changes
+                checkCompletion(activeExercise); // Check if setting to 0 completes it
+                updateTimerView(); // Re-render to reflect new duration
+                renderNavButtons(); // Potentially update nav buttons if duration became 0 or vice versa
+                updateOverallProgress(); // Re-evaluate overall progress
+                saveState();
+            });
+
+            elements.startTimerBtn.addEventListener('click', () => {
+                if (!activeExercise || !workoutState[activeExercise]) return;
+                if (workoutState[activeExercise].isRunning) { 
+                    pauseTimer();
+                } else {
+                    startTimer();
+                }
+            });
+
+            elements.resetTimerBtn.addEventListener('click', () => {
+                if (!activeExercise || !workoutState[activeExercise]) return;
+                resetTimer();
+            });
+
+            elements.resetExerciseBtn.addEventListener('click', () => {
+                if (!activeExercise || !workoutState[activeExercise]) {
+                    showErrorModal('No exercise selected to reset!');
+                    return;
+                }
+                showResetModal(`Reset ${workoutState[activeExercise].name}?`, () => {
+                    const state = workoutState[activeExercise];
+                    if (state.type === 'counter') {
+                        state.count = 0;
+                    } else { // timer
+                        state.remaining = state.duration;
+                        state.isRunning = false;
+                        clearInterval(timerInterval); 
+                    }
+                    // Reset completed status based on current goal/duration
+                    state.completed = (state.type === 'counter' && state.goal === 0) || (state.type === 'timer' && state.duration === 0);
+                    switchView(activeExercise);
+                    updateNavButtons();
+                    updateOverallProgress();
+                    saveState();
+                 });
+            });
+
+            elements.resetWorkoutBtn.addEventListener('click', () => {
+                showResetModal('Reset the entire workout?', resetEntireWorkout);
+            });
+
+            elements.finishWorkoutBtn.addEventListener('click', () => {
+                const activeExercises = Object.values(workoutState).filter(ex => 
+                    (ex.type === 'counter' && ex.goal > 0) || (ex.type === 'timer' && ex.duration > 0)
+                );
+                const totalActiveExercises = activeExercises.length;
+                const completedActiveExercises = activeExercises.filter(ex => ex.completed).length;
+
+                if (totalActiveExercises === 0) {
+                    showCelebrationModal("Your workout is empty!");
+                    return;
+                }
+
+                if (totalActiveExercises > 0 && completedActiveExercises === totalActiveExercises) {
+                    showCelebrationModal("You completed the entire workout!");
+                } else {
+                    showResetModal('Finish workout now? Uncompleted exercises will be reset.', () => {
+                        // Mark all *active* uncompleted exercises as completed and reset their values
+                        activeExercises.forEach(ex => {
+                            if (!ex.completed) {
+                                ex.completed = true;
+                                if (ex.type === 'counter') {
+                                    ex.count = ex.goal; // Set to goal as if finished
+                                } else { // timer
+                                    ex.remaining = 0; // Set to 0 as if finished
+                                    ex.isRunning = false;
+                                }
+                            }
+                        });
+                        saveState();
+                        updateNavButtons();
+                        updateOverallProgress();
+                        showCelebrationModal("Great work! Every bit counts!");
+                    });
+                }
+            });
+            
+            // --- Modal & Celebration ---
+            function showResetModal(text, onConfirm) {
+                elements.resetModalText.textContent = text;
+                elements.resetModal.classList.add('visible'); // Use classList
+                
+                const confirmHandler = () => {
+                    onConfirm();
+                    hideResetModal();
+                };
+                
+                elements.modalConfirmBtn.onclick = confirmHandler;
+            }
+            
+            function hideResetModal() {
+                elements.resetModal.classList.remove('visible'); // Use classList
+                elements.modalConfirmBtn.onclick = null;
+            }
+            elements.modalCancelBtn.addEventListener('click', hideResetModal);
+
+            function showErrorModal(message) {
+                elements.errorMessage.textContent = message;
+                elements.errorModal.classList.add('visible');
+                elements.errorOkBtn.onclick = () => elements.errorModal.classList.remove('visible');
+            }
+
+            function generateWorkoutSummary() {
+                let html = '';
+                let text = 'My workout summary:\n'; 
+
+                // Filter for exercises that are NOT skipped (goal/duration > 0)
+                const activeExercisesForSummary = Object.values(workoutState).filter(ex => 
+                    (ex.type === 'counter' && ex.goal > 0) || (ex.type === 'timer' && ex.duration > 0)
+                );
+
+                if (activeExercisesForSummary.length === 0) {
+                    html += '<p>No active exercises were completed in this workout.</p>';
+                    text += 'No active exercises were completed in this workout.';
+                } else {
+                    activeExercisesForSummary.forEach(ex => {
+                        html += `<p><strong>${ex.name}:</strong> `;
+                        text += `${ex.name}: `;
+                        if (ex.type === 'counter') {
+                            html += `${ex.count} / ${ex.goal} reps</p>`;
+                            text += `${ex.count} / ${ex.goal} reps\n`;
+                        } else { // timer
+                            const timeDone = ex.duration - ex.remaining;
+                            html += `${timeDone} / ${ex.duration} sec</p>`;
+                            text += `${timeDone} / ${ex.duration} sec\n`;
+                        }
+                    });
+                }
+
+                return { html, text };
+            }
+
+            function showCelebrationModal(subtitle) {
+                // Clear any existing confetti interval before starting a new one
+                if (confettiInterval) {
+                    clearInterval(confettiInterval);
+                    confettiInterval = null;
+                }
+
+                 const randomGif = celebrationGifs[Math.floor(Math.random() * celebrationGifs.length)];
+                 elements.celebrationGif.src = randomGif;
+
+                 const summary = generateWorkoutSummary();
+                 elements.celebrationSummary.innerHTML = summary.html;
+
+                 confettiInterval = setInterval(() => {
+                    confetti({ particleCount: 2, angle: 60, spread: 55, origin: { x: 0 } });
+                    confetti({ particleCount: 2, angle: 120, spread: 55, origin: { x: 1 } });
+                }, 300);
+
+                elements.celebrationSubtitle.textContent = subtitle;
+                elements.celebrationModal.classList.add('visible'); // Use classList
+                
+                const okHandler = () => {
+                    clearInterval(confettiInterval); // Clear interval when OK is clicked
+                    confettiInterval = null; // Reset the variable
+                    elements.celebrationModal.classList.remove('visible'); // Use classList
+                    resetEntireWorkout(); 
+                };
+                elements.celebrationOkBtn.onclick = okHandler;
+            }
+            
+            elements.celebrationShareBtn.addEventListener('click', async () => {
+                 const shareButton = elements.celebrationShareBtn;
+                 shareButton.textContent = 'Generating...';
+                 const summary = generateWorkoutSummary();
+                 try {
+                    // Introduce a small delay to allow GIF to fully load/render
+                    await new Promise(resolve => setTimeout(resolve, 300)); 
+
+                    // Target the celebration-dialog for the screenshot
+                    const canvas = await html2canvas(elements.celebrationDialog, { 
+                        logging: false, 
+                        backgroundColor: "#3a3a3a", // Explicitly set background color to match dialog
+                        useCORS: true // Attempt to resolve cross-origin issues for images
+                    });
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                    const file = new File([blob], 'workout-complete.png', { type: 'image/png' });
+                    const shareData = {
+                        files: [file],
+                        title: 'I completed my workout!',
+                        text: `Just finished my workout with the Push*t app!\n\n${summary.text}`,
+                    };
+                    if (navigator.canShare && navigator.canShare(shareData)) {
+                        await navigator.share(shareData);
+                    } else { showErrorModal("Sharing not supported on this device."); } // Use showErrorModal
+                 } catch (err) {
+                    console.error("Share failed", err);
+                    showErrorModal("Could not create screenshot for sharing. Error: " + err.message); // Use showErrorModal and include error message
+                 } finally {
+                    shareButton.textContent = 'Send A Message';
+                 }
+            });
+
+            // --- Hamburger Menu Functions ---
+            function toggleHamburgerMenu() {
+                elements.hamburgerMenu.classList.toggle('visible'); // Correctly toggles 'visible' class
+            }
+
+            function checkForUpdates() {
+                showErrorModal('This is the latest version of the Push*t app!'); // Changed to showErrorModal for consistency
+                toggleHamburgerMenu(); // Close menu after action
+            }
+
+            async function shareApp() {
+                try {
+                    if (navigator.share) {
+                        await navigator.share({
+                            title: 'Push*t Workout App',
+                            text: 'Check out this simple and effective workout tracking app!',
+                            url: window.location.href, // Shares the current URL of the app
+                        });
+                    } else {
+                        // Fallback for browsers that don't support Web Share API
+                        showErrorModal('Web Share API is not supported in this browser. You can manually copy the URL: ' + window.location.href); // Use showErrorModal
+                    }
+                }
+                catch (error) {
+                    console.error('Error sharing the app:', error);
+                    // Only show error if user didn't cancel
+                    if (error.name !== 'AbortError') {
+                        showErrorModal('Failed to share the app. Please try again.'); // Use showErrorModal
+                    }
+                }
+                toggleHamburgerMenu(); // Close menu after action
+            }
+
+
+            // --- Initialization ---
+            function initialize() {
+                loadState(); // Load workoutState, which now contains all configuration
+
+                // Set initial active exercise
+                // Try to find the first active exercise (goal/duration > 0)
+                const firstExerciseKey = Object.keys(workoutState)[0]; // Always default to the first exercise defined
+                if (firstExerciseKey) {
+                    activeExercise = firstExerciseKey; 
+                } else {
+                    activeExercise = null; // No exercises available
+                }
+                
+                renderNavButtons(); // Render nav based on all exercises in workoutState
+                updateOverallProgress(); // Update overall progress based on loaded state
+
+                // Set the static version number
+                elements.appVersionSpan.textContent = '1.0'; 
+
+                // switchView(activeExercise) is called inside renderNavButtons()
+
+                // Add event listeners for the hamburger menu
+                elements.hamburgerIcon.addEventListener('click', toggleHamburgerMenu);
+                elements.closeMenuBtn.addEventListener('click', toggleHamburgerMenu);
+                elements.checkUpdatesBtn.addEventListener('click', checkForUpdates);
+                elements.shareAppBtn.addEventListener('click', shareApp);
+                elements.resetWorkoutBtnMenu.addEventListener('click', () => { 
+                    showResetModal('Reset the entire workout?', resetEntireWorkout);
+                });
+            }
+
+            initialize();
+        });
+    </script>
+</body>
+</html>

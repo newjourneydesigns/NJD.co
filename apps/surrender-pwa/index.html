@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Surrender</title>
     <link rel="manifest" href="./manifest.json">
+    <!-- Favicon -->
+    <link rel="icon" href="https://i.imgur.com/JVIb5ir.png">
     <!-- Apple Touch Icon for iOS -->
     <link rel="apple-touch-icon" href="https://i.imgur.com/JVIb5ir.png">
     <!-- Tailwind CSS CDN -->
@@ -70,7 +72,7 @@
                 <!-- Welcome/Intro Card (Day 0) -->
                 <div id="intro-card" class="card p-6 md:p-8 rounded-2xl shadow-lg transition-colors duration-300 text-center mb-6 opacity-100 transition-opacity duration-500 ease-in-out">
                     <img src="https://i.imgur.com/QL65l5f.png" alt="Decorative Image" class="mx-auto h-24 w-auto mb-4"> <!-- New image added here -->
-                    <p class="text-base md:text-lg leading-relaxed mb-4">To surrender is to live as a beloved child in the arms of a good Father. You are safe. You are seen. You are fully loved. Let this journey be a beginning—a rhythm of trust that shapes how you walk with Jesus every day.</p>
+                    <p class="text-sm md:text-lg leading-relaxed mb-4">To surrender is to live as a beloved child in the arms of a good Father. You are safe. You are seen. You are fully loved. Let this journey be a beginning—a rhythm of trust that shapes how you walk with Jesus every day.</p>
                     <p class="text-base md:text-lg italic mb-6 text-blue-200">Let me hear of your unfailing love each morning, for I am trusting you. Show me where to walk, for I give myself to you. Psalm 143:8</p> 
                     <button id="start-journey-btn" class="btn-base btn-dark-blue px-6 py-3 text-lg block mx-auto">Begin</button> <!-- Applied btn-dark-blue class -->
                 </div>
@@ -129,7 +131,6 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // Register service worker relative to the current script's location
-                // Changed from './sw.js' to '/sw.js' to try and resolve protocol error
                 navigator.serviceWorker.register('/sw.js')
                     .then(registration => {
                         console.log('Service Worker registered with scope:', registration.scope);

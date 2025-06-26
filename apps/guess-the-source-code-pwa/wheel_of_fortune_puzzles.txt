@@ -1,0 +1,270 @@
+Phrase:
+- Better Late Than Never
+- Break The Ice
+- A Piece Of Cake
+- Under The Weather
+- Let The Cat Out Of The Bag
+- Burning The Midnight Oil
+- Hit The Nail On The Head
+- Every Cloud Has A Silver Lining
+- Bite The Bullet
+- Kick The Bucket
+- The Ball Is In Your Court
+- Go The Extra Mile
+- Back To Square One
+- Spill The Beans
+- On Thin Ice
+- Off The Hook
+- In Hot Water
+- Cut To The Chase
+- No Pain No Gain
+- The Last Straw
+- Raining Cats And Dogs
+- Hit The Sack
+- Throw In The Towel
+- A Dime A Dozen
+- Costs An Arm And A Leg
+
+Before & After:
+- Double Trouble Maker
+- Baby Shower Curtain
+- Cold Turkey Sandwich
+- Fast Food Truck
+- High School Musical
+- Secret Santa Claus
+- Running Late Night Show
+- Ice Cream Sandwich
+- Book Club Sandwich
+- Hot Dog Park
+- Fruit Punch Line
+- Paper Clip Art
+- Coffee Mug Shot
+- Spring Break Dance
+- Picture Frame Job
+- Family Tree House
+- Birthday Suit Case
+- Roller Coaster Ride
+- Hair Brush Fire
+- Snow Cone Machine
+- Traffic Light Saber
+- Pencil Sharpener Image
+- Face Mask Mandate
+- Dream Catcher’s Mitt
+- Peanut Butter Knife
+
+Thing:
+- Smartphone
+- Laptop Charger
+- Basketball
+- Wristwatch
+- Television
+- Headphones
+- Teddy Bear
+- Backpack
+- Alarm Clock
+- Board Game
+- Whiteboard Marker
+- Keychain
+- Sunglasses
+- Water Bottle
+- Picture Frame
+- Snow Globe
+- Bicycle Helmet
+- Desk Lamp
+- Toothbrush
+- Umbrella
+- Calendar
+- Blanket
+- Magazine
+- Postcard
+- Light Bulb
+
+Place:
+- Central Park
+- Niagara Falls
+- The Grand Canyon
+- Times Square
+- Mount Everest
+- The Eiffel Tower
+- Yellowstone National Park
+- A Cozy Cabin
+- The Beach
+- Las Vegas Strip
+- The Sahara Desert
+- Sydney Opera House
+- Tokyo Disneyland
+- The Amazon Rainforest
+- Golden Gate Bridge
+- Disney World
+- A Quiet Library
+- The Oval Office
+- The Great Wall Of China
+- Hollywood Boulevard
+- Rocky Mountains
+- London Eye
+- Statue Of Liberty
+- Bora Bora
+- The Colosseum
+
+Person:
+- Taylor Swift
+- The President
+- A Famous Chef
+- Soccer Coach
+- The Bride
+- Superhero Fan
+- Movie Director
+- My Best Friend
+- News Reporter
+- College Professor
+- High School Principal
+- The Mayor
+- Social Media Influencer
+- The Groom
+- Firefighter
+- Police Officer
+- Student Leader
+- Astronaut
+- Race Car Driver
+- TV Host
+- Fashion Designer
+- Standup Comedian
+- Talk Show Guest
+- Motivational Speaker
+- Fitness Trainer
+
+Event:
+- Graduation Ceremony
+- Birthday Party
+- Wedding Reception
+- Football Game
+- Movie Premiere
+- Parade
+- Talent Show
+- Concert
+- Prom Night
+- Job Interview
+- Family Reunion
+- School Play
+- Baby Shower
+- Dance Recital
+- Retirement Party
+- Charity Auction
+- Open House
+- Block Party
+- Game Night
+- Award Ceremony
+- Picnic In The Park
+- Holiday Celebration
+- New Year’s Eve
+- Pool Party
+- Art Exhibition
+
+Occupation:
+- Firefighter
+- Software Developer
+- Graphic Designer
+- Dentist
+- Surgeon
+- Photographer
+- Pilot
+- Flight Attendant
+- Waiter
+- Librarian
+- Electrician
+- Mechanic
+- Journalist
+- Architect
+- Fashion Designer
+- Police Officer
+- Real Estate Agent
+- Barista
+- Event Planner
+- Musician
+- Nurse
+- Therapist
+- Zookeeper
+- Plumber
+- Fitness Coach
+
+Proper Name:
+- Elon Musk
+- Barack Obama
+- Taylor Swift
+- Ariana Grande
+- LeBron James
+- Dwayne Johnson
+- Oprah Winfrey
+- Selena Gomez
+- Tom Hanks
+- Bill Gates
+- Jennifer Aniston
+- Shawn Mendes
+- Zendaya
+- Harry Styles
+- Emma Watson
+- Ed Sheeran
+- Justin Bieber
+- Chris Hemsworth
+- Angelina Jolie
+- Rihanna
+- Morgan Freeman
+- Drake
+- Kylie Jenner
+- Robert Downey Jr
+- Keanu Reeves
+
+Title:
+- The Great Gatsby
+- The Hunger Games
+- Stranger Things
+- Harry Potter
+- The Lion King
+- Frozen
+- Breaking Bad
+- Avengers Endgame
+- The Notebook
+- Game Of Thrones
+- Finding Nemo
+- Toy Story
+- The Office
+- Friends
+- Star Wars
+- Twilight
+- Spider-Man
+- Black Panther
+- Encanto
+- The Mandalorian
+- Moana
+- Coco
+- Inside Out
+- Monsters Inc
+- Up
+
+Food & Drink:
+- Pepperoni Pizza
+- Iced Coffee
+- Spaghetti And Meatballs
+- Cheeseburger
+- Tacos
+- Chicken Nuggets
+- Fried Rice
+- Grilled Cheese
+- Ice Cream Sundae
+- Chocolate Cake
+- Caesar Salad
+- Fruit Smoothie
+- Mashed Potatoes
+- Apple Pie
+- Sushi Roll
+- Donut Holes
+- Buffalo Wings
+- Nachos With Cheese
+- Milkshake
+- Cereal And Milk
+- Banana Bread
+- Hot Chocolate
+- Vegetable Soup
+- Avocado Toast
+- Cupcake Tower
+

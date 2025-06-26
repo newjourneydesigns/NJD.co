@@ -1,0 +1,962 @@
+<!--
+README: Sermon on the Mount Memorizer
+
+This single-page web application helps users memorize the Sermon on the Mount (Matthew 5-7, NIV translation).
+
+Key Features:
+- Hardcoded Verse Data: All 111 verses from Matthew 5-7 (NIV) are embedded directly in the JavaScript.
+- Custom Memorization Plan: On first load, the user specifies a target end date for memorization. This dynamically determines the 'verses per day'.
+- Daily Display with Layered Review:
+    - Displays all previously completed verses.
+    - Displays today's new verses.
+    - Progress is advanced manually via a "Mark Today Complete" button.
+- Progress Tracking: Shows total verses memorized, percentage complete, and days remaining until the target date.
+- Verse Interaction Modes: Always shows Full Passage mode.
+- Dark Mode UI: Styled with a dark gray background and light text for readability using the provided color palette.
+- PERSISTENCE: Uses localStorage to save user's memorization plan (target date) and current progress (current verse index).
+- Offline Capability: Enabled by `manifest.json` and `service-worker.js` for installability and caching.
+- Reset Option: A "Reset Plan" button clears all stored progress and allows starting over.
+- YouVersion Link: A dynamic link to the specific portion of the Sermon on the Mount displayed is provided for easy reference.
+- Favicon and Logo: The application now includes a favicon and a logo next to the title for a more branded experience.
+- Hamburger Menu: Added a collapsible menu with "Add to Home Screen", "Share the app", "Reset Plan", "Read Full Passage", "Check for Updates", and "Fire & Hammer" options. (Removed "Create Meditation Reminder")
+- Fire & Hammer Link: Added a link to the Fire & Hammer meditation app in the menu.
+- Footer Credit: Added "Created by NewJourneyDesigns v<version>" at the bottom of the page, with an incrementing version number. The version is also displayed in the menu.
+
+
+Technical Details:
+- HTML, CSS (Tailwind CSS CDN), and Vanilla JavaScript.
+- Uses external `manifest.json` and `service-worker.js` for proper PWA features.
+- Designed to be responsive for both mobile and desktop.
+- Custom modal implementations replace native alert/confirm dialogs.
+
+How to Use:
+1. Save the content of this HTML immersive as `index.html`.
+2. Save the content of the `manifest.json` immersive below as `manifest.json`.
+3. Save the content of the `service-worker.js` immersive below as `service-worker.js`.
+4. **Crucially, place all three files (`index.html`, `manifest.json`, `service-worker.js`) in the same root directory on your web server (e.g., Netlify).**
+5. **To test PWA features (like installation and offline mode), you MUST serve these files from a web server over HTTPS.** Since you're using Netlify, this should work automatically once deployed.
+6. After deployment, navigate to your app's URL (e.g., `https://the-mount.netlify.app`).
+7. **To trigger the install prompt:**
+    * **On Desktop Chrome:** Look for an "Install" icon in the browser's address bar (usually a plus sign or computer monitor icon). Clicking it will prompt installation.
+    * **On Android Chrome:** After a few seconds of interacting with the page, a "Add to Home Screen" banner might appear at the bottom. If not, go to the browser's menu (three dots) and look for "Add to Home Screen" or "Install app."
+    * **On iOS Safari:** Open the app in Safari, tap the Share button (square with an arrow pointing up), and then select "Add to Home Screen."
+8. **To test offline mode:** After installation, or after visiting the page and ensuring the service worker is active (check browser developer tools -> Application -> Service Workers), turn off your device's Wi-Fi/data and try to open the app or refresh the page. It should still load.
+
+Modification/Expansion:
+- To add more verses or change existing ones, modify the `verses` array in the JavaScript.
+- UI elements can be styled further using Tailwind CSS classes or custom CSS.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Mount</title>
+    <!-- Favicon for various devices -->
+    <link rel="icon" href="https://i.imgur.com/0HqZBGi.png" type="image/png">
+    <link rel="apple-touch-icon" href="https://i.imgur.com/0HqZBGi.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="https://i.imgur.com/0HqZBGi.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="https://i.imgur.com/0HqZBGi.png">
+    
+    <!-- PWA Manifest Link -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Font: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #313715; /* Darkest background from palette */
+            color: #bbce8a; /* Primary text color from palette */
+        }
+
+        .progress-bar-fill {
+            transition: width 0.5s ease-in-out;
+        }
+
+        .modal {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.8);
+        }
+        .modal-content {
+            background-color: #4A5034; /* Slightly lighter than body background */
+            padding: 2.5rem;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            text-align: center;
+            position: relative; /* Needed for close button positioning */
+        }
+        .modal-close-button {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #e2f9b8; /* Lightest text color */
+            cursor: pointer;
+        }
+
+        /* Specific styling for the date input to match theme and improve mobile appearance */
+        input[type="date"] {
+            -webkit-appearance: none; /* Remove default styling for better customizability */
+            -moz-appearance: textfield; /* Keep default textfield for Firefox */
+            appearance: none; /* Standard property */
+            background-color: #939f5c; /* Bg color from palette */
+            color: #313715; /* Text color from palette for better contrast on input bg */
+            border: 1px solid #d16014; /* Border color from palette */
+            border-radius: 0.5rem; /* rounded-lg */
+            padding: 0.75rem; /* p-3 */
+            width: 100%; /* w-full */
+            max-width: 20rem; /* max-w-xs, adjusted for readability */
+            font-size: 1.125rem; /* text-lg */
+            line-height: 1.75rem; /* leading-relaxed */
+            height: 3.5rem; /* Explicit height for better touch target */
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+        }
+        /* Style the calendar icon for consistency (WebKit/Blink browsers) */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(100%) sepia(100%) saturate(0%) hue-rotate(289deg) brightness(100%) contrast(100%); /* Makes icon white for dark theme */
+            cursor: pointer; /* Indicate it's clickable */
+            opacity: 1; /* Ensure it's not transparent */
+        }
+        /* Style the date input when it's focused */
+        input[type="date"]:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px #d16014; /* Custom focus ring color */
+        }
+
+        /* Hamburger menu specific styles */
+        .hamburger-menu-icon {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            width: 30px;
+            height: 20px;
+            cursor: pointer;
+            padding: 5px;
+            box-sizing: content-box; /* To ensure padding adds to overall size for touch target */
+            position: absolute; /* Position it relative to the header */
+            left: 1rem; /* Adjust as needed */
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1001; /* Above other content but below side menu overlay */
+        }
+
+        .hamburger-menu-icon span {
+            display: block;
+            width: 100%;
+            height: 3px;
+            background-color: #e2f9b8; /* Lightest text color */
+            border-radius: 2px;
+            transition: all 0.3s ease-in-out;
+        }
+        /* Hide hamburger icon when menu is open */
+        .hamburger-menu-icon.hidden {
+            display: none;
+        }
+
+        .side-menu {
+            position: fixed;
+            top: 0;
+            left: -250px; /* Hidden off-screen, width adjusted to 250px */
+            width: 250px; /* Explicit width */
+            height: 100%;
+            background-color: #4A5034; /* Same as modal background */
+            z-index: 1000;
+            transition: left 0.3s ease-in-out;
+            padding-top: 4rem; /* Space for logo/header */
+            box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+        }
+
+        .side-menu.open {
+            left: 0; /* Slide in */
+        }
+
+        .side-menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            z-index: 999;
+            display: none; /* Hidden by default */
+        }
+
+        .side-menu-overlay.active {
+            display: block; /* Show when menu is open */
+        }
+
+        .side-menu ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .side-menu li {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .side-menu li:last-child {
+            border-bottom: none;
+        }
+
+        .side-menu button {
+            display: block;
+            width: 100%;
+            padding: 1rem 1.5rem;
+            text-align: left;
+            background-color: transparent;
+            color: #e2f9b8; /* Lightest text color */
+            font-size: 1.125rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        .side-menu button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Hamburger Menu Overlay -->
+    <div id="side-menu-overlay" class="side-menu-overlay" onclick="toggleHamburgerMenu()"></div>
+
+    <!-- Hamburger Menu -->
+    <div id="side-menu" class="side-menu">
+        <h3 class="text-2xl font-bold text-center mb-6" style="color: #e2f9b8;">Menu</h3>
+        <ul>
+            <li><button id="add-to-home-screen-btn">Add to Home Screen</button></li>
+            <li><button id="share-app-btn">Share the app</button></li>
+            <li><button id="reset-plan-menu-btn">Reset Plan</button></li>
+            <li><button id="read-full-passage-btn">Read Full Passage (Matthew 5-7)</button></li>
+            <li><button id="fire-and-hammer-btn" onclick="window.open('https://fire-and-hammer-meditation-app.netlify.app/', '_blank'); toggleHamburgerMenu();">Fire & Hammer</button></li>
+            <li><button id="check-for-updates-btn">Check for Updates</button></li>
+            <li><p class="text-sm px-4 py-2" id="menu-version-info" style="color: #939f5c;">Created by NewJourneyDesigns v</p></li>
+        </ul>
+    </div>
+
+    <!-- Initial Setup Modal -->
+    <div id="setup-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 class="text-2xl font-bold mb-4" style="color: #e2f9b8;">Welcome to The Mount Memorizer!</h2>
+            <p class="mb-6" style="color: #bbce8a;">Select a target date to memorize the entire Sermon on the Mount (111 verses).</p>
+            <input type="date" id="target-date-input" class="p-3 w-full max-w-xs mb-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button id="start-plan-button" class="font-bold py-3 px-6 rounded-lg shadow-md transition-colors duration-200" style="background-color: #d16014; color: #313715; hover:background-color: #bbce8a;">Start Memorizing!</button>
+        </div>
+    </div>
+
+    <!-- Custom Alert/Confirmation Modal -->
+    <div id="custom-modal" class="modal hidden">
+        <div class="modal-content">
+            <button class="modal-close-button" id="modal-close-button">&times;</button>
+            <h3 id="modal-title" class="text-xl font-bold mb-4" style="color: #e2f9b8;"></h3>
+            <p id="modal-message" class="mb-6" style="color: #bbce8a;"></p>
+            <div id="modal-buttons" class="flex justify-center gap-4">
+                <!-- Buttons will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application Container -->
+    <div class="container mx-auto p-4 md:p-8 max-w-4xl min-h-screen flex flex-col">
+        <header class="flex flex-col md:flex-row justify-start items-center mb-6 pb-4 relative" style="border-bottom: 1px solid #939f5c;">
+            <!-- Hamburger Menu Icon -->
+            <div class="hamburger-menu-icon" id="hamburger-icon" onclick="toggleHamburgerMenu()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <h1 class="text-3xl md:text-4xl font-extrabold mb-4 md:mb-0 flex items-center text-left mx-auto" style="color: #e2f9b8;">
+                <img src="https://i.imgur.com/0HqZBGi.png" alt="The Mount Logo" class="h-8 md:h-10 mr-3 inline-block">
+                The Mount
+            </h1>
+        </header>
+
+        <!-- Progress Tracking Section -->
+        <section class="mb-8 p-6 rounded-lg shadow-lg" style="background-color: #4A5034;">
+            <h2 class="text-2xl font-semibold mb-4" style="color: #bbce8a;">Your Progress</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-center">
+                <div class="p-3 rounded-lg" style="background-color: #313715;">
+                    <p class="text-lg font-medium" style="color: #939f5c;">Verses Memorized</p>
+                    <p id="verses-memorized" class="text-3xl font-bold" style="color: #e2f9b8;">0</p>
+                </div>
+                <div class="p-3 rounded-lg" style="background-color: #313715;">
+                    <p class="text-lg font-medium" style="color: #939f5c;">Percent Complete</p>
+                    <p id="percent-complete" class="text-3xl font-bold" style="color: #e2f9b8;">0%</p>
+                </div>
+                <div class="p-3 rounded-lg" style="background-color: #313715;">
+                    <p class="text-lg font-medium" style="color: #939f5c;">Days Remaining</p>
+                    <p id="days-remaining" class="text-3xl font-bold" style="color: #e2f9b8;">0</p>
+                </div>
+            </div>
+            <div class="w-full rounded-full h-4" style="background-color: #939f5c;">
+                <div id="progress-bar" class="progress-bar-fill h-4 rounded-full" style="background-color: #e2f9b8; width: 0%;"></div>
+            </div>
+            <p id="progress-message" class="mt-4 text-center text-lg" style="color: #bbce8a;"></p>
+            <!-- Reset button moved to hamburger menu -->
+        </section>
+
+        <!-- YouVersion Link -->
+        <section class="mb-6 text-center">
+            <a id="youversion-link" href="#" target="_blank" rel="noopener noreferrer" class="font-bold py-2 px-4 rounded-lg shadow-md transition-colors duration-200 inline-flex items-center" style="background-color: #d16014; color: #313715; hover:background-color: #bbce8a;">
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2-2v2H6V2h.01zM14 8a2 2 0 012-2h4a2 2 0 012 2v4a2 2 0 01-2 2h-4a2 2 0 01-2-2V8zm2 2v2H16v-2h.01zM4 14a2 2 0 012-2h4a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zm2-2v2H6v-2h.01zM14 18a2 2 0 012-2h4a2 2 0 012 2v2a2 2 0 01-2 2h-4a2 2 0 01-2-2v-2z"></path></svg>
+                Read on YouVersion
+            </a>
+        </section>
+
+        <!-- Verse Display Area -->
+        <section class="flex-grow p-6 rounded-lg shadow-lg mb-8" style="background-color: #4A5034;">
+            <h2 class="text-2xl font-semibold mb-4" style="color: #bbce8a;">Verses</h2>
+            <div id="verses-display" class="space-y-4 text-lg leading-relaxed">
+                <!-- Verses will be loaded here by JavaScript -->
+            </div>
+        </section>
+
+        <!-- Mark Complete Button -->
+        <footer class="flex justify-center mb-8">
+            <button id="mark-complete-button" class="font-bold py-3 px-8 rounded-lg shadow-md transition-colors duration-200 text-xl hidden" style="background-color: #d16014; color: #313715; hover:background-color: #bbce8a;">Mark Today Complete</button>
+        </footer>
+    </div>
+
+    <!-- Footer Credit -->
+    <div class="text-center text-sm py-4" id="footer-version-info" style="color: #bbce8a; background-color: #313715;">
+        <!-- Version information will be dynamically inserted here -->
+    </div>
+
+    <script type="module">
+        // Register the service worker from the external file
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Register the service worker. Make sure service-worker.js is in the same directory as index.html
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(registration => {
+                        console.log('Service Worker registered with scope:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.error('Service Worker registration failed:', error);
+                    });
+            });
+        }
+
+        // Deferred prompt for PWA installation
+        let deferredPrompt;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            deferredPrompt = e;
+            console.log('beforeinstallprompt fired');
+            // You could show a custom install button here if desired
+            // (e.g., make the "Add to Home Screen" button visible if it was hidden)
+        });
+
+        // --- Application Version ---
+        const APP_VERSION = "1.0.3"; // Manually update this version number for each deployment
+
+        // --- Verse Data (Matthew 5-7, NIV) ---
+        // This array contains all 111 verses of the Sermon on the Mount.
+        const verses = [
+            // Matthew Chapter 5 (48 Verses)
+            { reference: "Matthew 5:1", text: "Now when Jesus saw the crowds, he went up on a mountainside and sat down. His disciples came to him," },
+            { reference: "Matthew 5:2", text: "and he began to teach them." },
+            { reference: "Matthew 5:3", text: "He said: “Blessed are the poor in spirit, for theirs is the kingdom of heaven." },
+            { reference: "Matthew 5:4", text: "Blessed are those who mourn, for they will be comforted." },
+            { reference: "Matthew 5:5", text: "Blessed are the meek, for they will inherit the earth." },
+            { reference: "Matthew 5:6", text: "Blessed are those who hunger and thirst for righteousness, for they will be filled." },
+            { reference: "Matthew 5:7", text: "Blessed are the merciful, for they will be shown mercy." },
+            { reference: "Matthew 5:8", text: "Blessed are the pure in heart, for they will see God." },
+            { reference: "Matthew 5:9", text: "Blessed are the peacemakers, for they will be called children of God." },
+            { reference: "Matthew 5:10", text: "Blessed are those who are persecuted because of righteousness, for theirs is the kingdom of heaven." },
+            { reference: "Matthew 5:11", text: "“Blessed are you when people insult you, persecute you and falsely say all kinds of evil against you because of me." },
+            { reference: "Matthew 5:12", text: "Rejoice and be glad, because great is your reward in heaven, for in the same way they persecuted the prophets who were before you." },
+            { reference: "Matthew 5:13", text: "“You are the salt of the earth. But if the salt loses its saltiness, how can it be made salty again? It is no longer good for anything, except to be thrown out and trampled underfoot." },
+            { reference: "Matthew 5:14", text: "“You are the light of the world. A town built on a hill cannot be hidden." },
+            { reference: "Matthew 5:15", text: "Neither do people light a lamp and put it under a bowl. Instead they put it on its stand, and it gives light to everyone in the house." },
+            { reference: "Matthew 5:16", text: "In the same way, let your light shine before others, that they may see your good deeds and glorify your Father in heaven." },
+            { reference: "Matthew 5:17", text: "“Do not think that I have come to abolish the Law or the Prophets; I have not come to abolish them but to fulfill them." },
+            { reference: "Matthew 5:18", text: "For truly I tell you, until heaven and earth disappear, not the smallest letter, not the least stroke of a pen, will by any means disappear from the Law until everything is accomplished." },
+            { reference: "Matthew 5:19", text: "Therefore anyone who sets aside one of the least of these commands and teaches others accordingly will be called least in the kingdom of heaven, but whoever practices and teaches these commands will be called great in the kingdom of heaven." },
+            { reference: "Matthew 5:20", text: "For I tell you that unless your righteousness surpasses that of the Pharisees and the teachers of the law, you will certainly not enter the kingdom of heaven." },
+            { reference: "Matthew 5:21", text: "“You have heard that it was said to the people long ago, ‘You shall not murder, and anyone who murders will be subject to judgment.’" },
+            { reference: "Matthew 5:22", text: "But I tell you that anyone who is angry with a brother or sister will be subject to judgment. Again, anyone who says to a brother or sister, ‘Raca,’ is answerable to the court. And anyone who says, ‘You fool!’ will be in danger of the fire of hell." },
+            { reference: "Matthew 5:23", text: "“Therefore, if you are offering your gift at the altar and there remember that your brother or sister has something against you," },
+            { reference: "Matthew 5:24", text: "leave your gift there in front of the altar. First go and be reconciled to them; then come and offer your gift." },
+            { reference: "Matthew 5:25", text: "“Settle matters quickly with your adversary who is taking you to court. Do it while you are still together on the way, or your adversary may hand you over to the judge, and the judge may hand you over to the officer, and you may be thrown into prison." },
+            { reference: "Matthew 5:26", text: "Truly I tell you, you will not get out until you have paid the last penny." },
+            { reference: "Matthew 5:27", text: "“You have heard that it was said, ‘You shall not commit adultery.’" },
+            { reference: "Matthew 5:28", text: "But I tell you that anyone who looks at a woman lustfully has already committed adultery with her in his heart." },
+            { reference: "Matthew 5:29", text: "If your right eye causes you to stumble, gouge it out and throw it away. It is better for you to lose one part of your body than for your whole body to be thrown into hell." },
+            { reference: "Matthew 5:30", text: "And if your right hand causes you to stumble, cut it off and throw it away. It is better for you to lose one part of your body than for your whole body to go into hell." },
+            { reference: "Matthew 5:31", text: "“It has been said, ‘Anyone who divorces his wife must give her a certificate of divorce.’" },
+            { reference: "Matthew 5:32", text: "But I tell you that anyone who divorces his wife, except for sexual immorality, makes her the victim of adultery, and anyone who marries a divorced woman commits adultery." },
+            { reference: "Matthew 5:33", text: "“Again, you have heard that it was said to the people long ago, ‘Do not break your oath, but fulfill to the Lord the vows you have made.’" },
+            { reference: "Matthew 5:34", text: "But I tell you, do not swear an oath at all: either by heaven, for it is God’s throne;" },
+            { reference: "Matthew 5:35", text: "or by the earth, for it is his footstool; or by Jerusalem, for it is the city of the Great King." },
+            { reference: "Matthew 5:36", text: "And do not swear by your head, for you cannot make even one hair white or black." },
+            { reference: "Matthew 5:37", text: "All you need to say is simply ‘Yes’ or ‘No’; anything beyond this comes from the evil one." },
+            { reference: "Matthew 5:38", text: "“You have heard that it was said, ‘Eye for eye, and tooth for tooth.’" },
+            { reference: "Matthew 5:39", text: "But I tell you, do not resist an evil person. If anyone slaps you on the right cheek, turn to them the other cheek also." },
+            { reference: "Matthew 5:40", text: "And if anyone wants to sue you and take your shirt, hand over your coat as well." },
+            { reference: "Matthew 5:41", text: "If anyone forces you to go one mile, go with them two miles." },
+            { reference: "Matthew 5:42", text: "Give to the one who asks you, and do not turn away from the one who wants to borrow from you." },
+            { reference: "Matthew 5:43", text: "“You have heard that it was said, ‘Love your neighbor and hate your enemy.’" },
+            { reference: "Matthew 5:44", text: "But I tell you, love your enemies and pray for those who persecute you," },
+            { reference: "Matthew 5:45", text: "that you may be children of your Father in heaven. He causes his sun to rise on the evil and the good, and sends rain on the righteous and the unrighteous." },
+            { reference: "Matthew 5:46", text: "If you love those who love you, what reward will you get? Are not even the tax collectors doing that?" },
+            { reference: "Matthew 5:47", text: "And if you greet only your own people, what are you doing more than others? Do not even pagans do that?" },
+            { reference: "Matthew 5:48", text: "Be perfect, therefore, as your heavenly Father is perfect." },
+
+            // Matthew Chapter 6 (34 Verses)
+            { reference: "Matthew 6:1", text: "“Be careful not to practice your righteousness in front of others to be seen by them. If you do, you will have no reward from your Father in heaven." },
+            { reference: "Matthew 6:2", text: "“So when you give to the needy, do not announce it with trumpets, as the hypocrites do in the synagogues and on the streets, to be honored by others. Truly I tell you, they have received their reward in full." },
+            { reference: "Matthew 6:3", text: "But when you give to the needy, do not let your left hand know what your right hand is doing," },
+            { reference: "Matthew 6:4", text: "so that your giving may be in secret. Then your Father, who sees what is done in secret, will reward you." },
+            { reference: "Matthew 6:5", text: "“And when you pray, do not be like the hypocrites, for they love to pray standing in the synagogues and on the street corners to be seen by others. Truly I tell you, they have received their reward in full." },
+            { reference: "Matthew 6:6", text: "But when you pray, go into your room, close the door and pray to your Father, who is unseen. Then your Father, who sees what is done in secret, will reward you." },
+            { reference: "Matthew 6:7", text: "And when you pray, do not keep on babbling like pagans, for they think they will be heard because of their many words." },
+            { reference: "Matthew 6:8", text: "Do not be like them, for your Father knows what you need before you ask him." },
+            { reference: "Matthew 6:9", text: "“This, then, is how you should pray: “‘Our Father in heaven, hallowed be your name," },
+            { reference: "Matthew 6:10", text: "your kingdom come, your will be done, on earth as it is in heaven." },
+            { reference: "Matthew 6:11", text: "Give us today our daily bread." },
+            { reference: "Matthew 6:12", text: "And forgive us our debts, as we also have forgiven our debtors." },
+            { reference: "Matthew 6:13", text: "And lead us not into temptation, but deliver us from the evil one." },
+            { reference: "Matthew 6:14", text: "For if you forgive other people when they sin against you, your heavenly Father will also forgive you." },
+            { reference: "Matthew 6:15", text: "But if you do not forgive others their sins, your Father will not forgive your sins." },
+            { reference: "Matthew 6:16", text: "“When you fast, do not look somber as the hypocrites do, for they disfigure their faces to show others they are fasting. Truly I tell you, they have received their reward in full." },
+            { reference: "Matthew 6:17", text: "But when you fast, put oil on your head and wash your face," },
+            { reference: "Matthew 6:18", text: "so that it will not be obvious to others that you are fasting, but only to your Father, who is unseen; and your Father, who sees what is done in secret, will reward you." },
+            { reference: "Matthew 6:19", text: "“Do not store up for yourselves treasures on earth, where moths and vermin destroy, and where thieves break in and steal." },
+            { reference: "Matthew 6:20", text: "But store up for yourselves treasures in heaven, where moths and vermin do not destroy, and where thieves do not break in and steal." },
+            { reference: "Matthew 6:21", text: "For where your treasure is, there your heart will be also." },
+            { reference: "Matthew 6:22", text: "“The eye is the lamp of the body. If your eyes are healthy, your whole body will be full of light." },
+            { reference: "Matthew 6:23", text: "But if your eyes are unhealthy, your whole body will be full of darkness. If then the light within you is darkness, how great is that darkness!" },
+            { reference: "Matthew 6:24", text: "“No one can serve two masters. Either you will hate the one and love the other, or you will be devoted to the one and despise the other. You cannot serve both God and money." },
+            { reference: "Matthew 6:25", text: "“Therefore I tell you, do not worry about your life, what you will eat or drink; or about your body, what you will wear. Is not life more than food, and the body more than clothes?" },
+            { reference: "Matthew 6:26", text: "Look at the birds of the air; they do not sow or reap or store away in barns, and yet your heavenly Father feeds them. Are you not much more valuable than they?"P
+            { reference: "Matthew 6:27", text: "Can any one of you by worrying add a single hour to your life?" },
+            { reference: "Matthew 6:28", text: "“And why do you worry about clothes? See how the flowers of the field grow. They do not labor or spin." },
+            { reference: "Matthew 6:29", text: "Yet I tell you that not even Solomon in all his splendor was dressed like one of these." },
+            { reference: "Matthew 6:30", text: "If that is how God clothes the grass of the field, which is here today and tomorrow is thrown into the fire, will he not much more clothe you—you of little faith?" },
+            { reference: "Matthew 6:31", text: "So do not worry, saying, ‘What shall we eat?’ or ‘What shall we drink?’ or ‘What shall we wear?’" },
+            { reference: "Matthew 6:32", text: "For the pagans run after all these things, and your heavenly Father knows that you need them." },
+            { reference: "Matthew 6:33", text: "But seek first his kingdom and his righteousness, and all these things will be given to you as well." },
+            { reference: "Matthew 6:34", text: "Therefore do not worry about tomorrow, for tomorrow will worry about itself. Each day has enough trouble of its own." },
+
+            // Matthew Chapter 7 (29 Verses)
+            { reference: "Matthew 7:1", text: "“Do not judge, or you too will be judged." },
+            { reference: "Matthew 7:2", text: "For in the same way you judge others, you will be judged, and with the measure you use, it will be measured to you." },
+            { reference: "Matthew 7:3", text: "“Why do you look at the speck of sawdust in your brother’s eye and pay no attention to the plank in your own eye?" },
+            { reference: "Matthew 7:4", text: "How can you say to your brother, ‘Let me take the speck out of your eye,’ when all the time there is a plank in your own eye?" },
+            { reference: "Matthew 7:5", text: "You hypocrite, first take the plank out of your own eye, and then you will see clearly to remove the speck from your brother’s eye." },
+            { reference: "Matthew 7:6", text: "“Do not give dogs what is sacred; do not throw your pearls to pigs. If you do, they may trample them under their feet, and turn and tear you to pieces." },
+            { reference: "Matthew 7:7", text: "“Ask and it will be given to you; seek and you will find; knock and the door will be opened to you." },
+            { reference: "Matthew 7:8", text: "For everyone who asks receives; the one who seeks finds; and to the one who knocks, the door will be opened." },
+            { reference: "Matthew 7:9", text: "“Which of you, if your son asks for bread, will give him a stone?" },
+            { reference: "Matthew 7:10", text: "Or if he asks for a fish, will give him a snake?" },
+            { reference: "Matthew 7:11", text: "If you, then, though you are evil, know how to give good gifts to your children, how much more will your Father in heaven give good gifts to those who ask him!" },
+            { reference: "Matthew 7:12", text: "So in everything, do to others what you would have them do to you, for this sums up the Law and the Prophets." },
+            { reference: "Matthew 7:13", text: "“Enter through the narrow gate. For wide is the gate and broad is the road that leads to destruction, and many enter through it." },
+            { reference: "Matthew 7:14", text: "But small is the gate and narrow the road that leads to life, and only a few find it." },
+            { reference: "Matthew 7:15", text: "“Watch out for false prophets. They come to you in sheep’s clothing, but inwardly they are ferocious wolves." },
+            { reference: "Matthew 7:16", text: "By their fruit you will recognize them. Do people pick grapes from thornbushes, or figs from thistles?" },
+            { reference: "Matthew 7:17", text: "Likewise, every good tree bears good fruit, but a bad tree bears bad fruit." },
+            { reference: "Matthew 7:18", text: "A good tree cannot bear bad fruit, and a bad tree cannot bear good fruit." },
+            { reference: "Matthew 7:19", text: "Every tree that does not bear good fruit is cut down and thrown into the fire." },
+            { reference: "Matthew 7:20", text: "Thus, by their fruit you will recognize them." },
+            { reference: "Matthew 7:21", text: "“Not everyone who says to me, ‘Lord, Lord,’ will enter the kingdom of heaven, but only the one who does the will of my Father who is in heaven." },
+            { reference: "Matthew 7:22", text: "Many will say to me on that day, ‘Lord, Lord, did we not prophesy in your name and in your name drive out demons and in your name perform many miracles?’" },
+            { reference: "Matthew 7:23", text: "Then I will tell them plainly, ‘I never knew you. Away from me, you evildoers!’" },
+            { reference: "Matthew 7:24", text: "“Therefore everyone who hears these words of mine and puts them into practice is like a wise man who built his house on the rock." },
+            { reference: "Matthew 7:25", text: "The rain came down, the streams rose, and the winds blew and beat against that house; yet it did not fall, because it had its foundation on the rock." },
+            { reference: "Matthew 7:26", text: "But everyone who hears these words of mine and does not put them into practice is like a foolish man who built his house on sand." },
+            { reference: "Matthew 7:27", text: "The rain came down, the streams rose, and the winds blew and beat against that house, and it fell with a great crash.”" },
+            { reference: "Matthew 7:28", text: "When Jesus had finished saying these things, the crowds were amazed at his teaching," },
+            { reference: "Matthew 7:29", text: "because he taught as one who had authority, and not as their teachers of the law." }
+        ];
+
+        // --- Global Variables and State ---
+        const TOTAL_VERSES = verses.length;
+        let targetDate = null;
+        let versesPerDay = 0;
+        let currentVerseIndex = 0;
+
+        // --- DOM Elements ---
+        const setupModal = document.getElementById('setup-modal');
+        const targetDateInput = document.getElementById('target-date-input');
+        const startPlanButton = document.getElementById('start-plan-button');
+        const versesMemorizedSpan = document.getElementById('verses-memorized');
+        const percentCompleteSpan = document.getElementById('percent-complete');
+        const daysRemainingSpan = document.getElementById('days-remaining');
+        const progressBar = document.getElementById('progress-bar');
+        const progressMessage = document.getElementById('progress-message');
+        const versesDisplay = document.getElementById('verses-display');
+        const youversionLink = document.getElementById('youversion-link');
+        const markCompleteButton = document.getElementById('mark-complete-button');
+        const resetButtonInProgress = document.getElementById('reset-button-in-progress');
+
+        // Custom Modal Elements
+        const customModal = document.getElementById('custom-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const modalButtons = document.getElementById('modal-buttons');
+        const modalCloseButton = document.getElementById('modal-close-button');
+
+        // Hamburger Menu Elements
+        const hamburgerIcon = document.getElementById('hamburger-icon');
+        const sideMenu = document.getElementById('side-menu');
+        const sideMenuOverlay = document.getElementById('side-menu-overlay');
+        const addToHomeScreenBtn = document.getElementById('add-to-home-screen-btn');
+        const shareAppBtn = document.getElementById('share-app-btn');
+        const resetPlanMenuBtn = document.getElementById('reset-plan-menu-btn');
+        const readFullPassageBtn = document.getElementById('read-full-passage-btn');
+        const checkForUpdatesBtn = document.getElementById('check-for-updates-btn');
+        // Removed: const createReminderBtn = document.getElementById('create-reminder-btn');
+        const menuVersionInfo = document.getElementById('menu-version-info');
+        const footerVersionInfo = document.getElementById('footer-version-info');
+
+
+        // --- Custom Modal Functions ---
+
+        /**
+         * Shows a custom alert modal.
+         * @param {string} message The message to display.
+         * @param {string} [title="Alert"] The title of the modal.
+         */
+        function showAlert(message, title = "Alert") {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modalButtons.innerHTML = `<button id="modal-ok-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200" style="background-color: #d16014; color: #313715; hover:background-color: #bbce8a;">OK</button>`;
+            customModal.classList.remove('hidden');
+
+            document.getElementById('modal-ok-button').onclick = () => {
+                customModal.classList.add('hidden');
+            };
+            modalCloseButton.onclick = () => {
+                customModal.classList.add('hidden');
+            };
+        }
+
+        /**
+         * Shows a custom confirmation modal.
+         * @param {string} message The message to display.
+         * @param {function} onConfirm Callback function if user confirms.
+         * @param {string} [title="Confirm"] The title of the modal.
+         */
+        function showConfirm(message, onConfirm, title = "Confirm") {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modalButtons.innerHTML = `
+                <button id="modal-confirm-button" class="font-bold py-2 px-4 rounded-lg transition-colors duration-200" style="background-color: #d16014; color: #313715; hover:background-color: #bbce8a;">Yes</button>
+                <button id="modal-cancel-button" class="font-bold py-2 px-4 rounded-lg transition-colors duration-200" style="background-color: #939f5c; color: #313715; hover:background-color: #d16014;">No</button>
+            `;
+            customModal.classList.remove('hidden');
+
+            document.getElementById('modal-confirm-button').onclick = () => {
+                customModal.classList.add('hidden');
+                onConfirm();
+            };
+            document.getElementById('modal-cancel-button').onclick = () => {
+                customModal.classList.add('hidden');
+            };
+            modalCloseButton.onclick = () => {
+                customModal.classList.add('hidden');
+            };
+        }
+
+        /**
+         * Saves the current state to localStorage.
+         */
+        function saveState() {
+            localStorage.setItem('targetDate', targetDate ? targetDate.toISOString().split('T')[0] : '');
+            localStorage.setItem('currentVerseIndex', currentVerseIndex);
+        }
+
+        /**
+         * Loads the state from localStorage.
+         * @returns {boolean} True if a saved state was loaded, false otherwise.
+         */
+        function loadState() {
+            const storedDateString = localStorage.getItem('targetDate');
+            const storedIndex = localStorage.getItem('currentVerseIndex');
+
+            if (storedDateString && storedDateString !== '' && storedIndex !== null) {
+                targetDate = new Date(storedDateString);
+                currentVerseIndex = parseInt(storedIndex);
+
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                targetDate.setHours(0, 0, 0, 0);
+
+                const diffTime = targetDate.getTime() - today.getTime();
+                let memorizationDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                memorizationDays = Math.max(1, memorizationDays);
+
+                versesPerDay = Math.ceil(TOTAL_VERSES / memorizationDays);
+
+                setupModal.classList.add('hidden');
+                return true;
+            }
+            return false;
+        }
+
+        /**
+         * Initializes the state, typically on page load or after a reset.
+         * This now attempts to load from localStorage first.
+         */
+        function initializeState() {
+            if (!loadState()) {
+                targetDate = null;
+                versesPerDay = 0;
+                currentVerseIndex = 0;
+                setupModal.classList.remove('hidden');
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = (today.getMonth() + 1).toString().padStart(2, '0');
+                const day = today.getDate().toString().padStart(2, '0');
+                targetDateInput.min = `${year}-${month}-${day}`;
+            }
+        }
+
+        /**
+         * Generates the YouVersion link for the currently displayed verses.
+         * @returns {string} The YouVersion URL.
+         */
+        function generateYouVersionLink() {
+            const bookAbbreviations = {
+                "Matthew": "MAT",
+            };
+
+            // This function is for the main "Read on YouVersion" link that updates dynamically.
+            // For the specific "Read Full Passage (Matthew 5-7)" in the menu, a fixed link is used.
+
+            if (!targetDate || currentVerseIndex >= TOTAL_VERSES) {
+                // If no plan is set or all verses are done, link to the full Sermon on the Mount (Matthew 5-7)
+                return "https://www.bible.com/bible/111/MAT.5-7.NIV";
+            }
+
+            const todayStartVerseIndex = currentVerseIndex;
+            const todayEndVerseIndex = Math.min(currentVerseIndex + versesPerDay, TOTAL_VERSES) - 1;
+
+            const effectiveStart = Math.max(0, Math.min(todayStartVerseIndex, verses.length - 1));
+            const effectiveEnd = Math.max(0, Math.min(todayEndVerseIndex, verses.length - 1));
+
+            if (effectiveStart < 0 || effectiveEnd < 0 || effectiveStart >= verses.length || effectiveEnd >= verses.length) {
+                return "https://www.bible.com/bible/111/MAT.5-7.NIV";
+            }
+
+            const startVerseObj = verses[effectiveStart];
+            const endVerseObj = verses[effectiveEnd];
+
+            const parseReference = (ref) => {
+                const parts = ref.split(' ');
+                let book = parts[0];
+                if (bookAbbreviations[book]) {
+                    book = bookAbbreviations[book];
+                }
+                const chapterVerse = parts[1].split(':');
+                return {
+                    book: book,
+                    chapter: parseInt(chapterVerse[0]),
+                    verse: parseInt(chapterVerse[1])
+                };
+            };
+
+            const startParsed = parseReference(startVerseObj.reference);
+            const endParsed = parseReference(endVerseObj.reference);
+
+            let url = `https://www.bible.com/bible/111/${startParsed.book}.${startParsed.chapter}.${startParsed.verse}`;
+
+            if (effectiveStart !== effectiveEnd) {
+                if (startParsed.chapter === endParsed.chapter) {
+                    url += `-${endParsed.verse}`;
+                } else {
+                    url += `-${endParsed.chapter}.${endParsed.verse}`;
+                }
+            }
+            url += `.NIV`;
+            return url;
+        }
+
+        /**
+         * Updates the progress display (verses memorized, percent, days remaining, progress bar).
+         */
+        function updateProgress() {
+            const versesDone = currentVerseIndex;
+            const percent = (versesDone / TOTAL_VERSES) * 100;
+
+            let daysLeftDisplay = 0;
+            if (targetDate) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const diffTime = targetDate.getTime() - today.getTime();
+                daysLeftDisplay = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                daysLeftDisplay = Math.max(0, daysLeftDisplay);
+            }
+
+            versesMemorizedSpan.textContent = versesDone;
+            percentCompleteSpan.textContent = `${percent.toFixed(1)}%`;
+            daysRemainingSpan.textContent = daysLeftDisplay;
+            progressBar.style.width = `${percent}%`;
+
+            if (versesDone >= TOTAL_VERSES) {
+                progressMessage.textContent = "Congratulations! You have memorized the entire Sermon on the Mount!";
+                progressMessage.classList.remove('text-red-400', 'text-blue-400', 'text-yellow-400');
+                progressMessage.classList.add('text-green-400');
+                markCompleteButton.classList.add('hidden');
+            } else if (targetDate) {
+                if (daysLeftDisplay === 0 && versesDone < TOTAL_VERSES) {
+                    progressMessage.textContent = `You've reached your target date! Keep going to finish the remaining verses.`;
+                    progressMessage.classList.remove('text-blue-400', 'text-green-400', 'text-yellow-400');
+                    progressMessage.classList.add('text-red-400');
+                } else {
+                    progressMessage.textContent = `Keep going! You are on track to memorize ${versesPerDay} verses per day by ${targetDate.toLocaleDateString()}.`;
+                    progressMessage.classList.remove('text-red-400', 'text-green-400', 'text-blue-400');
+                    progressMessage.classList.add('text-blue-400');
+                }
+                markCompleteButton.classList.remove('hidden');
+            } else {
+                 progressMessage.textContent = "Set your memorization plan to get started!";
+                 progressMessage.classList.remove('text-red-400', 'text-green-400', 'text-blue-400');
+                 progressMessage.classList.add('text-yellow-400');
+                 markCompleteButton.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Renders the verses (always in full passage mode).
+         */
+        function renderVerses() {
+            versesDisplay.innerHTML = '';
+
+            if (!targetDate) {
+                const message = document.createElement('p');
+                message.className = 'text-center text-xl mt-10';
+                message.style.color = '#bbce8a';
+                message.textContent = 'Please set your memorization plan to begin.';
+                versesDisplay.appendChild(message);
+                return;
+            }
+
+            const versesToDisplayEndIndex = Math.min(currentVerseIndex + versesPerDay, TOTAL_VERSES);
+
+            for (let i = 0; i < currentVerseIndex; i++) {
+                const verse = verses[i];
+                const displayReference = verse.reference.split(' ').slice(1).join(' ');
+                const p = document.createElement('p');
+                p.className = 'italic mb-2';
+                p.style.color = '#939f5c';
+                p.innerHTML = `<span class="font-bold">${displayReference}:</span> ${verse.text}`;
+                versesDisplay.appendChild(p);
+            }
+
+            if (currentVerseIndex < TOTAL_VERSES) {
+                const todaysVersesHeader = document.createElement('h3');
+                todaysVersesHeader.className = 'text-xl font-semibold mt-6 mb-3 pb-2';
+                todaysVersesHeader.style.color = '#e2f9b8';
+                todaysVersesHeader.style.borderBottom = '1px solid #939f5c';
+                todaysVersesHeader.textContent = `Today's Verses`;
+                versesDisplay.appendChild(todaysVersesHeader);
+
+                for (let i = currentVerseIndex; i < versesToDisplayEndIndex; i++) {
+                    const verse = verses[i];
+                    const displayReference = verse.reference.split(' ').slice(1).join(' ');
+                    const p = document.createElement('p');
+                    p.className = 'mb-2';
+                    p.innerHTML = `<span class="font-bold" style="color: #e2f9b8;">${displayReference}:</span> ${verse.text}`;
+                    p.style.color = '#bbce8a';
+                    versesDisplay.appendChild(p);
+                }
+            } else {
+                const completionMessage = document.createElement('p');
+                completionMessage.className = 'text-2xl font-bold text-center mt-10';
+                completionMessage.style.color = '#e2f9b8';
+                completionMessage.textContent = "You've completed all the verses! Great job!";
+                versesDisplay.appendChild(completionMessage);
+            }
+        }
+
+        /**
+         * Main function to render the application UI.
+         */
+        function renderApp() {
+            updateProgress();
+            youversionLink.href = generateYouVersionLink();
+            renderVerses(); // Render verses after updating YouVersion link
+            menuVersionInfo.textContent = `Created by NewJourneyDesigns v${APP_VERSION}`;
+            footerVersionInfo.textContent = `Created by NewJourneyDesigns v${APP_VERSION}`;
+        }
+
+
+        // --- Hamburger Menu Functions ---
+        function toggleHamburgerMenu() {
+            sideMenu.classList.toggle('open');
+            sideMenuOverlay.classList.toggle('active');
+            hamburgerIcon.classList.toggle('hidden'); // Toggle visibility of hamburger icon
+        }
+
+        /**
+         * Handles the "Add to Home Screen" prompt for PWA.
+         */
+        function addToHomeScreen() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        showAlert('App installed successfully!', 'Installation');
+                    } else {
+                        showAlert('App installation dismissed.', 'Installation');
+                    }
+                    deferredPrompt = null;
+                });
+            } else {
+                showAlert('To install, open in your browser, tap the browser menu (3 dots or share icon), and look for "Add to Home Screen" or "Install app".', 'Installation Info');
+            }
+            toggleHamburgerMenu(); // Close menu after action
+        }
+
+        /**
+         * Shares the app using the Web Share API.
+         */
+        function shareApp() {
+            if (navigator.share) {
+                navigator.share({
+                    title: document.title,
+                    text: 'Memorize the Sermon on the Mount with The Mount app!',
+                    url: window.location.href,
+                })
+                .then(() => console.log('Successfully shared'))
+                .catch((error) => console.error('Error sharing:', error));
+            } else {
+                // Fallback for browsers that do not support the Web Share API
+                const appUrl = window.location.href;
+                showAlert(`You can share the app by copying this link:\n\n${appUrl}\n\nThen paste it into a message or email.`, 'Share App');
+            }
+            toggleHamburgerMenu(); // Close menu after action
+        }
+
+        /**
+         * Resets the memorization plan.
+         */
+        function resetPlan() {
+            showConfirm('Are you sure you want to reset your memorization plan and all progress? This cannot be undone.', () => {
+                localStorage.removeItem('targetDate');
+                localStorage.removeItem('currentVerseIndex');
+                initializeState();
+                renderApp();
+            }, 'Reset Plan?');
+            toggleHamburgerMenu(); // Close menu after action
+        }
+
+        /**
+         * Opens the full Sermon on the Mount passage on YouVersion.
+         */
+        function readFullPassage() {
+            // Updated link to specific Matthew 5 NIV
+            window.open('https://www.bible.com/bible/111/MAT.5.NIV', '_blank');
+            toggleHamburgerMenu(); // Close menu after action
+        }
+
+
+        /**
+         * Forces a page reload to check for updates.
+         */
+        function checkForUpdates() {
+            // Unregister all service workers and then force reload
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    for (let registration of registrations) {
+                        registration.unregister();
+                        console.log('Service Worker unregistered.');
+                    }
+                }).finally(() => {
+                    location.reload(true); // Force reload from server
+                });
+            } else {
+                location.reload(true); // Fallback for browsers without service worker support
+            }
+            toggleHamburgerMenu(); // Close menu after action
+        }
+
+
+        // --- Event Listeners ---
+
+        // Handle initial plan setup
+        startPlanButton.addEventListener('click', () => {
+            const selectedDateString = targetDateInput.value;
+            if (!selectedDateString) {
+                showAlert('Please select a target date.');
+                return;
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const inputDate = new Date(selectedDateString);
+            inputDate.setHours(0, 0, 0, 0);
+
+            if (inputDate < today) {
+                showAlert('Please select a future date or today\'s date for your memorization plan.');
+                return;
+            }
+
+            targetDate = inputDate;
+
+            const diffTime = targetDate.getTime() - today.getTime();
+            let daysCalculated = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            daysCalculated = Math.max(1, daysCalculated);
+
+            versesPerDay = Math.ceil(TOTAL_VERSES / daysCalculated);
+            currentVerseIndex = 0;
+            saveState();
+            setupModal.classList.add('hidden');
+            renderApp();
+        });
+
+        // Handle marking today's verses complete
+        markCompleteButton.addEventListener('click', () => {
+            const nextVerseIndex = currentVerseIndex + versesPerDay;
+            if (nextVerseIndex <= TOTAL_VERSES) {
+                currentVerseIndex = nextVerseIndex;
+            } else {
+                currentVerseIndex = TOTAL_VERSES;
+            }
+            saveState();
+            renderApp();
+        });
+
+        // Event listeners for hamburger menu items
+        hamburgerIcon.addEventListener('click', toggleHamburgerMenu);
+        addToHomeScreenBtn.addEventListener('click', addToHomeScreen);
+        shareAppBtn.addEventListener('click', shareApp);
+        resetPlanMenuBtn.addEventListener('click', resetPlan);
+        readFullPassageBtn.addEventListener('click', readFullPassage);
+        checkForUpdatesBtn.addEventListener('click', checkForUpdates);
+        // Removed: createReminderBtn.addEventListener('click', createReminder);
+
+
+        // --- Initialize App on Load ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeState();
+            renderApp();
+        });
+    </script>
+</body>
+</html>

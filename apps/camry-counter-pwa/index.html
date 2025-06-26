@@ -13,25 +13,45 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     html, body {
-      margin: 0;
-      padding: 0;
       height: 100%;
-      overflow: auto;
+      overflow-x: hidden;
+      overflow-y: scroll;
       -webkit-overflow-scrolling: touch;
       background-color: #1e1d1d;
       color: #c7c7c7;
       font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .confetti {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background-color: #b31515;
+      border-radius: 50%;
+      animation: fall 2.5s forwards ease-out;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.9;
+    }
+    @keyframes fall {
+      0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+    .pulse {
+      transform: scale(1.1);
+      transition: transform 0.15s ease;
     }
   </style>
 </head>
 <body>
-  <div class="min-h-screen flex flex-col">
+  <div class="flex flex-col min-h-[100vh]">
     <header class="text-center p-6">
       <img src="https://i.imgur.com/jfxAh6K.png" alt="App Logo" class="h-24 w-24 mx-auto mb-4 rounded-full border-4 border-[#b31515] bg-white p-1" />
       <h1 class="text-5xl font-extrabold text-[#b31515] tracking-tight">Vroom Counter</h1>
     </header>
 
-    <main class="flex-grow px-4 pb-20">
+    <main class="px-4 pb-20">
       <div class="grid md:grid-cols-2 gap-10">
         <div class="bg-[#7c2d2d] p-8 rounded-2xl shadow-xl text-center">
           <h2 class="text-4xl font-bold mb-6">Toyota Camry</h2>
@@ -78,11 +98,28 @@
       localStorage.setItem('f150Count', f150Count);
     }
 
+    // Confetti animation function
+    function launchConfetti(x, y) {
+      for (let i = 0; i < 25; i++) {
+        const c = document.createElement('div');
+        c.className = 'confetti';
+        c.style.left = `${x + (Math.random() - 0.5) * 100}px`;
+        c.style.top = `${y + (Math.random() - 0.5) * 100}px`;
+        c.style.backgroundColor = ['#b31515', '#c7c7c7', '#ffffff'][Math.floor(Math.random() * 3)];
+        document.body.appendChild(c);
+        setTimeout(() => c.remove(), 3000);
+      }
+    }
+
     updateCounts();
 
-    camryPlusBtn.addEventListener('click', () => {
+    camryPlusBtn.addEventListener('click', (e) => {
       camryCount++;
       updateCounts();
+      const rect = e.target.getBoundingClientRect();
+      launchConfetti(rect.left + rect.width / 2, rect.top);
+      camryCountDisplay.classList.add('pulse');
+      setTimeout(() => camryCountDisplay.classList.remove('pulse'), 150);
     });
 
     camryMinusBtn.addEventListener('click', () => {
@@ -90,9 +127,13 @@
       updateCounts();
     });
 
-    f150PlusBtn.addEventListener('click', () => {
+    f150PlusBtn.addEventListener('click', (e) => {
       f150Count++;
       updateCounts();
+      const rect = e.target.getBoundingClientRect();
+      launchConfetti(rect.left + rect.width / 2, rect.top);
+      f150CountDisplay.classList.add('pulse');
+      setTimeout(() => f150CountDisplay.classList.remove('pulse'), 150);
     });
 
     f150MinusBtn.addEventListener('click', () => {

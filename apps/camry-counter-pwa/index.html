@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Car & Truck Counter</title>
+    <title>Vroom Counter</title>
     <!-- Favicon and Apple Touch Icon -->
     <link rel="icon" href="https://i.imgur.com/jfxAh6K.png" type="image/png">
     <link rel="apple-touch-icon" href="https://i.imgur.com/o4zHEtd.png">
@@ -36,11 +36,11 @@
         }
 
         .btn-red {
-            @apply bg-primary-red text-white hover:bg-opacity-90 focus:ring-primary-red;
+            @apply bg-primary-red text-white hover:bg-[#991111] focus:ring-4 focus:ring-primary-red border border-white;
         }
 
         .btn-grey {
-            @apply bg-medium-grey text-light-grey hover:bg-opacity-90 focus:ring-medium-grey;
+            @apply bg-medium-grey text-light-grey hover:bg-[#5a5a5a] focus:ring-4 focus:ring-medium-grey border border-white;
         }
 
         /* Confetti animation */
@@ -113,7 +113,7 @@
         <div class="flex flex-col items-center mb-8">
             <img src="https://i.imgur.com/jfxAh6K.png" alt="App Logo" class="h-24 w-24 object-contain mb-4 rounded-full shadow-lg border-4 border-[#b31515]">
             <h1 class="text-5xl font-extrabold text-center text-[#b31515] tracking-tight">
-                Popular Vehicle Counters
+                Vroom Counter
             </h1>
         </div>
 
@@ -123,8 +123,8 @@
                 <h2 class="text-4xl font-bold mb-6 text-[#c7c7c7]">Toyota Camry</h2>
                 <div class="text-8xl font-black mb-8 text-[#b31515]" id="camryCount">0</div>
                 <div class="flex space-x-6">
-                    <button id="camryMinus" class="btn btn-grey">-1</button>
-                    <button id="camryPlus" class="btn btn-red">+1</button>
+                    <button id="camryMinus" class="px-6 py-3 rounded-lg text-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-gray-500 border border-white bg-gray-600 text-gray-300 hover:bg-[#5a5a5a]">-1</button>
+                    <button id="camryPlus" class="px-6 py-3 rounded-lg text-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-800 border border-white bg-[#b31515] text-white hover:bg-[#991111]">+1</button>
                 </div>
             </div>
 
@@ -133,8 +133,8 @@
                 <h2 class="text-4xl font-bold mb-6 text-[#c7c7c7]">Ford F-150</h2>
                 <div class="text-8xl font-black mb-8 text-[#b31515]" id="f150Count">0</div>
                 <div class="flex space-x-6">
-                    <button id="f150Minus" class="btn btn-grey">-1</button>
-                    <button id="f150Plus" class="btn btn-red">+1</button>
+                    <button id="f150Minus" class="px-6 py-3 rounded-lg text-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-gray-500 border border-white bg-gray-600 text-gray-300 hover:bg-[#5a5a5a]">-1</button>
+                    <button id="f150Plus" class="px-6 py-3 rounded-lg text-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-800 border border-white bg-[#b31515] text-white hover:bg-[#991111]">+1</button>
                 </div>
             </div>
         </div>
@@ -152,8 +152,8 @@
         <div class="modal-content">
             <p class="text-2xl font-semibold mb-8 text-light-grey">Are you sure you want to reset all counters?</p>
             <div class="flex justify-center space-x-6">
-                <button id="cancelReset" class="btn btn-grey">Cancel</button>
-                <button id="confirmReset" class="btn btn-red">Reset</button>
+                <button id="cancelReset" class="px-6 py-3 rounded-lg text-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-gray-500 border border-white bg-gray-600 text-gray-300 hover:bg-[#5a5a5a]">Cancel</button>
+                <button id="confirmReset" class="px-6 py-3 rounded-lg text-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-800 border border-white bg-[#b31515] text-white hover:bg-[#991111]">Reset</button>
             </div>
         </div>
     </div>

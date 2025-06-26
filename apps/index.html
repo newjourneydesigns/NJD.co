@@ -93,6 +93,7 @@
             </button>
 
             <!-- Navigation Links (Desktop) -->
+            <!-- Desktop Navigation -->
             <nav id="main-nav" class="hidden md:flex items-center gap-8 text-njd-text-secondary text-lg font-medium">
                 <a href="/#about" class="hover:text-njd-accent py-1 px-2 rounded-md transition-colors duration-300">About</a>
                 <a href="/#services" class="hover:text-njd-accent py-1 px-2 rounded-md transition-colors duration-300">Services</a>
@@ -103,6 +104,7 @@
         </div>
 
         <!-- Mobile Navigation Menu (Hidden by default) -->
+        <!-- Mobile Navigation -->
         <nav id="mobile-menu" class="hidden md:hidden mt-4 bg-njd-background-light border-t border-njd-border py-4">
             <ul class="flex flex-col items-center gap-4 text-njd-text-secondary text-lg font-medium">
                 <li><a href="/#hero" class="block w-full text-center py-2 px-4 hover:bg-njd-background-medium hover:text-njd-accent rounded-md transition-colors duration-300">Home</a></li>
@@ -110,7 +112,7 @@
                 <li><a href="/#services" class="block w-full text-center py-2 px-4 hover:bg-njd-background-medium hover:text-njd-accent rounded-md transition-colors duration-300">Services</a></li>
                 <li><a href="/#projects" class="block w-full text-center py-2 px-4 hover:bg-njd-background-medium hover:text-njd-accent rounded-md transition-colors duration-300">Projects</a></li>
                 <li><a href="/apps/" class="block w-full text-center py-2 px-4 hover:bg-njd-background-medium hover:text-njd-accent rounded-md transition-colors duration-300">Apps</a></li>
-                <li><a href="/#contact" class="block w-full text-center py-2 px-4 hover:bg-njd-background-medium hover:text-njd-accent rounded-md transition-colors duration-300">Contact</a></li>
+                <li><a href="/#contact" class="block w-full text-center py-2 px-4 hover-njd-background-medium hover:text-njd-accent rounded-md transition-colors duration-300">Contact</a></li>
             </ul>
         </nav>
     </header>
@@ -118,22 +120,70 @@
   <main class="w-full max-w-7xl px-6 py-20 mx-auto">
     <div class="min-h-screen flex flex-col items-center py-16 px-6">
       <h1 class="text-5xl font-extrabold text-center text-njd-primary mb-16 tracking-tight leading-tight">Explore Our Apps</h1>
+      <p class="text-lg md:text-xl text-njd-text-secondary max-w-3xl text-center mb-12">
+        At New Journey Designs, we love building simple, meaningful apps that serve real people. Whether it's for spiritual formation, community building, or just having fun, every project starts with the same passion—for design that works and experiences that matter.
+      </p>
       <div class="grid gap-8 md:grid-cols-2 w-full max-w-5xl">
         
         <!-- The Seed App -->
         <a href="https://theseedapp.com" target="_blank" class="group bg-njd-background-light border border-njd-border rounded-xl p-8 shadow-lg hover:shadow-xl transition-all duration-300">
-          <h2 class="text-2xl font-bold mb-2 text-njd-primary group-hover:text-njd-accent transition-colors">The Seed App</h2>
+          <h2 class="text-2xl font-bold mb-2 text-njd-primary group-hover:text-njd-accent transition-colors flex items-center gap-2">
+            <img src="https://theseedapp.com/icon.png" alt="The Seed App Icon" class="h-6 w-6 rounded" />
+            The Seed App
+          </h2>
           <p class="text-njd-text-secondary mb-4">A Scripture meditation and spiritual formation tool built to help users engage deeply with God’s Word.</p>
           <span class="inline-block mt-2 text-njd-accent font-semibold group-hover:underline">Visit TheSeedApp.com →</span>
         </a>
 
         <!-- Surrender App -->
         <a href="/apps/surrender-pwa/" class="group bg-njd-background-light border border-njd-border rounded-xl p-8 shadow-lg hover:shadow-xl transition-all duration-300">
-          <h2 class="text-2xl font-bold mb-2 text-njd-primary group-hover:text-njd-accent transition-colors">Surrender</h2>
+          <h2 class="text-2xl font-bold mb-2 text-njd-primary group-hover:text-njd-accent transition-colors flex items-center gap-2">
+            <img src="/apps/surrender-pwa/icon.png" alt="Surrender Icon" class="h-6 w-6 rounded" />
+            Surrender
+          </h2>
           <p class="text-njd-text-secondary mb-4">A 9-day spiritual journey helping users practice trust and surrender through daily reflections and Scripture.</p>
           <span class="inline-block mt-2 text-njd-accent font-semibold group-hover:underline">Open Surrender App →</span>
         </a>
 
+        <!-- Fire and Hammer App -->
+        <a href="/apps/fire-and-hammer-pwa/" class="group bg-njd-background-light border border-njd-border rounded-xl p-8 shadow-lg hover:shadow-xl transition-all duration-300">
+          <h2 class="text-2xl font-bold mb-2 text-njd-primary group-hover:text-njd-accent transition-colors flex items-center gap-2">
+            <img src="/apps/fire-and-hammer-pwa/icon.png" alt="Fire and Hammer Icon" class="h-6 w-6 rounded" />
+            Fire and Hammer
+          </h2>
+          <p class="text-njd-text-secondary mb-4">A tool built to help you meditate on Scripture and internalize God’s Word with power and precision.</p>
+          <span class="inline-block mt-2 text-njd-accent font-semibold group-hover:underline">Open Fire and Hammer App →</span>
+        </a>
+
+        <!-- Push*t App -->
+        <a href="/apps/pushit-pwa/" class="group bg-njd-background-light border border-njd-border rounded-xl p-8 shadow-lg hover:shadow-xl transition-all duration-300">
+          <h2 class="text-2xl font-bold mb-2 text-njd-primary group-hover:text-njd-accent transition-colors flex items-center gap-2">
+            <img src="/apps/pushit-pwa/icon.png" alt="PushIt Icon" class="h-6 w-6 rounded" />
+            Push*t
+          </h2>
+          <p class="text-njd-text-secondary mb-4">An app for tracking and sharing your workouts with friends. Lighthearted, motivating, and fun.</p>
+          <span class="inline-block mt-2 text-njd-accent font-semibold group-hover:underline">Open PushIt App →</span>
+        </a>
+
+        <!-- Kettl App -->
+        <a href="/apps/kettl-pwa/" class="group bg-njd-background-light border border-njd-border rounded-xl p-8 shadow-lg hover:shadow-xl transition-all duration-300">
+          <h2 class="text-2xl font-bold mb-2 text-njd-primary group-hover:text-njd-accent transition-colors flex items-center gap-2">
+            <img src="/apps/kettl-pwa/icon.png" alt="Kettl Icon" class="h-6 w-6 rounded" />
+            Kettl
+          </h2>
+          <p class="text-njd-text-secondary mb-4">Built to help you create, track, and share kettlebell workouts with purpose.</p>
+          <span class="inline-block mt-2 text-njd-accent font-semibold group-hover:underline">Open Kettl App →</span>
+        </a>
+
+        <!-- Guess the Source Code App -->
+        <a href="/apps/guess-the-source-code-pwa/" class="group bg-njd-background-light border border-njd-border rounded-xl p-8 shadow-lg hover:shadow-xl transition-all duration-300">
+          <h2 class="text-2xl font-bold mb-2 text-njd-primary group-hover:text-njd-accent transition-colors flex items-center gap-2">
+            <img src="/apps/guess-the-source-code-pwa/icon.png" alt="Guess the Source Code Icon" class="h-6 w-6 rounded" />
+            Guess the Source Code
+          </h2>
+          <p class="text-njd-text-secondary mb-4">A full game designed to help you practice and memorize Valley Creek Source Code in a fun and interactive way.</p>
+          <span class="inline-block mt-2 text-njd-accent font-semibold group-hover:underline">Open Guess App →</span>
+        </a>
       </div>
     </div>
   </main>
@@ -177,4 +227,4 @@
                 }
             });
         });
-    </script>
+    </script></html>

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surrender</title>
+    <link rel="manifest" href="./manifest.json">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: color 0.3s ease; /* Only color transition needed now */
+            background: linear-gradient(to bottom right, #142840, #396185); /* Gradient background */
+            background-attachment: fixed; /* Ensures gradient covers full page even if content is short */
+            color: #F5ECE7; /* Very Light Beige from palette */
+        }
+        .card {
+            background-color: #396185; /* Medium Blue from palette */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        /* Styling for the standout prayer section */
+        .prayer-moment {
+            background-color: #2A496B; /* A darker shade for contrast in dark mode */
+            border-left-color: #F5ECE7; /* Light beige border */
+        }
+
+        /* General button styling */
+        .btn-base {
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .btn-base:active {
+            transform: scale(0.98);
+        }
+        /* Specific style for the dark blue "Begin" button */
+        .btn-dark-blue {
+            background-color: #142840; /* Dark Blue from palette */
+            color: #FFFFFF; /* White text for contrast */
+        }
+        .btn-dark-blue:hover {
+            background-color: #0E1C2C; /* Slightly darker shade on hover */
+        }
+
+        /* Responsive adjustments */
+        @media (min-width: 768px) {
+            .container {
+                max-width: 600px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="min-h-screen flex flex-col items-center">
+        <!-- Removed Header -->
+
+        <!-- Main Content Area - Reverted padding-top -->
+        <main class="flex-grow w-full px-4 pt-8 pb-4 md:pt-12 md:pb-6 flex flex-col items-center justify-center">
+            <div id="content-container" class="w-full max-w-xl transition-opacity duration-500 ease-in-out opacity-100">
+                <!-- Welcome/Intro Card (Day 0) -->
+                <div id="intro-card" class="card p-6 md:p-8 rounded-2xl shadow-lg transition-colors duration-300 text-center mb-6 opacity-100 transition-opacity duration-500 ease-in-out">
+                    <img src="https://i.imgur.com/QL65l5f.png" alt="Decorative Image" class="mx-auto h-24 w-auto mb-4"> <!-- New image added here -->
+                    <p class="text-base md:text-lg leading-relaxed mb-4">To surrender is to live as a beloved child in the arms of a good Father. You are safe. You are seen. You are fully loved. Let this journey be a beginning—a rhythm of trust that shapes how you walk with Jesus every day.</p>
+                    <p class="text-base md:text-lg italic mb-6 text-blue-200">Let me hear of your unfailing love each morning, for I am trusting you. Show me where to walk, for I give myself to you. Psalm 143:8</p> 
+                    <button id="start-journey-btn" class="btn-base btn-dark-blue px-6 py-3 text-lg block mx-auto">Begin</button> <!-- Applied btn-dark-blue class -->
+                </div>
+
+                <!-- Day Content Card (hidden initially) -->
+                <div id="day-card" class="card p-6 md:p-8 rounded-2xl shadow-lg transition-colors duration-300 hidden">
+                    <h3 id="day-number" class="text-base text-gray-500 dark:text-gray-400 font-medium mb-2"></h3>
+                    <h2 id="day-title" class="text-2xl md:text-3xl font-bold mb-4"></h2>
+                    
+                    <div class="mb-5">
+                        <h4 class="text-lg md:text-xl font-semibold mb-2">Scripture:</h4>
+                        <p id="scripture" class="text-base md:text-lg"></p>
+                        <p id="scripture-passage" class="text-base md:text-lg italic mt-2 text-gray-700 dark:text-gray-300"></p>
+                    </div>
+
+                    <div class="mb-5">
+                        <h4 class="text-lg md:text-xl font-semibold mb-2">Reflection:</h4>
+                        <p id="reflection" class="text-base md:text-lg leading-relaxed"></p>
+                    </div>
+
+                    <div>
+                        <h4 class="text-lg md:text-xl font-semibold mb-2">Prayer:</h4>
+                        <p id="prayer" class="prayer-moment text-base md:text-lg leading-relaxed p-4 rounded-lg border-l-4 font-medium"></p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Navigation Buttons (hidden initially) -->
+        <div id="navigation-buttons" class="w-full max-w-xl flex justify-between p-4 pb-6 md:p-6 md:pb-8 hidden">
+            <button id="back-btn" class="btn-primary btn-base">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+                Back
+            </button>
+            <button id="next-btn" class="btn-primary btn-base">
+                Next
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Footer with Logo and Copyright -->
+        <footer class="w-full py-4 text-center flex flex-col items-center justify-center">
+            <img src="https://i.imgur.com/GP9WOfB.png" alt="Surrender Logo" class="mx-auto h-16 w-auto mb-2">
+            <p class="text-sm">
+                Created for the betterment of your soul by <a href="https://newjourneydesigns.co" target="_blank" rel="noopener noreferrer" class="underline text-blue-300 hover:text-blue-200">NewJourneyDesigns.co</a> &copy; <span id="current-year"></span>
+            </p>
+        </footer>
+    </div>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Register service worker relative to the current script's location
+                // Changed from './sw.js' to '/sw.js' to try and resolve protocol error
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registered with scope:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.error('Service Worker registration failed:', error);
+                        console.log('NOTE: Service Workers require the app to be served over HTTPS or localhost (e.g., using a local development server), not directly from a file:/// protocol or certain sandboxed environments.');
+                    });
+            });
+        }
+    </script>
+
+    <script>
+        // Prayer Journey Content - Now includes full verse passages
+        const prayerJourney = [
+            {
+                day: 1,
+                title: "The Beginning of Trust",
+                scripture: "Proverbs 3:5-6 (NIV)",
+                scriptureLink: "https://www.bible.com/bible/111/PRO.3.5-6.NIV",
+                versePassage: "Trust in the Lord with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.",
+                reflection: "Surrender starts with trust. Today, we begin by confessing our tendency to control and choosing to believe that God is good and trustworthy.",
+                prayer: "Jesus, I surrender my need to understand everything. Take care of everything. I trust You."
+            },
+            {
+                day: 2,
+                title: "Letting Go of Control",
+                scripture: "Matthew 6:25-27 (NLT)",
+                scriptureLink: "https://www.bible.com/bible/116/MAT.6.25-27.NLT",
+                versePassage: "“That is why I tell you not to worry about everyday life—whether you have enough food and drink, or enough clothes to wear. Isn’t life more than food, and your body more than clothing? Look at the birds. They don’t plant or harvest or store food in barns, for your heavenly Father feeds them. And aren’t you far more valuable to him than they are? Can all your worries add a single moment to your life?",
+                reflection: "Control is an illusion. Peace grows when we release our grip and allow God to lead. What are you trying to manage that only He can carry?",
+                prayer: "Jesus, I surrender my illusion of control. Take care of everything. I trust You."
+            },
+            {
+                day: 3,
+                title: "Rest in His Care",
+                scripture: "1 Peter 5:7 (CSB)",
+                scriptureLink: "https://www.bible.com/bible/1713/1PE.5.7.CSB",
+                versePassage: "casting all your care on Him, because He cares about you.",
+                reflection: "You are not a burden to God. He delights in caring for you. Rest today in His personal, loving attention.",
+                prayer: "Jesus, I surrender my burdens. Take care of everything. I trust You."
+            },
+            {
+                day: 4,
+                title: "Embracing Weakness",
+                scripture: "2 Corinthians 12:9 (ESV)",
+                scriptureLink: "https://www.bible.com/bible/59/2CO.12.9.ESV",
+                versePassage: "But he said to me, “My grace is sufficient for you, for my power is made perfect in weakness.” Therefore I will boast all the more gladly of my weaknesses, so that the power of Christ may rest upon me.",
+                reflection: "Surrender isn’t failure; it’s the pathway to grace. God doesn’t need your strength—He responds to your trust.",
+                prayer: "Jesus, I surrender my need to be strong. Take care of everything. I trust You."
+            },
+            {
+                day: 5,
+                title: "Trusting in the Waiting",
+                scripture: "Psalm 27:14 (AMP)",
+                scriptureLink: "https://www.bible.com/bible/1588/PSA.27.14.AMP",
+                versePassage: "Wait for and confidently expect the LORD; Be strong and let your heart take courage; Yes, wait for and confidently expect the LORD.",
+                reflection: "Waiting is sacred space where trust is refined. God is never late. What are you waiting on Him for?",
+                prayer: "Jesus, I surrender my impatience. Take care of everything. I trust You."
+            },
+            {
+                day: 6,
+                title: "Freedom from Fear",
+                scripture: "Isaiah 41:10 (NLT)",
+                scriptureLink: "https://www.bible.com/bible/116/ISA.41.10.NLT",
+                versePassage: "Don’t be afraid, for I am with you. Don’t be discouraged, for I am your God. I will strengthen you and help you. I will hold you up with my victorious right hand.",
+                reflection: "Fear loses power when we know who walks with us. Invite Jesus into the fear today.",
+                prayer: "Jesus, I surrender my fears. Take care of everything. I trust You."
+            },
+            {
+                day: 7,
+                title: "Receiving His Peace",
+                scripture: "John 14:27 (TPT)",
+                scriptureLink: "https://www.bible.com/bible/1849/JHN.14.27.TPT",
+                versePassage: "“I leave the gift of peace with you—my peace. Not the kind of fragile peace given by the world, but my perfect peace. Don’t yield to fear or be troubled in your hearts—instead, be courageous!",
+                reflection: "Peace is not the absence of problems but the presence of Jesus. What if today, you received it as a gift?",
+                prayer: "Jesus, I surrender my striving. Take care of everything. I trust You."
+            },
+            {
+                day: 8,
+                title: "Living in Alignment",
+                scripture: "Romans 12:1-2 (MSG)",
+                scriptureLink: "https://www.bible.com/bible/97/ROM.12.1-2.MSG",
+                versePassage: "So here’s what I want you to do, God helping you: Take your everyday, ordinary life—your sleeping, eating, going-to-work, and walking-around life—and place it before God as an offering. Embracing what God does for you is the best thing you can do for him.",
+                reflection: "Surrender shapes us. When we yield, we are transformed. What area of your life needs re-alignment with Jesus?",
+                prayer: "Jesus, I surrender my plans. Take care of everything. I trust You."
+            },
+            {
+                day: 9,
+                title: "Fullness of Surrender",
+                scripture: "Luke 22:42 (ESV)",
+                scriptureLink: "https://www.bible.com/bible/59/LUK.22.42.ESV",
+                versePassage: "saying, “Father, if you are willing, remove this cup from me. Nevertheless, not my will, but yours, be done.”",
+                reflection: "This is the posture of Jesus—and our invitation too. Today, you’re not just letting go—you’re stepping in to the freedom of being fully His.",
+                prayer: "Jesus, I surrender everything. Take care of everything. I trust You."
+            }
+        ];
+
+        let currentDayIndex = -1; // -1 for the intro screen
+        const LOCAL_STORAGE_KEY = 'surrenderCurrentDay';
+
+        // DOM elements
+        const body = document.body;
+        const introCard = document.getElementById('intro-card');
+        const startJourneyBtn = document.getElementById('start-journey-btn');
+        const dayCard = document.getElementById('day-card');
+        const dayNumberElem = document.getElementById('day-number');
+        const dayTitleElem = document.getElementById('day-title');
+        const scriptureElem = document.getElementById('scripture');
+        const scripturePassageElem = document.getElementById('scripture-passage');
+        const reflectionElem = document.getElementById('reflection');
+        const prayerElem = document.getElementById('prayer');
+        const backBtn = document.getElementById('back-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const navigationButtons = document.getElementById('navigation-buttons');
+        const contentContainer = document.getElementById('content-container');
+        const currentYearSpan = document.getElementById('current-year'); // Get the span element for the year
+
+        /**
+         * Sets the current year in the footer.
+         */
+        function setCurrentYear() {
+            if (currentYearSpan) {
+                currentYearSpan.textContent = new Date().getFullYear().toString();
+            }
+        }
+
+        /**
+         * Saves the current day index to local storage.
+         */
+        function saveCurrentDay() {
+            localStorage.setItem(LOCAL_STORAGE_KEY, currentDayIndex.toString());
+        }
+
+        /**
+         * Loads the current day index from local storage.
+         * @returns {number} The saved day index or -1 if not found.
+         */
+        function loadCurrentDay() {
+            const savedDay = localStorage.getItem(LOCAL_STORAGE_KEY);
+            return savedDay ? parseInt(savedDay, 10) : -1;
+        }
+
+        /**
+         * Displays the content for the given day index with a fade transition.
+         * @param {number} index - The index of the day in the prayerJourney array.
+         */
+        function displayDay(index) {
+            // 1. Fade out current content
+            contentContainer.classList.remove('opacity-100');
+            contentContainer.classList.add('opacity-0');
+
+            setTimeout(() => {
+                // 2. Update content while faded out
+                currentDayIndex = index;
+                saveCurrentDay(); // Save progress after updating day
+
+                const dayData = prayerJourney[currentDayIndex];
+
+                dayNumberElem.textContent = `Day ${dayData.day} of 9`;
+                dayTitleElem.textContent = dayData.title;
+
+                // Update Scripture reference
+                const scriptureLink = document.createElement('a');
+                scriptureLink.href = dayData.scriptureLink;
+                scriptureLink.target = "_blank"; // Open in new tab
+                scriptureLink.rel = "noopener noreferrer"; // Security best practice
+                scriptureLink.textContent = dayData.scripture;
+                // Changed from 'text-blue-600', 'text-white' to 'text-blue-400' for a consistent dark blue shade
+                scriptureLink.classList.add('text-blue-400', 'hover:underline');
+                
+                scriptureElem.innerHTML = ''; // Clear previous content
+                scriptureElem.appendChild(scriptureLink);
+
+                // Display verse passage
+                scripturePassageElem.textContent = 'Loading verse...'; // Show loading message
+                // Simulate a slight delay for the "loading" effect, then display actual content
+                setTimeout(() => {
+                    scripturePassageElem.textContent = dayData.versePassage;
+                }, 200); // Short delay for perceived loading
+
+                reflectionElem.textContent = dayData.reflection;
+                prayerElem.textContent = dayData.prayer;
+
+                // 3. Fade in new content. Use requestAnimationFrame for robust re-rendering.
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => { // Double rAF for reliable transition trigger
+                        contentContainer.classList.remove('opacity-0');
+                        contentContainer.classList.add('opacity-100');
+                    });
+                });
+
+            }, 500); // Match transition duration
+        }
+
+        /**
+         * Navigates to the next day. Loops from Day 9 to Day 1.
+         */
+        function goToNextDay() {
+            let nextIndex = currentDayIndex + 1;
+            if (nextIndex >= prayerJourney.length) {
+                nextIndex = 0; // Loop back to Day 1
+            }
+            displayDay(nextIndex);
+        }
+
+        /**
+         * Navigates to the previous day. Loops from Day 1 to Day 9.
+         */
+        function goToPreviousDay() {
+            let prevIndex = currentDayIndex - 1;
+            if (prevIndex < 0) {
+                prevIndex = prayerJourney.length - 1; // Loop back to Day 9
+            }
+            displayDay(prevIndex);
+        }
+
+        /**
+         * Handles the start of the journey from the intro screen.
+         */
+        function startJourney() {
+            // Fade out the intro card directly
+            introCard.classList.remove('opacity-100');
+            introCard.classList.add('opacity-0');
+
+            // After intro card fades out, transition to displaying the first day
+            setTimeout(() => {
+                introCard.classList.add('hidden'); // Completely hide the intro card
+
+                dayCard.classList.remove('hidden'); // Make the day card visible (display: block)
+                navigationButtons.classList.remove('hidden'); // Make navigation visible
+
+                // Now, display content for Day 1. Since contentContainer handles its own fade,
+                // this will update content and then fade it in.
+                displayDay(0);
+
+            }, 500); // Match intro card fade-out- duration
+        }
+
+        /**
+         * Initializes the app on load.
+         * Checks for saved progress.
+         */
+        function initializeApp() {
+            // Load saved day progress
+            const savedDayIndex = loadCurrentDay();
+            if (savedDayIndex !== -1 && savedDayIndex < prayerJourney.length) {
+                // If a valid day is saved, directly show that day
+                introCard.classList.add('hidden'); // Hide intro card immediately
+                dayCard.classList.remove('hidden'); // Show day card
+                navigationButtons.classList.remove('hidden'); // Show navigation buttons
+                displayDay(savedDayIndex);
+            } else {
+                // Otherwise, show the intro card (default behavior)
+                introCard.classList.remove('hidden');
+                dayCard.classList.add('hidden');
+                navigationButtons.classList.add('hidden');
+            }
+
+            // Set the current year in the footer
+            setCurrentYear();
+
+            // Event Listeners
+            startJourneyBtn.addEventListener('click', startJourney);
+            nextBtn.addEventListener('click', goToNextDay);
+            backBtn.addEventListener('click', goToPreviousDay);
+        }
+
+        // Call initializeApp when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+    </script>
+</body>
+</html>

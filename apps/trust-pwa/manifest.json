@@ -1,7 +1,7 @@
 {
-  "name": "Surrender",
-  "short_name": "Surrender",
-  "description": "A 9-Day Surrender Prayer Journey App",
+  "name": "Trust",
+  "short_name": "Trust",
+  "description": "A 9-Day Journey of Trust",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#142840",
@@ -18,13 +18,13 @@
       "type": "image/png"
     },
     {
-      "src": "https://i.imgur.com/JVIb5ir.png",
+      "src": "https://i.imgur.com/t7QjFDI.png",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://i.imgur.com/JVIb5ir.png",
+      "src": "https://i.imgur.com/t7QjFDI.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"

@@ -230,9 +230,6 @@
     </div>
 
     <canvas id="fireworks-canvas"></canvas>
-    <div id="fireworks" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999;">
-      <canvas id="fireworksCanvas"></canvas>
-    </div>
     <script>
         // Array of baseball-related terms for the bingo card
         // Baseball glossary with explanations
@@ -431,48 +428,7 @@
 
         // Triggers the BINGO message
         function triggerBingo() {
-          document.getElementById('message').textContent = 'HOMERUN!';
-          startFireworks();
-        }
-
-        // --- Fireworks Confetti ---
-        let fireworksInstance;
-
-        function startFireworks() {
-          const container = document.getElementById('fireworks');
-          const canvas = document.getElementById('fireworksCanvas');
-          container.style.display = 'block';
-          canvas.width = window.innerWidth;
-          canvas.height = window.innerHeight;
-
-          if (typeof confetti === 'undefined') {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
-            script.onload = () => {
-              const instance = confetti.create(canvas, { resize: true, useWorker: true });
-              instance({
-                particleCount: 100,
-                spread: 160
-              });
-            };
-            document.body.appendChild(script);
-          } else {
-            const instance = confetti.create(canvas, { resize: true, useWorker: true });
-            instance({
-              particleCount: 100,
-              spread: 160
-            });
-          }
-        }
-
-        function stopFireworks() {
-          const container = document.getElementById('fireworks');
-          const canvas = document.getElementById('fireworksCanvas');
-          container.style.display = 'none';
-          if (canvas && canvas.getContext) {
-            const context = canvas.getContext('2d');
-            context.clearRect(0, 0, canvas.width, canvas.height);
-          }
+          document.getElementById('message').textContent = 'HOMERUN';
         }
 
         /**
@@ -546,7 +502,6 @@ document.getElementById('new-game-btn')?.addEventListener('click', () => {
 
   // Clear bingo message
   messageDisplay.textContent = '';
-  stopFireworks();
 });
 
         // Replace Reset Card button logic:
@@ -560,7 +515,6 @@ document.getElementById('new-game-btn')?.addEventListener('click', () => {
 
           // Clear bingo message
           messageDisplay.textContent = '';
-          stopFireworks();
         });
 
 
@@ -572,7 +526,6 @@ document.getElementById('new-game-btn')?.addEventListener('click', () => {
             }
             renderGlossary();
             resizeCanvas();
-            stopFireworks();
         });
 
         // Glossary modal open/close logic

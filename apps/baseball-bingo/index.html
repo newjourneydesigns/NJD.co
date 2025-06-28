@@ -417,14 +417,19 @@
           );
 
           if (isCornerBingo || isDiagonalBingo || isLineBingo) {
-            messageDisplay.textContent = "HOMERUN! YOU GOT A BINGO!";
+            triggerBingo();
             messageDisplay.style.opacity = 1;
-            startFireworks();
           } else {
             messageDisplay.textContent = "";
             messageDisplay.style.opacity = 0;
             stopFireworks();
           }
+        }
+
+        // Triggers the BINGO message and starts fireworks
+        function triggerBingo() {
+          document.getElementById('message').textContent = 'BINGO!';
+          startFireworks();
         }
 
         /**
@@ -486,21 +491,21 @@
         }
 
         // Event Listeners
-        document.getElementById('new-game-btn')?.addEventListener('click', () => {
-          stopFireworks();
+document.getElementById('new-game-btn')?.addEventListener('click', () => {
+  stopFireworks();
 
-          // Clear all current terms and marked status
-          markedCells = Array(NUM_CELLS).fill(false);
-          document.querySelectorAll('.bingo-cell').forEach(cell => {
-            cell.classList.remove('marked');
-          });
+  // Clear all current terms and marked status
+  markedCells = Array(NUM_CELLS).fill(false);
+  document.querySelectorAll('.bingo-cell').forEach(cell => {
+    cell.classList.remove('marked');
+  });
 
-          // Regenerate the bingo card
-          generateNewBoard();
+  // Regenerate the bingo card
+  generateNewBoard();
 
-          // Clear bingo message
-          messageDisplay.textContent = '';
-        });
+  // Clear bingo message
+  messageDisplay.textContent = '';
+});
 
         // Replace Reset Card button logic:
         document.getElementById('reset-progress-btn')?.addEventListener('click', () => {
@@ -720,6 +725,11 @@
             }, 100);
           }
         }
+
+        // Stop fireworks on page load
+        window.addEventListener('load', () => {
+          stopFireworks();
+        });
     </script>
 </body>
 <footer style="padding: 1rem; margin-top: 2rem; text-align: center; font-size: 0.9rem;">

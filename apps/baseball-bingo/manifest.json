@@ -1,0 +1,20 @@
+{
+  "name": "Baseball Bingo",
+  "short_name": "Bingo",
+  "start_url": "/apps/baseball-bingo/index.html",
+  "display": "standalone",
+  "background_color": "#003366",
+  "theme_color": "#C00000",
+  "icons": [
+    {
+      "src": "https://i.imgur.com/aCt4ImC.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://i.imgur.com/aCt4ImC.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'surrender-cache-v1';
+const CACHE_NAME = 'trust-cache-v1';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -7,9 +7,9 @@ const urlsToCache = [
   '/icons/icon-512x512.png', // Placeholder for your actual icons
   'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
-  'https://i.imgur.com/QL65l5f.png', // Image above tagline
-  'https://i.imgur.com/GP9WOfB.png', // Footer logo
-  'https://i.imgur.com/JVIb5ir.png'  // PWA iPhone icon
+  'https://i.imgur.com/11rphHx.png', // Image above tagline
+  'https://i.imgur.com/oePQoXW.png', // Footer logo
+  'https://i.imgur.com/t7QjFDI.png'  // PWA iPhone icon
 ];
 
 self.addEventListener('install', (event) => {

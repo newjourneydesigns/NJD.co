@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Offline</title>
+  <style>
+    body {
+      background-color: #1e1d1d;
+      color: #c7c7c7;
+      font-family: sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      text-align: center;
+      padding: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/images/logo.png" alt="App logo" style="width: 80px; margin-bottom: 1rem;" />
+    <h1>You're offline</h1>
+    <p>Looks like you're not connected to the internet. Try again once you're back online.</p>
+    <button onclick="window.location.reload()" style="
+      margin-top: 1.5rem;
+      padding: 0.5rem 1.5rem;
+      background-color: #285238;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 1rem;
+      cursor: pointer;
+    ">
+      Try Again
+    </button>
+  </main>
+</body>
+</html>

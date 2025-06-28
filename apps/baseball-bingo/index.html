@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> Baseball Bingo</title>
+    <title>Baseball Bingo</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
         /* General Body Styling */
         body {
             font-family: 'Inter', sans-serif;
-            /* background-color: #003366;  Deep Blue - Rangers primary blue */
-            background: linear-gradient(to bottom, #0055a5, #001f3f);
+            background-color: #003366; /* Deep Blue - Rangers primary blue */
             color: #FFFFFF; /* White text */
             display: flex;
             flex-direction: column;
@@ -21,6 +20,7 @@
             padding: 20px 10px;
             box-sizing: border-box;
             overflow-y: auto; /* Allow scrolling for smaller screens */
+            position: relative; /* Needed for absolute positioning of canvas */
         }
 
         /* Header */
@@ -32,6 +32,8 @@
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
             border-bottom: 3px solid #FFFFFF;
             padding-bottom: 10px;
+            z-index: 10; /* Ensure header is above fireworks */
+            position: relative;
         }
 
         /* Bingo Grid Container */
@@ -48,6 +50,8 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
             margin-bottom: 25px;
             aspect-ratio: 1 / 1; /* Maintain square aspect ratio */
+            z-index: 10; /* Ensure grid is above fireworks */
+            position: relative;
         }
 
         /* Bingo Cell Styling */
@@ -98,6 +102,8 @@
             align-items: center;
             justify-content: center;
             transition: opacity 0.5s ease;
+            z-index: 10; /* Ensure message is above fireworks */
+            position: relative;
         }
 
         /* Button Container */
@@ -109,6 +115,8 @@
             margin-top: 20px;
             width: 100%;
             max-width: 400px;
+            z-index: 10; /* Ensure buttons are above fireworks */
+            position: relative;
         }
 
         /* Button Styling */
@@ -127,12 +135,6 @@
             letter-spacing: 0.5px;
             flex-grow: 1; /* Allow buttons to grow */
             min-width: 150px; /* Minimum width for buttons */
-            margin-top: 10px;
-        }
-
-        /* Extra spacing for the Baseball Glossary button */
-        #glossary-btn {
-            margin-bottom: 20px;
         }
 
         .game-button:hover {
@@ -153,6 +155,17 @@
 
         #reset-progress-btn:hover {
             background-color: #002244;
+        }
+
+        /* Fireworks Canvas Styling */
+        #fireworks-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Allows clicks to pass through to elements beneath */
+            z-index: 5; /* Below content but above background */
         }
 
         /* Responsive Adjustments */
@@ -202,21 +215,10 @@
                 flex-direction: column;
             }
         }
-</style>
-<style>
-    #fireworks-canvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 5;
-    }
-</style>
+    </style>
 </head>
 <body>
-    <h1>⚾ Baseball Bingo ⚾</h1>
+    <h1>⚾ Rangers Baseball Bingo ⚾</h1>
 
     <div id="bingo-grid">
         <!-- Bingo cells will be dynamically inserted here -->
@@ -226,75 +228,13 @@
 
     <div class="button-container">
         <button id="new-game-btn" class="game-button">New Game</button>
-        <button id="reset-progress-btn" class="game-button">Reset Card</button>
+        <!-- <button id="reset-progress-btn" class="game-button">Reset All Progress</button> -->
     </div>
 
     <canvas id="fireworks-canvas"></canvas>
-    <audio id="bingoSound" src="https://assets.mixkit.co/sfx/preview/mixkit-animated-small-group-applause-523.mp3" preload="auto"></audio>
+
     <script>
         // Array of baseball-related terms for the bingo card
-        // Baseball glossary with explanations
-        const BASEBALL_GLOSSARY = {
-            "100 MPH Pitch": "A pitch thrown at or above 100 miles per hour—extremely fast and rare.",
-            "Spilled Drink": "When a fan accidentally spills a drink in the stands—classic stadium moment.",
-            "Warning Track out": "An out caught just before the ball would’ve hit the outfield wall.",
-            "Hit Foul Pole": "When a ball strikes the foul pole—it’s actually a home run!",
-            "Cute Baby on Jumbotron": "A baby shown on the stadium's big screen, usually to collective 'awws'.",
-            "Dot Race": "A digital or animated race between colored dots, often used as in-game entertainment.",
-            "The Wave": "When fans stand and raise their arms in a coordinated ripple around the stadium.",
-            "RBI Double": "A two-base hit that scores at least one run. RBI stands for 'Run Batted In'.",
-            "RBI Single": "A one-base hit that scores at least one run.",
-            "Mound Visit": "When a coach or player walks to the pitcher’s mound to talk with the pitcher.",
-            "Strikeout Looking": "When a batter strikes out without swinging at the third strike.",
-            "Walk (BB)": "A batter reaches first base after four balls are thrown by the pitcher.",
-            "Stolen Base": "When a runner safely advances to the next base during a pitch.",
-            "Sacrifice Fly": "A fly ball that is caught but allows a runner to score from third base.",
-            "Hit by Pitch": "When the batter is struck by a pitched ball and awarded first base.",
-            "Double Play": "Two outs made in one continuous play.",
-            "Foul Tip Catch": "A foul ball that is tipped directly into the catcher's glove for an out.",
-            "Mascot Dance": "When the team's mascot performs a dance, often for crowd entertainment.",
-            "Outfield Assist": "When an outfielder throws out a runner attempting to advance.",
-            "Catcher's Interference": "When the catcher hinders the batter's swing, allowing the batter to reach base.",
-            "Pitching Change": "When a new pitcher replaces the current one on the mound.",
-            "Manager Argument": "When the manager disputes a call with the umpire—sometimes dramatically.",
-            "Fan Catches Foul Ball": "A fan in the stands catches a foul ball—sometimes barehanded!",
-            "Home Run": "A hit that allows the batter to round all the bases and score.",
-            "Single (1B)": "A base hit where the batter safely reaches first base.",
-            "Double (2B)": "A base hit where the batter safely reaches second base.",
-            "Triple (3B)": "A base hit where the batter safely reaches third base.",
-            "Grand Slam": "A home run hit with the bases loaded, scoring four runs.",
-            "Line Drive": "A sharply hit ball that travels low and fast in a straight line.",
-            "Ground Out": "A ground ball that results in an out at first base.",
-            "Fly Out": "A hit ball caught in the air by a fielder for an out.",
-            "Pop Out": "A softly hit ball that goes high but not far, caught for an out.",
-            "Bunt Hit": "A soft hit made by lightly tapping the ball with the bat.",
-            "Tag Out": "When a runner is tagged by a fielder with the ball and called out.",
-            "Run Down": "A play where a runner is caught between bases and tagged out.",
-            "Triple Play": "Three outs made in one continuous defensive play—very rare.",
-            "Error (E)": "A mistake by a fielder that allows a runner or batter to reach base.",
-            "Balk": "An illegal motion by the pitcher that results in runners advancing a base.",
-            "Wild Pitch": "A pitch so errant that the catcher can't control it, allowing runners to advance.",
-            "Passed Ball": "A pitch that the catcher fails to catch, allowing runners to advance.",
-            "Umpire Review": "A play that is reviewed by video replay to confirm or overturn a call.",
-            "First Pitch Strike": "When the first pitch to a batter is a strike.",
-            "Left on Base": "A runner who is still on base when the inning ends.",
-            "Pitcher Strikes Out Side": "When the pitcher records all three outs in an inning via strikeouts.",
-            "Catcher Throws Out Runner": "When the catcher throws out a baserunner attempting to steal.",
-            "Broken Bat": "When a bat cracks or splits during a swing, usually on contact."
-        };
-        // Render glossary terms into the modal, sorted alphabetically by term
-        function renderGlossary() {
-            const glossaryList = document.getElementById('glossaryList') || document.getElementById('glossary-list');
-            if (!glossaryList) return;
-            // Sort glossary entries alphabetically by key
-            const glossaryEntries = Object.entries(BASEBALL_GLOSSARY).sort(([a], [b]) => a.localeCompare(b));
-            glossaryList.innerHTML = '';
-            glossaryEntries.forEach(([term, definition]) => {
-                const li = document.createElement('li');
-                li.innerHTML = `<strong>${term}</strong>: ${definition}`;
-                glossaryList.appendChild(li);
-            });
-        }
         const BINGO_TERMS = [
             "Strikeout Looking", "Walk (BB)", "Stolen Base", "Sacrifice Fly",
             "Hit by Pitch", "Double Play", "Foul Tip Catch", "Mascot Dance",
@@ -304,9 +244,7 @@
             "Fly Out", "Pop Out", "Bunt Hit", "Tag Out",
             "Run Down", "Triple Play", "Error (E)", "Balk",
             "Wild Pitch", "Passed Ball", "Umpire Review", "First Pitch Strike",
-            "Left on Base", "Pitcher Strikes Out Side", "Catcher Throws Out Runner", "Broken Bat",
-            "100 MPH Pitch", "Spilled Drink", "Warning Track out", "Hit Foul Pole",
-            "Cute Baby on Jumbotron", "Dot Race", "The Wave", "RBI Double", "RBI Single", "Mound Visit"
+            "Left on Base", "Pitcher Strikes Out Side", "Catcher Throws Out Runner", "Broken Bat"
         ];
 
         const GRID_SIZE = 4; // For a 4x4 grid
@@ -314,11 +252,30 @@
 
         let currentBoard = []; // Stores the terms for the current game
         let markedCells = new Array(NUM_CELLS).fill(false); // Tracks which cells are marked
+        let bingoAchieved = false; // Flag to track if bingo has been achieved
 
         const bingoGrid = document.getElementById('bingo-grid');
         const messageDisplay = document.getElementById('message');
         const newGameBtn = document.getElementById('new-game-btn');
-        const resetProgressBtn = document.getElementById('reset-progress-btn');
+        // const resetProgressBtn = document.getElementById('reset-progress-btn');
+
+        // Fireworks Canvas setup
+        const fireworksCanvas = document.getElementById('fireworks-canvas');
+        const ctx = fireworksCanvas.getContext('2d');
+        let fireworks = [];
+        let particles = [];
+        let animationFrameId;
+        let isFireworksActive = false; // Flag to control fireworks animation
+
+        // Adjust canvas size to window size
+        function resizeCanvas() {
+            fireworksCanvas.width = window.innerWidth;
+            fireworksCanvas.height = window.innerHeight;
+        }
+
+        // Add event listener for window resize
+        window.addEventListener('resize', resizeCanvas);
+
 
         /**
          * Shuffles an array in place using the Fisher-Yates (Knuth) algorithm.
@@ -342,6 +299,8 @@
             // Select the first NUM_CELLS unique terms
             currentBoard = shuffledTerms.slice(0, NUM_CELLS);
             markedCells.fill(false); // Reset marked cells for a new game
+            bingoAchieved = false; // Reset bingo flag
+            stopFireworks(); // Stop fireworks when starting a new game
             saveProgress(); // Save the new, unmarked board
             renderBoard();
             messageDisplay.textContent = ''; // Clear any previous bingo message
@@ -387,51 +346,56 @@
         }
 
         /**
-         * Checks for a bingo (row, column, diagonal, or corners).
+         * Checks for a bingo (row, column, or diagonal).
          */
         function checkForBingo() {
-          // Convert markedCells (flat) to 2D array for easier access
-          const marked = [];
-          for (let r = 0; r < GRID_SIZE; r++) {
-            marked.push([]);
-            for (let c = 0; c < GRID_SIZE; c++) {
-              marked[r][c] = markedCells[r * GRID_SIZE + c];
+            const rows = [];
+            const cols = [];
+            const diagonals = [[], []]; // [mainDiagonal, antiDiagonal]
+
+            // Initialize rows and columns
+            for (let i = 0; i < GRID_SIZE; i++) {
+                rows.push([]);
+                cols.push([]);
             }
-          }
 
-          const isMarked = (r, c) => marked[r][c];
+            // Populate rows, columns, and diagonals
+            for (let i = 0; i < NUM_CELLS; i++) {
+                const row = Math.floor(i / GRID_SIZE);
+                const col = i % GRID_SIZE;
 
-          // Check four corners
-          const corners = [[0, 0], [0, GRID_SIZE - 1], [GRID_SIZE - 1, 0], [GRID_SIZE - 1, GRID_SIZE - 1]];
-          const isCornerBingo = corners.every(([r, c]) => isMarked(r, c));
+                rows[row].push(markedCells[i]);
+                cols[col].push(markedCells[i]);
 
-          // Check diagonals
-          const diag1 = Array.from({length: GRID_SIZE}, (_, i) => [i, i]);
-          const diag2 = Array.from({length: GRID_SIZE}, (_, i) => [i, GRID_SIZE - 1 - i]);
-          const isDiagonalBingo = diag1.every(([r, c]) => isMarked(r, c)) ||
-                                  diag2.every(([r, c]) => isMarked(r, c));
+                if (row === col) {
+                    diagonals[0].push(markedCells[i]); // Main diagonal
+                }
+                if (row + col === GRID_SIZE - 1) {
+                    diagonals[1].push(markedCells[i]); // Anti-diagonal
+                }
+            }
 
-          // Check rows and columns
-          const isLineBingo = marked.some((row, r) =>
-            row.every((_, c) => isMarked(r, c)) ||
-            marked.every((_, rr) => isMarked(rr, r))
-          );
+            // Check if any line (row, col, diagonal) is all true (marked)
+            const isBingo = rows.some(row => row.every(cell => cell)) ||
+                            cols.some(col => col.every(cell => cell)) ||
+                            diagonals.some(diag => diag.every(cell => cell));
 
-          if (isCornerBingo || isDiagonalBingo || isLineBingo) {
-            triggerBingo();
-            messageDisplay.style.opacity = 1;
-          } else {
-            messageDisplay.textContent = "";
-            messageDisplay.style.opacity = 0;
-            stopFireworks();
-          }
-        }
-
-        // Triggers the BINGO message and starts fireworks
-        function triggerBingo() {
-          document.getElementById('message').textContent = 'BINGO!';
-          startFireworks();
-          document.getElementById('bingoSound').play();
+            if (isBingo && !bingoAchieved) { // Only trigger if bingo is newly achieved
+                messageDisplay.textContent = "BINGO!";
+                messageDisplay.style.opacity = 1;
+                bingoAchieved = true;
+                startFireworks(); // Start fireworks!
+            } else if (!isBingo && bingoAchieved) { // If bingo was achieved but now unmarked
+                // User unmarked a cell after bingo, but fireworks stay until new game
+                messageDisplay.textContent = "";
+                messageDisplay.style.opacity = 0;
+            } else if (isBingo && bingoAchieved) { // If bingo is still active
+                messageDisplay.textContent = "BINGO!";
+                messageDisplay.style.opacity = 1;
+            } else { // No bingo
+                messageDisplay.textContent = "";
+                messageDisplay.style.opacity = 0;
+            }
         }
 
         /**
@@ -441,6 +405,7 @@
             try {
                 localStorage.setItem('baseballBingoBoard', JSON.stringify(currentBoard));
                 localStorage.setItem('baseballBingoMarkedCells', JSON.stringify(markedCells));
+                localStorage.setItem('baseballBingoAchieved', JSON.stringify(bingoAchieved));
                 console.log("Game progress saved.");
             } catch (e) {
                 console.error("Failed to save progress to local storage:", e);
@@ -456,17 +421,28 @@
             try {
                 const savedBoard = localStorage.getItem('baseballBingoBoard');
                 const savedMarkedCells = localStorage.getItem('baseballBingoMarkedCells');
+                const savedBingoAchieved = localStorage.getItem('baseballBingoAchieved');
+
 
                 if (savedBoard && savedMarkedCells) {
                     const parsedBoard = JSON.parse(savedBoard);
                     const parsedMarkedCells = JSON.parse(savedMarkedCells);
+                    const parsedBingoAchieved = JSON.parse(savedBingoAchieved);
 
                     // Validate loaded data (e.g., correct size)
                     if (parsedBoard.length === NUM_CELLS && parsedMarkedCells.length === NUM_CELLS) {
                         currentBoard = parsedBoard;
                         markedCells = parsedMarkedCells;
+                        bingoAchieved = parsedBingoAchieved; // Load bingo state
+
                         renderBoard();
                         checkForBingo(); // Check for bingo on load in case it was achieved before
+
+                        // If bingo was achieved on load, start fireworks
+                        if (bingoAchieved) {
+                            startFireworks();
+                        }
+
                         console.log("Game progress loaded.");
                         return true;
                     }
@@ -486,212 +462,178 @@
             try {
                 localStorage.removeItem('baseballBingoBoard');
                 localStorage.removeItem('baseballBingoMarkedCells');
+                localStorage.removeItem('baseballBingoAchieved'); // Clear bingo flag
                 console.log("All game progress cleared.");
             } catch (e) {
                 console.error("Failed to clear progress from local storage:", e);
             }
         }
 
-        // Event Listeners
-        document.getElementById('new-game-btn')?.addEventListener('click', () => {
-            stopFireworks();
-            generateNewBoard();
-            messageDisplay.textContent = '';
-        });
+        // --- Fireworks Logic ---
 
-        // Replace Reset Card button logic:
-        document.getElementById('reset-progress-btn')?.addEventListener('click', () => {
-            stopFireworks();
-            markedCells = Array(NUM_CELLS).fill(false);
-            renderBoard();
-            messageDisplay.textContent = '';
-        });
-
-        // Glossary modal open/close logic
-        document.getElementById('glossary-button')?.addEventListener('click', function() {
-            document.getElementById('glossaryModal').classList.remove('hidden');
-        });
-        document.getElementById('closeModal')?.addEventListener('click', function() {
-            document.getElementById('glossaryModal').classList.add('hidden');
-        });
-
-        // --- Fireworks Animation ---
-        // Reference: https://codepen.io/ste-vg/pen/pooWQeJ (adapted for integration)
-        let fireworksRunning = false;
-        let animationFrameId = null;
-        const canvas = document.getElementById('fireworks-canvas');
-        const ctx = canvas.getContext('2d');
-        let fireworks = [];
-        let particles = [];
-
-        function resizeCanvas() {
-            // Set display size (css pixels).
-            const dpr = window.devicePixelRatio || 1;
-            canvas.width = window.innerWidth * dpr;
-            canvas.height = window.innerHeight * dpr;
-            canvas.style.width = window.innerWidth + "px";
-            canvas.style.height = window.innerHeight + "px";
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.scale(dpr, dpr);
+        // Helper to get a random color
+        function randomColor() {
+            const colors = ['red', 'white', 'blue', 'gold', 'lightskyblue'];
+            return colors[Math.floor(Math.random() * colors.length)];
         }
 
-        window.addEventListener('resize', resizeCanvas);
-
-        class Firework {
-            constructor(sx, sy, tx, ty) {
-                this.x = sx;
-                this.y = sy;
-                this.sx = sx;
-                this.sy = sy;
-                this.tx = tx;
-                this.ty = ty;
-                this.distanceToTarget = this.calculateDistance(sx, sy, tx, ty);
-                this.distanceTraveled = 0;
-                this.coordinates = [];
-                this.coordinateCount = 3;
-                while (this.coordinateCount--) {
-                    this.coordinates.push([this.x, this.y]);
-                }
-                this.angle = Math.atan2(ty - sy, tx - sx);
-                this.speed = 2 + Math.random() * 2;
-                this.acceleration = 1.05;
-                this.brightness = Math.random() * 20 + 50;
-                this.targetRadius = 2;
-            }
-            update(index) {
-                this.coordinates.pop();
-                this.coordinates.unshift([this.x, this.y]);
-                if (this.targetRadius < 8) {
-                    this.targetRadius += 0.3;
-                } else {
-                    this.targetRadius = 2;
-                }
-                let vx = Math.cos(this.angle) * this.speed;
-                let vy = Math.sin(this.angle) * this.speed;
-                this.x += vx;
-                this.y += vy;
-                this.speed *= this.acceleration;
-                this.distanceTraveled = this.calculateDistance(this.sx, this.sy, this.x, this.y);
-                if (this.distanceTraveled >= this.distanceToTarget) {
-                    createParticles(this.tx, this.ty);
-                    fireworks.splice(index, 1);
-                }
-            }
-            draw() {
-                ctx.beginPath();
-                ctx.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1]);
-                for (let i = this.coordinates.length - 1; i >= 0; i--) {
-                    ctx.lineTo(this.coordinates[i][0], this.coordinates[i][1]);
-                }
-                ctx.strokeStyle = 'hsl(' + Math.floor(Math.random() * 360) + ', 100%, ' + this.brightness + '%)';
-                ctx.stroke();
-
-                ctx.beginPath();
-                ctx.arc(this.tx, this.ty, this.targetRadius, 0, Math.PI * 2);
-                ctx.stroke();
-            }
-            calculateDistance(sx, sy, tx, ty) {
-                let dx = tx - sx;
-                let dy = ty - sy;
-                return Math.sqrt(dx * dx + dy * dy);
-            }
-        }
-
+        // Particle class for individual firework sparks
         class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.radius = Math.random() * 2 + 1; // Random size
+                this.velocity = {
+                    x: (Math.random() - 0.5) * 5,
+                    y: (Math.random() - 0.5) * 5
+                };
+                this.alpha = 1; // Opacity
+                this.friction = 0.95; // Slows down over time
+                this.gravity = 0.1; // Pulls down
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+
+            update() {
+                this.velocity.x *= this.friction;
+                this.velocity.y *= this.friction;
+                this.velocity.y += this.gravity;
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
+                this.alpha -= 0.02; // Fade out
+            }
+        }
+
+        // Firework class for the initial burst
+        class Firework {
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
-                this.coordinates = [];
-                this.coordinateCount = 5;
-                while (this.coordinateCount--) {
-                    this.coordinates.push([this.x, this.y]);
-                }
-                this.angle = Math.random() * Math.PI * 2;
-                this.speed = Math.random() * 10 + 2;
-                this.friction = 0.95;
-                this.gravity = 0.7;
-                this.hue = Math.floor(Math.random() * 360);
-                this.brightness = Math.random() * 40 + 50;
-                this.alpha = 1;
-                this.decay = Math.random() * 0.015 + 0.015;
+                this.color = randomColor();
+                this.explosionRadius = Math.random() * 100 + 50; // How big the explosion is
+                this.particlesGenerated = false;
             }
-            update(index) {
-                this.coordinates.pop();
-                this.coordinates.unshift([this.x, this.y]);
-                this.speed *= this.friction;
-                this.x += Math.cos(this.angle) * this.speed;
-                this.y += Math.sin(this.angle) * this.speed + this.gravity;
-                this.alpha -= this.decay;
-                if (this.alpha <= 0.01) {
+
+            draw() {
+                // Initial spark before explosion (optional, kept simple for now)
+            }
+
+            update() {
+                // For now, it just explodes instantly
+                if (!this.particlesGenerated) {
+                    this.explode();
+                    this.particlesGenerated = true;
+                }
+            }
+
+            explode() {
+                const numParticles = 50 + Math.floor(Math.random() * 50); // 50-100 particles
+                for (let i = 0; i < numParticles; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const velocity = Math.random() * 5 + 2;
+                    const particle = new Particle(this.x, this.y, this.color);
+                    particle.velocity.x = Math.cos(angle) * velocity;
+                    particle.velocity.y = Math.sin(angle) * velocity;
+                    particles.push(particle);
+                }
+            }
+        }
+
+
+        // Animation loop for fireworks
+        function animateFireworks() {
+            if (!isFireworksActive) {
+                cancelAnimationFrame(animationFrameId);
+                return;
+            }
+
+            animationFrameId = requestAnimationFrame(animateFireworks);
+
+            // Clear canvas with a slight fade effect
+            ctx.fillStyle = 'rgba(0, 51, 102, 0.1)'; // Blue background with transparency for fade
+            ctx.fillRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+
+            // Generate new fireworks randomly if active
+            if (Math.random() < 0.02) { // Probability of new firework appearing
+                fireworks.push(new Firework(
+                    Math.random() * fireworksCanvas.width,
+                    Math.random() * fireworksCanvas.height * 0.7 // Keep them in upper 70%
+                ));
+            }
+
+            // Update and draw fireworks (initial burst)
+            fireworks = fireworks.filter(fw => !fw.particlesGenerated); // Remove burst fireworks after they generate particles
+            fireworks.forEach(fw => {
+                fw.update();
+                fw.draw();
+            });
+
+            // Update and draw particles
+            particles.forEach((particle, index) => {
+                particle.update();
+                particle.draw();
+
+                // Remove particles that have faded out
+                if (particle.alpha <= 0.05 || particle.radius <= 0.5) {
                     particles.splice(index, 1);
                 }
-            }
-            draw() {
-                ctx.beginPath();
-                ctx.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1]);
-                for (let i = this.coordinates.length - 1; i >= 0; i--) {
-                    ctx.lineTo(this.coordinates[i][0], this.coordinates[i][1]);
-                }
-                ctx.strokeStyle = 'hsla(' + this.hue + ', 100%, ' + this.brightness + '%, ' + this.alpha + ')';
-                ctx.stroke();
-            }
+            });
         }
 
-        function createParticles(x, y) {
-            let particleCount = 30 + Math.floor(Math.random() * 20);
-            while (particleCount--) {
-                particles.push(new Particle(x, y));
-            }
-        }
-
-        function loop() {
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.globalCompositeOperation = 'lighter';
-
-            let i = fireworks.length;
-            while (i--) {
-                fireworks[i].draw();
-                fireworks[i].update(i);
-            }
-            let j = particles.length;
-            while (j--) {
-                particles[j].draw();
-                particles[j].update(j);
-            }
-            // Randomly launch fireworks if running
-            if (fireworksRunning && Math.random() < 0.08) {
-                let sx = window.innerWidth / 2;
-                let sy = window.innerHeight;
-                let tx = Math.random() * window.innerWidth * 0.8 + window.innerWidth * 0.1;
-                let ty = Math.random() * window.innerHeight * 0.4 + window.innerHeight * 0.1;
-                fireworks.push(new Firework(sx, sy, tx, ty));
-            }
-            if (fireworksRunning || fireworks.length > 0 || particles.length > 0) {
-                animationFrameId = requestAnimationFrame(loop);
-            } else {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                animationFrameId = null;
-            }
-        }
-
+        // Function to start fireworks
         function startFireworks() {
-            if (fireworksRunning) return;
-            fireworksRunning = true;
-            canvas.style.display = 'block';
-            loop();
+            if (!isFireworksActive) {
+                isFireworksActive = true;
+                fireworks = []; // Clear any existing fireworks before starting new ones
+                particles = []; // Clear any existing particles
+                animateFireworks();
+            }
         }
 
-        // Stop fireworks on page load
-        window.addEventListener('load', () => {
-          stopFireworks();
+        // Function to stop fireworks
+        function stopFireworks() {
+            isFireworksActive = false;
+            cancelAnimationFrame(animationFrameId);
+            ctx.clearRect(0, 0, fireworksCanvas.width, fireworksCanvas.height); // Clear the canvas completely
+            fireworks = [];
+            particles = [];
+        }
+
+        // Event Listeners
+        newGameBtn.addEventListener('click', generateNewBoard);
+        // resetProgressBtn.addEventListener('click', () => {
+        //     // Replaced alert with a simpler prompt for compatibility
+        //     const confirmed = prompt("Type 'RESET' to confirm you want to reset all game progress. This cannot be undone.");
+        //     if (confirmed && confirmed.toUpperCase() === 'RESET') {
+        //          clearProgress();
+        //          generateNewBoard(); // Start a fresh game after clearing
+        //     }
+        // });
+
+
+        // Initial game setup on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            resizeCanvas(); // Set initial canvas size
+            // Try to load saved progress, if none, start a new game
+            if (!loadProgress()) {
+                generateNewBoard();
+            }
         });
     </script>
-</body>
-<footer style="padding: 1rem; margin-top: 2rem; text-align: center; font-size: 0.9rem;">
-  Created for the betterment of your life by <a href="https://NewJourneyDesigns.co" target="_blank" style="color: white; text-decoration: underline;">NewJourneyDesigns.co</a> &copy; 2025
-</footer>
-</html>
+    <footer style="padding: 20px 0; color: white; text-align: center;">
+      Created for the betterment of your life by <a href="https://newjourneydesigns.co" style="color: white; text-decoration: underline;">NewJourneyDesigns.co</a> &copy; <span id="footer-year"></span>
+    </footer>
+    <script>
+      document.getElementById('footer-year').textContent = new Date().getFullYear();
+    </script>
 </body>
 </html>

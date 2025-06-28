@@ -131,7 +131,7 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // Register service worker relative to the current script's location
-                navigator.serviceWorker.register('/sw.js')
+                navigator.serviceWorker.register('./sw.js')
                     .then(registration => {
                         console.log('Service Worker registered with scope:', registration.scope);
                     })
@@ -230,7 +230,7 @@
         ];
 
         let currentDayIndex = -1; // -1 for the intro screen
-        const LOCAL_STORAGE_KEY = 'surrenderCurrentDay';
+        const LOCAL_STORAGE_KEY = 'trustCurrentDay';
 
         // DOM elements
         const body = document.body;

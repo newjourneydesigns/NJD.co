@@ -494,20 +494,10 @@
 
         // Event Listeners
 document.getElementById('new-game-btn')?.addEventListener('click', () => {
-  stopFireworks();
-
-  // Clear all current terms and marked status
-  markedCells = Array(NUM_CELLS).fill(false);
-  document.querySelectorAll('.bingo-cell').forEach(cell => {
-    cell.classList.remove('marked');
+    stopFireworks();
+    generateNewBoard();
+    messageDisplay.textContent = '';
   });
-
-  // Regenerate the bingo card
-  generateNewBoard();
-
-  // Clear bingo message
-  messageDisplay.textContent = '';
-});
 
         // Replace Reset Card button logic:
 document.getElementById('reset-progress-btn')?.addEventListener('click', () => {

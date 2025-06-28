@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Baseball Bingo</title>
+    <title> Baseball Bingo</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
         /* General Body Styling */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #003366; /* Deep Blue - Rangers primary blue */
+            /* background-color: #003366;  Deep Blue - Rangers primary blue */
+            background: linear-gradient(to bottom, #0055a5, #001f3f);
             color: #FFFFFF; /* White text */
             display: flex;
             flex-direction: column;
@@ -36,18 +37,17 @@
         /* Bingo Grid Container */
         #bingo-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            grid-template-rows: repeat(5, 1fr);
-            grid-auto-rows: 1fr;
+            grid-template-columns: repeat(4, 1fr); /* 4x4 grid */
+            grid-template-rows: repeat(4, 1fr);
             gap: 8px; /* Spacing between cells */
-            width: 100vw;
-            max-width: 90vw; /* Max width for larger screens, responsive */
+            width: 100%;
+            max-width: 400px; /* Max width for larger screens */
             background-color: #ADD8E6; /* Light blue background for the grid area */
             padding: 8px;
             border-radius: 15px; /* Rounded corners for the grid */
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
             margin-bottom: 25px;
-            /* aspect-ratio: 1 / 1; Maintain square aspect ratio */
+            aspect-ratio: 1 / 1; /* Maintain square aspect ratio */
         }
 
         /* Bingo Cell Styling */
@@ -67,8 +67,6 @@
             transition: background-color 0.2s ease, transform 0.1s ease; /* Smooth transitions */
             border: 2px solid #CC0000; /* Red border */
             box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
-            aspect-ratio: 1 / 1;
-            width: 100%;
         }
 
         /* Marked Cell Styling */
@@ -129,6 +127,7 @@
             letter-spacing: 0.5px;
             flex-grow: 1; /* Allow buttons to grow */
             min-width: 150px; /* Minimum width for buttons */
+            margin-top: 10px;
         }
 
         .game-button:hover {
@@ -158,18 +157,14 @@
                 margin-bottom: 15px;
             }
             #bingo-grid {
-                width: 100%;
-                max-width: 360px;
-                margin: 0 auto;
-                gap: 4px;
-                padding: 4px;
+                gap: 6px;
+                padding: 6px;
+                max-width: 320px; /* Make grid slightly smaller on small phones */
             }
             .bingo-cell {
-                font-size: 0.65em;
-                padding: 2px;
-                border-radius: 6px;
-                aspect-ratio: 1 / 1;
-                width: 100%;
+                font-size: 0.75em;
+                padding: 3px;
+                border-radius: 8px;
             }
             .game-button {
                 padding: 10px 20px;
@@ -189,10 +184,10 @@
                 font-size: 1.6em;
             }
             #bingo-grid {
-                max-width: 320px;
+                max-width: 280px;
             }
             .bingo-cell {
-                font-size: 0.6em;
+                font-size: 0.7em;
             }
             .game-button {
                 min-width: unset; /* Allow buttons to shrink more if needed */
@@ -205,7 +200,7 @@
     </style>
 </head>
 <body>
-    <h1>⚾ Rangers Baseball Bingo ⚾</h1>
+    <h1>⚾ Baseball Bingo ⚾</h1>
 
     <div id="bingo-grid">
         <!-- Bingo cells will be dynamically inserted here -->
@@ -215,11 +210,19 @@
 
     <div class="button-container">
         <button id="new-game-btn" class="game-button">New Game</button>
-        <button id="reset-progress-btn" class="game-button">Reset Game</button>
+        <button id="reset-progress-btn" class="game-button">Reset Card</button>
     </div>
 
     <script>
         // Array of baseball-related terms for the bingo card
+        // Render glossary terms into the modal
+        function renderGlossary() {
+            const glossaryList = document.getElementById('glossary-list');
+            if (!glossaryList) return;
+            glossaryList.innerHTML = BINGO_TERMS.map(term =>
+                `<li style="margin-bottom:10px;"><strong>${term}:</strong> <span>Explanation coming soon.</span></li>`
+            ).join('');
+        }
         const BINGO_TERMS = [
             "Strikeout Looking", "Walk (BB)", "Stolen Base", "Sacrifice Fly",
             "Hit by Pitch", "Double Play", "Foul Tip Catch", "Mascot Dance",
@@ -231,11 +234,10 @@
             "Wild Pitch", "Passed Ball", "Umpire Review", "First Pitch Strike",
             "Left on Base", "Pitcher Strikes Out Side", "Catcher Throws Out Runner", "Broken Bat",
             "100 MPH Pitch", "Spilled Drink", "Warning Track out", "Hit Foul Pole",
-            "Announcer Messes Up", "Cute Baby on Jumbotron", "Dot Race", "The Wave",
-            "RBI", "Mound Visit"
+            "Cute Baby on Jumbotron", "Dot Race", "The Wave", "RBI Double", "RBI Single", "Mound Visit"
         ];
 
-        const GRID_SIZE = 5;
+        const GRID_SIZE = 4; // For a 4x4 grid
         const NUM_CELLS = GRID_SIZE * GRID_SIZE;
 
         let currentBoard = []; // Stores the terms for the current game
@@ -431,7 +433,29 @@
             if (!loadProgress()) {
                 generateNewBoard();
             }
+            renderGlossary();
+        });
+
+        // Glossary modal open button
+        document.getElementById('glossary-btn').addEventListener('click', () => {
+            document.getElementById('glossary-modal').style.display = 'block';
         });
     </script>
+</button>
+<div id="glossary-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.7); color:#000; overflow-y:auto; z-index:1000;">
+  <div style="background:#fff; color:#000; max-width:600px; margin:50px auto; padding:20px; border-radius:10px; position:relative;">
+    <h2 style="text-align:center;">Baseball Glossary</h2>
+    <button onclick="document.getElementById('glossary-modal').style.display='none'" style="position:absolute; top:10px; right:10px; background:none; border:none; font-size:1.2em; cursor:pointer;">✖</button>
+    <ul id="glossary-list" style="list-style:none; padding:0;">
+      <!-- Glossary terms will be dynamically inserted here -->
+    </ul>
+  </div>
+</div>
+<button id="glossary-btn" class="game-button">Baseball Glossary</button>
 </body>
 </html>
+
+        /* Extra spacing for the Baseball Glossary button */
+        #glossary-btn {
+            margin-bottom: 20px;
+        }

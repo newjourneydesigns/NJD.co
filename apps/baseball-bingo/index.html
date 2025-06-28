@@ -510,18 +510,11 @@ document.getElementById('new-game-btn')?.addEventListener('click', () => {
 });
 
         // Replace Reset Card button logic:
-        document.getElementById('reset-progress-btn')?.addEventListener('click', () => {
-          stopFireworks();
-
-          // Clear all markings from the board but retain terms
-          let marked = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(false));
-          markedCells = Array(NUM_CELLS).fill(false);
-          document.querySelectorAll('.bingo-cell').forEach(cell => {
-            cell.classList.remove('marked');
-          });
-
-          // Clear bingo message
-          messageDisplay.textContent = '';
+document.getElementById('reset-progress-btn')?.addEventListener('click', () => {
+    stopFireworks();
+    markedCells = Array(NUM_CELLS).fill(false);
+    renderBoard();
+    messageDisplay.textContent = '';
         });
 
 
@@ -709,23 +702,6 @@ document.getElementById('new-game-btn')?.addEventListener('click', () => {
             fireworksRunning = true;
             canvas.style.display = 'block';
             loop();
-        }
-        function stopFireworks() {
-            fireworksRunning = false;
-            // Let any remaining fireworks/particles finish animating, but don't launch new ones.
-        }
-
-        // --- Extra: Stop fireworks in a DOM element (for future extensibility) ---
-        function stopFireworks() {
-          const fireworks = document.getElementById('fireworks');
-          if (fireworks) {
-            fireworks.innerHTML = '';
-            fireworks.style.display = 'none';
-            // Reset display in case it's used again later
-            setTimeout(() => {
-              fireworks.style.display = '';
-            }, 100);
-          }
         }
 
         // Stop fireworks on page load

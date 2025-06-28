@@ -693,7 +693,14 @@
         // --- Extra: Stop fireworks in a DOM element (for future extensibility) ---
         function stopFireworks() {
           const fireworks = document.getElementById('fireworks');
-          if (fireworks) fireworks.innerHTML = '';
+          if (fireworks) {
+            fireworks.innerHTML = '';
+            fireworks.style.display = 'none';
+            // Reset display in case it's used again later
+            setTimeout(() => {
+              fireworks.style.display = '';
+            }, 100);
+          }
         }
     </script>
 </body>

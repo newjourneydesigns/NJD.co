@@ -220,13 +220,66 @@
 
     <script>
         // Array of baseball-related terms for the bingo card
+        // Baseball glossary with explanations
+        const BASEBALL_GLOSSARY = {
+            "100 MPH Pitch": "A pitch thrown at or above 100 miles per hour—extremely fast and rare.",
+            "Spilled Drink": "When a fan accidentally spills a drink in the stands—classic stadium moment.",
+            "Warning Track out": "An out caught just before the ball would’ve hit the outfield wall.",
+            "Hit Foul Pole": "When a ball strikes the foul pole—it’s actually a home run!",
+            "Cute Baby on Jumbotron": "A baby shown on the stadium's big screen, usually to collective 'awws'.",
+            "Dot Race": "A digital or animated race between colored dots, often used as in-game entertainment.",
+            "The Wave": "When fans stand and raise their arms in a coordinated ripple around the stadium.",
+            "RBI Double": "A two-base hit that scores at least one run. RBI stands for 'Run Batted In'.",
+            "RBI Single": "A one-base hit that scores at least one run.",
+            "Mound Visit": "When a coach or player walks to the pitcher’s mound to talk with the pitcher.",
+            "Strikeout Looking": "When a batter strikes out without swinging at the third strike.",
+            "Walk (BB)": "A batter reaches first base after four balls are thrown by the pitcher.",
+            "Stolen Base": "When a runner safely advances to the next base during a pitch.",
+            "Sacrifice Fly": "A fly ball that is caught but allows a runner to score from third base.",
+            "Hit by Pitch": "When the batter is struck by a pitched ball and awarded first base.",
+            "Double Play": "Two outs made in one continuous play.",
+            "Foul Tip Catch": "A foul ball that is tipped directly into the catcher's glove for an out.",
+            "Mascot Dance": "When the team's mascot performs a dance, often for crowd entertainment.",
+            "Outfield Assist": "When an outfielder throws out a runner attempting to advance.",
+            "Catcher's Interference": "When the catcher hinders the batter's swing, allowing the batter to reach base.",
+            "Pitching Change": "When a new pitcher replaces the current one on the mound.",
+            "Manager Argument": "When the manager disputes a call with the umpire—sometimes dramatically.",
+            "Fan Catches Foul Ball": "A fan in the stands catches a foul ball—sometimes barehanded!",
+            "Home Run": "A hit that allows the batter to round all the bases and score.",
+            "Single (1B)": "A base hit where the batter safely reaches first base.",
+            "Double (2B)": "A base hit where the batter safely reaches second base.",
+            "Triple (3B)": "A base hit where the batter safely reaches third base.",
+            "Grand Slam": "A home run hit with the bases loaded, scoring four runs.",
+            "Line Drive": "A sharply hit ball that travels low and fast in a straight line.",
+            "Ground Out": "A ground ball that results in an out at first base.",
+            "Fly Out": "A hit ball caught in the air by a fielder for an out.",
+            "Pop Out": "A softly hit ball that goes high but not far, caught for an out.",
+            "Bunt Hit": "A soft hit made by lightly tapping the ball with the bat.",
+            "Tag Out": "When a runner is tagged by a fielder with the ball and called out.",
+            "Run Down": "A play where a runner is caught between bases and tagged out.",
+            "Triple Play": "Three outs made in one continuous defensive play—very rare.",
+            "Error (E)": "A mistake by a fielder that allows a runner or batter to reach base.",
+            "Balk": "An illegal motion by the pitcher that results in runners advancing a base.",
+            "Wild Pitch": "A pitch so errant that the catcher can't control it, allowing runners to advance.",
+            "Passed Ball": "A pitch that the catcher fails to catch, allowing runners to advance.",
+            "Umpire Review": "A play that is reviewed by video replay to confirm or overturn a call.",
+            "First Pitch Strike": "When the first pitch to a batter is a strike.",
+            "Left on Base": "A runner who is still on base when the inning ends.",
+            "Pitcher Strikes Out Side": "When the pitcher records all three outs in an inning via strikeouts.",
+            "Catcher Throws Out Runner": "When the catcher throws out a baserunner attempting to steal.",
+            "Broken Bat": "When a bat cracks or splits during a swing, usually on contact."
+        };
         // Render glossary terms into the modal
         function renderGlossary() {
             const glossaryList = document.getElementById('glossary-list');
             if (!glossaryList) return;
-            glossaryList.innerHTML = BINGO_TERMS.map(term =>
-                `<li style="margin-bottom:10px;"><strong>${term}:</strong> <span>Explanation coming soon.</span></li>`
-            ).join('');
+            glossaryList.innerHTML = (typeof currentBoard !== 'undefined' && currentBoard.length > 0
+                ? currentBoard
+                : BINGO_TERMS
+            ).map(term => {
+                const definition = BASEBALL_GLOSSARY[term] || "Explanation coming soon.";
+                return `<li style="margin-bottom:10px;"><strong>${term}:</strong> <span>${definition}</span></li>`;
+            }).join('');
         }
         const BINGO_TERMS = [
             "Strikeout Looking", "Walk (BB)", "Stolen Base", "Sacrifice Fly",

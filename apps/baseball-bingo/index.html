@@ -249,7 +249,7 @@
           "RBI Triple",
           "Mound Visit",
           "Double Play",
-          "Triple Play",         
+          "TriplePlay",         
           "Home Run",
           "Grandslam",
           "Walk-Off",
@@ -415,7 +415,7 @@
                             diagonals.some(diag => diag.every(cell => cell));
 
             if (isBingo && !bingoAchieved) { // Only trigger if bingo is newly achieved
-                messageDisplay.textContent = "BINGO!";
+                messageDisplay.textContent = "HOMERUN! BINGO!";
                 messageDisplay.style.opacity = 1;
                 bingoAchieved = true;
                 startFireworks(); // Start fireworks!

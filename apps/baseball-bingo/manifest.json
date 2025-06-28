@@ -1,6 +1,6 @@
 {
   "name": "Baseball Bingo",
-  "short_name": "Bingo",
+  "short_name": "Baseball Bingo",
   "start_url": "/apps/baseball-bingo/index.html",
   "display": "standalone",
   "background_color": "#003366",

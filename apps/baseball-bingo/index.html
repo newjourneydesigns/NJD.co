@@ -431,7 +431,7 @@
 
         // Triggers the BINGO message
         function triggerBingo() {
-          document.getElementById('message').textContent = 'BINGO';
+          document.getElementById('message').textContent = 'HOMERUN! YOU GOT A BINGO!';
           startFireworks();
         }
 
@@ -449,16 +449,16 @@
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
             script.onload = () => {
-              fireworksInstance = confetti.create(canvas, { resize: true, useWorker: true });
-              fireworksInstance({
+              const instance = confetti.create(canvas, { resize: true, useWorker: true });
+              instance({
                 particleCount: 100,
                 spread: 160
               });
             };
             document.body.appendChild(script);
           } else {
-            fireworksInstance = confetti.create(canvas, { resize: true, useWorker: true });
-            fireworksInstance({
+            const instance = confetti.create(canvas, { resize: true, useWorker: true });
+            instance({
               particleCount: 100,
               spread: 160
             });

@@ -1,11 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Baseball Bingo</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
-    <style>
+    <link rel="stylesheet" href="style.css" />
+
+    <!-- PWA Support -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="apple-touch-icon" href="icon.png" />
+  </head>
         /* General Body Styling */
         body {
             font-family: 'Inter', sans-serif;
@@ -269,6 +275,9 @@
           "Bat Flip",
           "Broken Bat",
           "Ball Boy Catch",
+          "Cotton Eyed Joe",
+          "Don't Stop Believin'",
+          "Sweet Caroline",                              
           "Manager Ejection",
           "Manager Argument with Ump",
           "Fan on the Field",
@@ -668,8 +677,16 @@
       <a href="https://newjourneydesigns.co" style="color: white; text-decoration: underline;" target="_blank">NewJourneyDesigns.co</a> 
       &copy; <span id="footer-year"></span>
     </footer>
-    <script>
-      document.getElementById('footer-year').textContent = new Date().getFullYear();
-    </script>
+</footer>
+<script>
+  document.getElementById('footer-year').textContent = new Date().getFullYear();
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js');
+    });
+  }
+</script>
 </body>
 </html>

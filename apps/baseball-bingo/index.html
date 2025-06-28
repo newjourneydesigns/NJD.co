@@ -486,12 +486,35 @@
         }
 
         // Event Listeners
-        document.getElementById('newGameBtn')?.addEventListener('click', function () {
-          window.location.reload(true);
+        document.getElementById('new-game-btn')?.addEventListener('click', () => {
+          stopFireworks();
+
+          // Clear all current terms and marked status
+          markedCells = Array(NUM_CELLS).fill(false);
+          document.querySelectorAll('.bingo-cell').forEach(cell => {
+            cell.classList.remove('marked');
+          });
+
+          // Regenerate the bingo card
+          generateNewBoard();
+
+          // Clear bingo message
+          messageDisplay.textContent = '';
         });
 
-        document.getElementById('resetBtn')?.addEventListener('click', function () {
-          window.location.href = window.location.href;
+        // Replace Reset Card button logic:
+        document.getElementById('reset-progress-btn')?.addEventListener('click', () => {
+          stopFireworks();
+
+          // Clear all markings from the board but retain terms
+          let marked = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(false));
+          markedCells = Array(NUM_CELLS).fill(false);
+          document.querySelectorAll('.bingo-cell').forEach(cell => {
+            cell.classList.remove('marked');
+          });
+
+          // Clear bingo message
+          messageDisplay.textContent = '';
         });
 
 

@@ -218,7 +218,7 @@
     </style>
 </head>
 <body>
-    <h1>⚾ Rangers Baseball Bingo ⚾</h1>
+    <h1>⚾ Baseball Bingo ⚾</h1>
 
     <div id="bingo-grid">
         <!-- Bingo cells will be dynamically inserted here -->
@@ -227,7 +227,7 @@
     <div id="message"></div>
 
     <div class="button-container">
-        <button id="new-game-btn" class="game-button">New Game</button>
+        <button id="new-game-btn" class="game-button">Play Ball!</button>
         <!-- <button id="reset-progress-btn" class="game-button">Reset All Progress</button> -->
     </div>
 
@@ -236,15 +236,49 @@
     <script>
         // Array of baseball-related terms for the bingo card
         const BINGO_TERMS = [
-            "Strikeout Looking", "Walk (BB)", "Stolen Base", "Sacrifice Fly",
-            "Hit by Pitch", "Double Play", "Foul Tip Catch", "Mascot Dance",
-            "Outfield Assist", "Catcher's Interference", "Pitching Change", "Manager Argument",
-            "Fan Catches Foul Ball", "Home Run", "Single (1B)", "Double (2B)",
-            "Triple (3B)", "Grand Slam", "Line Drive", "Ground Out",
-            "Fly Out", "Pop Out", "Bunt Hit", "Tag Out",
-            "Run Down", "Triple Play", "Error (E)", "Balk",
-            "Wild Pitch", "Passed Ball", "Umpire Review", "First Pitch Strike",
-            "Left on Base", "Pitcher Strikes Out Side", "Catcher Throws Out Runner", "Broken Bat"
+          "100 MPH Pitch",
+          "Spilled Drink",
+          "Warning Track out",
+          "Hit Foul Pole",
+          "Announcer Messes Up",
+          "Cute Baby on Jumbotron",
+          "Dot Race",
+          "The Wave",
+          "RBI Single",
+          "RBI Double",
+          "RBI Triple",
+          "Mound Visit",
+          "Double Play",
+          "Triple Play",         
+          "Home Run",
+          "Grandslam",
+          "Walk-Off",
+          "Grand Slam",
+          "Strikeout",
+          "Strikeout The Side",          
+          "Error",
+          "Mascot Dance",
+          "Kiss Cam",
+          "Foul Ball to Right",
+          "Foul Ball to Left",          
+          "Seventh Inning Stretch",
+          "Fireworks",
+          "Stolen Base",
+          "Fan Catches Foul Ball",
+          "Player Slides into Home",
+          "Bat Flip",
+          "Broken Bat",
+          "Ball Girl/Ball Boy Catch",
+          "Manager Ejection",
+          "Manager Argument with Ump",
+          "Fan on the Field",
+          "Rain Delay",
+          "Take Me Out To The Ballgame",          
+          "7th Inning Stretch",
+          "Instant Replay Review",
+          "Rally Hats",
+          "National Anthem Singer Messes Up",
+          "Fan in Costume",
         ];
 
         const GRID_SIZE = 4; // For a 4x4 grid
@@ -629,8 +663,10 @@
             }
         });
     </script>
-    <footer style="padding: 20px 0; color: white; text-align: center;">
-      Created for the betterment of your life by <a href="https://newjourneydesigns.co" style="color: white; text-decoration: underline;">NewJourneyDesigns.co</a> &copy; <span id="footer-year"></span>
+    <footer style="padding: 20px 0; text-align: center; color: white;">
+      Created for the betterment of your life by 
+      <a href="https://newjourneydesigns.co" style="color: white; text-decoration: underline;" target="_blank">NewJourneyDesigns.co</a> 
+      &copy; <span id="footer-year"></span>
     </footer>
     <script>
       document.getElementById('footer-year').textContent = new Date().getFullYear();

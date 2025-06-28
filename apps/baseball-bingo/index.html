@@ -386,49 +386,45 @@
         }
 
         /**
-         * Checks for a bingo (row, column, or diagonal).
+         * Checks for a bingo (row, column, diagonal, or corners).
          */
         function checkForBingo() {
-            const rows = [];
-            const cols = [];
-            const diagonals = [[], []]; // [mainDiagonal, antiDiagonal]
-
-            // Initialize rows and columns
-            for (let i = 0; i < GRID_SIZE; i++) {
-                rows.push([]);
-                cols.push([]);
+          // Convert markedCells (flat) to 2D array for easier access
+          const marked = [];
+          for (let r = 0; r < GRID_SIZE; r++) {
+            marked.push([]);
+            for (let c = 0; c < GRID_SIZE; c++) {
+              marked[r][c] = markedCells[r * GRID_SIZE + c];
             }
+          }
 
-            // Populate rows, columns, and diagonals
-            for (let i = 0; i < NUM_CELLS; i++) {
-                const row = Math.floor(i / GRID_SIZE);
-                const col = i % GRID_SIZE;
+          const isMarked = (r, c) => marked[r][c];
 
-                rows[row].push(markedCells[i]);
-                cols[col].push(markedCells[i]);
+          // Check four corners
+          const corners = [[0, 0], [0, GRID_SIZE - 1], [GRID_SIZE - 1, 0], [GRID_SIZE - 1, GRID_SIZE - 1]];
+          const isCornerBingo = corners.every(([r, c]) => isMarked(r, c));
 
-                if (row === col) {
-                    diagonals[0].push(markedCells[i]); // Main diagonal
-                }
-                if (row + col === GRID_SIZE - 1) {
-                    diagonals[1].push(markedCells[i]); // Anti-diagonal
-                }
-            }
+          // Check diagonals
+          const diag1 = Array.from({length: GRID_SIZE}, (_, i) => [i, i]);
+          const diag2 = Array.from({length: GRID_SIZE}, (_, i) => [i, GRID_SIZE - 1 - i]);
+          const isDiagonalBingo = diag1.every(([r, c]) => isMarked(r, c)) ||
+                                  diag2.every(([r, c]) => isMarked(r, c));
 
-            // Check if any line (row, col, diagonal) is all true (marked)
-            const isBingo = rows.some(row => row.every(cell => cell)) ||
-                            cols.some(col => col.every(cell => cell)) ||
-                            diagonals.some(diag => ag.every(cell => cell));
+          // Check rows and columns
+          const isLineBingo = marked.some((row, r) =>
+            row.every((_, c) => isMarked(r, c)) ||
+            marked.every((_, rr) => isMarked(rr, r))
+          );
 
-            if (isBingo) {
-                messageDisplay.textContent = "HOMERUN! YOU GOT A BINGO!";
-                messageDisplay.style.opacity = 1;
-                startFireworks();
-            } else {
-                messageDisplay.textContent = "";
-                messageDisplay.style.opacity = 0;
-                stopFireworks();
-            }
+          if (isCornerBingo || isDiagonalBingo || isLineBingo) {
+            messageDisplay.textContent = "HOMERUN! YOU GOT A BINGO!";
+            messageDisplay.style.opacity = 1;
+            startFireworks();
+          } else {
+            messageDisplay.textContent = "";
+            messageDisplay.style.opacity = 0;
+            stopFireworks();
+          }
         }
 
         /**
@@ -490,8 +486,12 @@
         }
 
         // Event Listeners
-        newGameBtn.addEventListener('click', generateNewBoard);
+        newGameBtn.addEventListener('click', () => {
+            stopFireworks();
+            generateNewBoard();
+        });
         resetProgressBtn.addEventListener('click', () => {
+            stopFireworks();
             // Confirm with the user before resetting all progress (no alert/confirm, use a simple message or visual cue if needed)
             if (confirm("Are you sure you want to reset all game progress? This cannot be undone.")) {
                  clearProgress();
@@ -688,6 +688,12 @@
         function stopFireworks() {
             fireworksRunning = false;
             // Let any remaining fireworks/particles finish animating, but don't launch new ones.
+        }
+
+        // --- Extra: Stop fireworks in a DOM element (for future extensibility) ---
+        function stopFireworks() {
+          const fireworks = document.getElementById('fireworks');
+          if (fireworks) fireworks.innerHTML = '';
         }
     </script>
 </body>

@@ -493,29 +493,18 @@
         }
 
         // Event Listeners
-document.getElementById('new-game-btn')?.addEventListener('click', () => {
-    stopFireworks();
-    generateNewBoard();
-    messageDisplay.textContent = '';
-  });
-
-        // Replace Reset Card button logic:
-document.getElementById('reset-progress-btn')?.addEventListener('click', () => {
-    stopFireworks();
-    markedCells = Array(NUM_CELLS).fill(false);
-    renderBoard();
-    messageDisplay.textContent = '';
+        document.getElementById('new-game-btn')?.addEventListener('click', () => {
+            stopFireworks();
+            generateNewBoard();
+            messageDisplay.textContent = '';
         });
 
-
-        // Initial game setup on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            // Try to load saved progress, if none, start a new game
-            if (!loadProgress()) {
-                generateNewBoard();
-            }
-            renderGlossary();
-            resizeCanvas();
+        // Replace Reset Card button logic:
+        document.getElementById('reset-progress-btn')?.addEventListener('click', () => {
+            stopFireworks();
+            markedCells = Array(NUM_CELLS).fill(false);
+            renderBoard();
+            messageDisplay.textContent = '';
         });
 
         // Glossary modal open/close logic

@@ -992,7 +992,8 @@
             }
             elements.modalCancelBtn.addEventListener('click', hideResetModal);
 
-            function showErrorModal(message) {
+            function showErrorModal(message, title = "Notice") {
+                document.querySelector('#error-modal h2').textContent = title;
                 elements.errorMessage.textContent = message;
                 elements.errorModal.classList.add('visible');
                 elements.errorOkBtn.onclick = () => elements.errorModal.classList.remove('visible');
@@ -1081,10 +1082,15 @@
                     };
                     if (navigator.canShare && navigator.canShare(shareData)) {
                         await navigator.share(shareData);
-                    } else { showErrorModal("Sharing not supported on this device."); } // Use showErrorModal
+                    } else { showErrorModal("Sharing not supported on this device.", "Notice"); }
                  } catch (err) {
-                    console.error("Share failed", err);
-                    showErrorModal("Could not create screenshot for sharing. Error: " + err.message); // Use showErrorModal and include error message
+                    // If user cancels share (AbortError), exit silently
+                    if (err && err.name === 'AbortError') {
+                        // Do nothing, user canceled share
+                    } else {
+                        console.error("Share failed", err);
+                        showErrorModal("Could not create screenshot for sharing. Error: " + err.message, "Notice");
+                    }
                  } finally {
                     shareButton.textContent = 'Send A Message';
                  }
@@ -1096,7 +1102,7 @@
             }
 
             function checkForUpdates() {
-                showErrorModal('This is the latest version of the Push*t app!'); // Changed to showErrorModal for consistency
+                showErrorModal('This is the latest version of the Push*t app!', 'Notice');
                 toggleHamburgerMenu(); // Close menu after action
             }
 
@@ -1110,14 +1116,14 @@
                         });
                     } else {
                         // Fallback for browsers that don't support Web Share API
-                        showErrorModal('Web Share API is not supported in this browser. You can manually copy the URL: ' + window.location.href); // Use showErrorModal
+                        showErrorModal('Web Share API is not supported in this browser. You can manually copy the URL: ' + window.location.href, 'Notice');
                     }
                 }
                 catch (error) {
                     console.error('Error sharing the app:', error);
                     // Only show error if user didn't cancel
                     if (error.name !== 'AbortError') {
-                        showErrorModal('Failed to share the app. Please try again.'); // Use showErrorModal
+                        showErrorModal('Failed to share the app. Please try again.', 'Notice');
                     }
                 }
                 toggleHamburgerMenu(); // Close menu after action

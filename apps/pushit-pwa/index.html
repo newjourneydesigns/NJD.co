@@ -9,9 +9,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Push*t">
 
-    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlncmh0PSIxMDAiIHZpZXdCb3g9IjAgMCAxMDAgMTAwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzI3MjcyNyIvPgo8dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9ImNlbnRyYWwiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZWQ3NjYiIGZvbnQtc2l6ZT0iNjAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgSGVsdmV0aWNhLCBzYW5zLXNlcmVmIiBmb250LXdlaWdodD0iYm9sZCI+ClA8dHNwYW4gZmlsbD0iIzAwOWZiNyI+Kjwv dHNwYW4+CjwvdGV4dD4KPC9zdmc+Cg==">
-    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlncmh0PSIxMDAiIHZpZXdCb3g9IjAgMCAxMDAgMTAwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5uZXQvMjAwMC9zdmciPgo8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzI3MjcyNyIvPgo8dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9ImNlbnRyYWwiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZWQ3NjYiIGZvbnQtc2l6ZT0iNjAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgSGVsdmV0aWNhLCBzYW5zLXNlcmVmIiBmb250LXdlaWdodD0iYm9sZCI+ClA8dHNwYW4gZmlsbD0iIzAwOWZiNyI+Kjwv dHNwYW4+CjwvdGV4dD4KPC9zdmc+Cg==">
-
+    <link rel="icon" href="https://i.imgur.com/4wUZfGd.png" type="image/png">
+    <link rel="apple-touch-icon" href="https://i.imgur.com/4wUZfGd.png">
     <style>
         /* CSS Variables for the NEW color theme */
         :root {
@@ -436,6 +435,7 @@
             <button class="menu-item" id="check-updates-btn">Check for Updates</button>
             <button class="menu-item" id="share-app-btn">Share App</button>
             <button class="menu-item" id="reset-workout-btn-menu">Reset All Workout</button>
+            <button class="menu-item" id="fresh-start-btn">Fresh Start (Clear All Settings)</button>
             <div class="app-footer-text">
                 Created for the betterment of your body, mind, and soul by NewJourneyDesign. v<span id="app-version"></span>
             </div>
@@ -822,9 +822,19 @@
                     clearInterval(confettiInterval);
                     confettiInterval = null;
                 }
-                workoutState = JSON.parse(JSON.stringify(allAvailableExercises)); // Reset to initial default exercises
-                localStorage.removeItem('workoutState'); // Clear localStorage completely
-                saveState(); // Save the reset state
+                // Only reset progress (count/remaining/completed/isRunning), not configuration (goal/duration)
+                for (const key in workoutState) {
+                    const ex = workoutState[key];
+                    if (ex.type === 'counter') {
+                        ex.count = 0;
+                        ex.completed = ex.goal === 0;
+                    } else if (ex.type === 'timer') {
+                        ex.remaining = ex.duration;
+                        ex.isRunning = false;
+                        ex.completed = ex.duration === 0;
+                    }
+                }
+                saveState();
                 renderNavButtons(); // Re-render nav bar
                 updateOverallProgress();
 
@@ -1129,7 +1139,8 @@
                 updateOverallProgress(); // Update overall progress based on loaded state
 
                 // Set the static version number
-                elements.appVersionSpan.textContent = '1.0'; 
+                const APP_VERSION = '1.1';
+                elements.appVersionSpan.textContent = APP_VERSION;
 
                 // switchView(activeExercise) is called inside renderNavButtons()
 
@@ -1140,6 +1151,30 @@
                 elements.shareAppBtn.addEventListener('click', shareApp);
                 elements.resetWorkoutBtnMenu.addEventListener('click', () => { 
                     showResetModal('Reset the entire workout?', resetEntireWorkout);
+                });
+                elements.freshStartBtn = document.getElementById('fresh-start-btn');
+                elements.freshStartBtn.addEventListener('click', () => {
+                    showResetModal('This will erase all your workout settings and start fresh. Are you sure?', () => {
+                        pauseTimer();
+                        if (confettiInterval) {
+                            clearInterval(confettiInterval);
+                            confettiInterval = null;
+                        }
+                        workoutState = JSON.parse(JSON.stringify(allAvailableExercises));
+                        localStorage.removeItem('workoutState');
+                        saveState();
+                        renderNavButtons();
+                        updateOverallProgress();
+                        const firstExerciseKey = Object.keys(workoutState)[0]; 
+                        if (firstExerciseKey) {
+                            switchView(firstExerciseKey);
+                        } else {
+                            elements.counterView.classList.add('hidden');
+                            elements.timerView.classList.add('hidden');
+                            elements.nav.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No exercises defined.</p>';
+                        }
+                        toggleHamburgerMenu(); // Close the menu after fresh start
+                    });
                 });
             }
 

@@ -428,7 +428,9 @@
             <!-- You can add more menu items here -->
         </ul>
         <div class="menu-footer">
-            <span id="version-number-display"></span>
+            <img src="https://i.imgur.com/mIDddQA.png" alt="New Journey Designs Logo" style="width: 60px; height: auto; margin-bottom: 0.5rem;">
+            <div>Created for the betterment of your mind &amp; soul by <strong>NewJourneyDesigns.Co</strong></div>
+            <div>&copy; <span id="footer-year"></span></div>
         </div>
     </div>
 
@@ -1179,6 +1181,7 @@ As a father has compassion on his children, so the Lord has compassion on those 
 
         // Event Listener for the new custom text button
         loadCustomTextBtn.addEventListener('click', loadCustomText);
+        document.getElementById('footer-year').textContent = new Date().getFullYear();
     </script>
 </body>
 </html>

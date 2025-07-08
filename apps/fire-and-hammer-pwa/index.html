@@ -944,7 +944,7 @@ As a father has compassion on his children, so the Lord has compassion on those 
                 for (let i = 0; i < words.length; i++) {
                     const word = words[i];
                     const wordWithoutPunctuation = word.replace(/[.,!?;:]+$/, '');
-                    const punctuation = word.match(/[.,!?;:]+$/) ? word.match(/[.,!?;:]+s$/)[0] : '';
+                    const punctuation = word.match(/[.,!?;:]+$/) ? word.match(/[.,!?;:]+$/)[0] : '';
 
                     if (i < typingWordIndex) {
                         // Revealed words get a special class for styling
@@ -964,7 +964,6 @@ As a father has compassion on his children, so the Lord has compassion on those 
                 hiddenTypingInput.focus();
 
                 if (typingWordIndex < words.length) {
-                    displayFeedback(typingFeedback, "Type the first letter...");
                     // Scroll to the current word being typed
                     const currentWordSpan = document.getElementById(`typed-word-${typingWordIndex}`);
                     if (currentWordSpan) {

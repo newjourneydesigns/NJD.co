@@ -483,8 +483,22 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
+    <footer style="text-align: center; font-size: 0.8rem; color: var(--text-primary); padding: 20px;">
+      <img src="https://i.imgur.com/QxMX1K9.png" alt="New Journey Designs Logo" style="width: 50px; height: auto; margin-bottom: 0.5rem;">
+      <div>
+        Created for the betterment of your body, mind, and soul by
+        <a href="https://newjourneydesigns.co" target="_blank" rel="noopener noreferrer" style="color: var(--text-secondary); font-weight: bold;">
+          NewJourneyDesigns.Co
+        </a>
+        &copy; <span class="dynamic-year">2025</span>
+      </div>
+    </footer>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.dynamic-year').forEach(el => {
+                el.textContent = new Date().getFullYear();
+            });
             // State Management
             let workoutState; // Stores current workout progress and configuration for each exercise
             let activeExercise; // Key of the currently viewed exercise

@@ -1170,14 +1170,18 @@ As a father has compassion on his children, so the Lord has compassion on those 
             }
             resizeConfettiCanvas(); // Initialize confetti canvas size
             initializeVersionNumber(); // Initialize and display the version number
+            
+            // Set the current year in the footer
+            const footerYearEl = document.getElementById('footer-year');
+            if (footerYearEl) {
+                footerYearEl.textContent = new Date().getFullYear();
+            }
         };
 
         window.addEventListener('resize', resizeConfettiCanvas); // Resize confetti canvas on window resize
 
         // Event Listener for the new custom text button
         loadCustomTextBtn.addEventListener('click', loadCustomText);
-        // Set the current year in the footer
-        document.getElementById('footer-year').textContent = new Date().getFullYear();
 </script>
     <div class="menu-footer" style="display: flex; flex-direction: column; align-items: center;">
         <a href="https://newjourneydesigns.co" target="_blank" rel="noopener noreferrer">

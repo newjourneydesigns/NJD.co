@@ -268,9 +268,15 @@
             text-align-last: center;
         }
         #complete-set-btn {
-            padding: 20px; font-size: 1.5rem; font-weight: bold; color: var(--app-bg);
-            background-color: var(--accent-color-1); border: none; border-radius: 12px;
-            cursor: pointer; transition: transform 0.1s;
+            padding: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--app-bg);
+            background-color: var(--accent-color-1);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.1s;
         }
         #complete-set-btn:active { transform: scale(0.97); }
         
@@ -588,6 +594,8 @@
             const allExercises = {
                 'kettlebell-swing': { name: 'Kettlebell Swings', defaultReps: 15, defaultWeight: 20, howTo: 'Hinge at the hips, hike the bell back, then snap your hips forward to drive the bell to chest height. Let it float down.', pitfall: 'Lifting with your arms instead of “snapping” with your hips.' },
                 'goblet-squat': { name: 'Goblet Squats', defaultReps: 10, defaultWeight: 20, howTo: 'Hold the bell by the horns at your chest. Sit your hips back and down, keeping your chest tall. Drive through your feet to stand.', pitfall: 'Letting the bell drift away from your chest.' },
+                'upward-row': { name: 'Upward Rows', defaultReps: 10, defaultWeight: 12, howTo: 'Stand with feet shoulder-width apart, holding the kettlebell handle with both hands. Pull the kettlebell straight up towards your chin, leading with your elbows.', pitfall: 'Lifting your elbows higher than your shoulders.' },
+                'deadlift': { name: 'Deadlifts', defaultReps: 8, defaultWeight: 40, howTo: 'Stand with feet hip-width apart, with the kettlebell between your feet. Hinge at your hips, keeping your back straight, and grip the handle. Drive through your legs to stand up straight.', pitfall: 'Rounding your back. Keep your spine neutral.' },
                 'bicep-curl': { name: 'Bicep Curls', defaultReps: 10, defaultWeight: 12, howTo: 'Stand tall, core braced. Hold the kettlebell by the handle and curl smoothly, keeping your elbow pinned to your side.', pitfall: 'Swinging the bell or leaning back to cheat the weight up.' },
                 'shoulder-press': { name: 'Shoulder Press (R/L)', defaultReps: 6, defaultWeight: 12, howTo: 'Clean the bell to the racked position. Brace your core and press straight up until your bicep is by your ear.', pitfall: 'Leaning back to cheat the weight up. Use a lighter bell.' },
                 'dead-bug': { name: 'Dead Bug', defaultReps: 10, defaultWeight: 0, howTo: 'Lie on your back, arms and legs in the air. Slowly lower opposite arm and leg, keeping your lower back flat on the floor.', pitfall: 'Arching your lower back off the floor.' },
@@ -596,6 +604,13 @@
                 'plank-hold': { name: 'Plank Hold', defaultReps: 30, defaultWeight: 0, howTo: 'On your forearms, create a straight line from head to heels. Brace your core and hold. Reps are seconds.', pitfall: 'Letting your hips sag or rise too high.' },
                 'single-arm-row': { name: 'Single-Arm Row (R/L)', defaultReps: 8, defaultWeight: 20, howTo: 'Hinge at the hips with a flat back. Pull the kettlebell towards your ribs, squeezing your shoulder blade.', pitfall: 'Using momentum or twisting your torso.' },
                 'russian-twists': { name: 'Russian Twists', defaultReps: 10, defaultWeight: 12, howTo: 'Sit on the floor, lean back slightly, and lift your feet. Twist your torso to tap the bell gently on the floor beside you.', pitfall: 'Rushing the movement. Control the twist.' },
+                'thruster': { name: 'Thrusters', defaultReps: 10, defaultWeight: 20, howTo: 'Hold the kettlebell in the racked position. Squat down, then drive up, pushing the kettlebell overhead.', pitfall: 'Not using your legs enough. This is a full-body move.' },
+                'kettlebell-snatch': { name: 'Kettlebell Snatch (R/L)', defaultReps: 8, defaultWeight: 20, howTo: 'From a swing, pull the kettlebell up, keeping it close to your body. Punch up with your hand to finish overhead.', pitfall: 'Letting the kettlebell swing away from your body. Keep it close.' },
+                'clean-and-press': { name: 'Clean and Press (R/L)', defaultReps: 8, defaultWeight: 20, howTo: 'Clean the kettlebell to your shoulder, then press it overhead. Lower and repeat.', pitfall: 'Using your back instead of your legs to lift. Keep the movement smooth.' },
+                'half-kneeling-press': { name: 'Half-Kneeling Press (R/L)', defaultReps: 10, defaultWeight: 12, howTo: 'Kneel on one knee, other foot in front. Press the kettlebell overhead, keeping your core tight.', pitfall: 'Leaning back or to the side. Keep your torso straight.' },
+                'pistol-squat': { name: 'Pistol Squat (Assisted)', defaultReps: 6, defaultWeight: 0, howTo: 'Hold onto a stable surface. Squat down on one leg, keeping the other leg extended forward. Push through your heel to stand.', pitfall: 'Letting your knee cave in. Keep it aligned with your toes.' },
+                'swing-to-squat': { name: 'Swing to Squat', defaultReps: 10, defaultWeight: 20, howTo: 'Swing the kettlebell between your legs, then squat down, letting the kettlebell hang. Stand and repeat.', pitfall: 'Rounding your back. Keep your chest up and back straight.' },
+                'kettlebell-figure-eight': { name: 'Kettlebell Figure Eight', defaultReps: 10, defaultWeight: 20, howTo: 'Stand with feet wide. Pass the kettlebell between your legs and around your body in a figure-eight pattern.', pitfall: 'Rushing the movement. Control the kettlebell and maintain your posture.' },
             };
             const funnyWorkoutNames = [
                 "The Bell-igerent", "Swing City Swole", "Goblet of Fire", "The Russian Revolution", "Heavy Metal Mayhem", "Bell-istic Therapy", 
@@ -794,10 +809,11 @@
 
             function updateOverallProgress() {
                 if (!appState.currentWorkout) return;
-                const total = appState.currentWorkout.exercises.length;
-                const completed = appState.currentWorkout.exercises.filter(ex => ex.performedSets.length >= ex.sets).length;
-                DOMElements.overallProgressDisplay.textContent = `${completed} / ${total}`;
-                DOMElements.overallProgressBar.style.width = `${total > 0 ? (completed / total) * 100 : 0}%`;
+                const totalSets = appState.currentWorkout.exercises.reduce((sum, ex) => sum + ex.sets, 0);
+                const completedSets = appState.currentWorkout.exercises.reduce((sum, ex) => sum + ex.performedSets.length, 0);
+
+                DOMElements.overallProgressDisplay.textContent = `${completedSets} / ${totalSets}`;
+                DOMElements.overallProgressBar.style.width = `${totalSets > 0 ? (completedSets / totalSets) * 100 : 0}%`;
             }
 
             function showRestTimer() {
@@ -972,7 +988,7 @@
                 ex.reps = performedSet.reps;
                 ex.weight = performedSet.weight;
 
-                if (ex.performedSets.length >= ex.sets) updateOverallProgress();
+                updateOverallProgress(); // Update progress after every set completion
                 if (isWorkoutComplete()) { showCelebration(); return; }
                 showRestTimer();
             }
@@ -1245,16 +1261,6 @@
             init();
         });
     </script>
-</footer>
-  <footer style="text-align: center; font-size: 0.8rem; color: #4f4f4f; padding: 20px;">
-    <img src="https://i.imgur.com/mIDddQA.png" alt="New Journey Designs Logo" style="width: 50px; height: auto; margin-bottom: 0.5rem;">
-    <div>
-      Created for the betterment of your body, mind, and soul by
-      <a href="https://newjourneydesigns.co" target="_blank" rel="noopener noreferrer" style="color: #4f4f4f; font-weight: bold;">
-        NewJourneyDesigns.Co
-      </a>
-      &copy; <span class="dynamic-year">2025</span>
-    </div>
-  </footer>
 </body>
 </html>
+<!-- redeploy: July 17 @ 9PM -->

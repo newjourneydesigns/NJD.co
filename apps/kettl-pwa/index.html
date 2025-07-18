@@ -816,6 +816,26 @@
                 DOMElements.overallProgressBar.style.width = `${totalSets > 0 ? (completedSets / totalSets) * 100 : 0}%`;
             }
 
+            function playRestCompleteBeep() {
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.5);
+                } catch (error) {
+                    console.log('Audio feedback not available:', error);
+                }
+            }
+
             function showRestTimer() {
                 appState.isResting = true;
                 let timeLeft = appState.currentWorkout.rest || 60;
@@ -837,7 +857,10 @@
                 appState.restTimer = setInterval(() => {
                     timeLeft--;
                     DOMElements.restTimerDisplay.textContent = formatTime(timeLeft);
-                    if (timeLeft <= 0) endRest();
+                    if (timeLeft <= 0) {
+                        playRestCompleteBeep();
+                        endRest();
+                    }
                 }, 1000);
             }
 
@@ -1120,7 +1143,7 @@
                 appState.editingExerciseIndex = null;
                 DOMElements.builderAddBtn.textContent = 'Add Exercise';
                 document.querySelectorAll('.builder-list-item.editing').forEach(el => el.classList.remove('editing'));
-                updateBuilderDefaults();
+                // Don't call updateBuilderDefaults() here - only reset when exercise selection changes
             }
 
             function populateBuilderForEdit(index) {
@@ -1263,4 +1286,3 @@
     </script>
 </body>
 </html>
-<!-- redeploy: July 17 @ 9:10PM -->

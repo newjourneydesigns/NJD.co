@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Google Tag Manager -->
+    <script>
+      (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+      new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+      'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+      })(window,document,'script','dataLayer','GTM-MGL9ZLM7');
+    </script>
+    <!-- End Google Tag Manager -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
     <title>FIRE & HAMMER</title>
@@ -409,6 +418,10 @@
     </style>
 </head>
 <body> 
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MGL9ZLM7"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
     <!-- Confetti Canvas -->
     <canvas id="confetti-canvas"></canvas>
 
@@ -1171,11 +1184,10 @@ As a father has compassion on his children, so the Lord has compassion on those 
             resizeConfettiCanvas(); // Initialize confetti canvas size
             initializeVersionNumber(); // Initialize and display the version number
             
-            // Set the current year in the footer
-            const footerYearEl = document.getElementById('footer-year');
-            if (footerYearEl) {
-                footerYearEl.textContent = new Date().getFullYear();
-            }
+            // Set the current year in any element that needs it
+            document.querySelectorAll('.dynamic-year').forEach(el => {
+                el.textContent = new Date().getFullYear();
+            });
         };
 
         window.addEventListener('resize', resizeConfettiCanvas); // Resize confetti canvas on window resize
@@ -1191,7 +1203,7 @@ As a father has compassion on his children, so the Lord has compassion on those 
             Created for the betterment of your mind &amp; soul by 
             <a href="https://newjourneydesigns.co" target="_blank" rel="noopener noreferrer"><strong>NewJourneyDesigns.Co</strong></a>
         </div>
-        <div>&copy; <span id="footer-year">2025</span></div>
+        <div>&copy; <span class="dynamic-year">2025</span> NewJourneyDesigns.Co</div>
     </div>
 </body>
 </html>

@@ -8,101 +8,53 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            /* Light Mode Colors */
-            --bg-color: #f0f2f5;
-            --container-bg: #ffffff;
-            --card-bg: #ffffff;
-            --input-bg: #ffffff;
-            --input-border: #e2e8f0;
-            --text-color-primary: #1f2937; /* gray-800 */
-            --text-color-secondary: #4b5563; /* gray-600 */
-            --text-color-placeholder: #9ca3af; /* gray-400 */
-            --border-light: #f0f2f5;
-            --progress-bar-bg: #e5e7eb; /* gray-200 */
-            --form-bg: #f9fafb; /* gray-50 */
-            --form-border: #e5e7eb; /* gray-200 */
-            --indigo-primary: #6366f1; /* indigo-500 */
-            --indigo-hover: #4f46e5; /* indigo-600 */
-            --indigo-focus-shadow: rgba(99, 102, 241, 0.2);
-            --red-danger: #ef4444; /* red-500 */
-            --red-danger-hover: #dc2626; /* red-600 */
-            --blue-highlight: #3b82f6; /* blue-600 */
-            --green-highlight: #22c55e; /* green-600 */
-        }
-
-        /* Dark Mode Colors */
-        body.dark-mode {
-            --bg-color: #1a202c; /* Darker background */
-            --container-bg: #2d3748; /* Darker container */
-            --card-bg: #2d3748; /* Darker cards */
-            --input-bg: #4a5568; /* Darker input background */
-            --input-border: #2d3748; /* Darker input border */
-            --text-color-primary: #e2e8f0; /* Light gray text */
-            --text-color-secondary: #a0aec0; /* Medium gray text */
-            --text-color-placeholder: #718096; /* Lighter gray for subtle text */
-            --border-light: #2d3748;
-            --progress-bar-bg: #4a5568; /* Darker progress bar */
-            --form-bg: #2d3748; /* Darker form background */
-            --form-border: #4a5568; /* Darker form border */
-            --indigo-primary: #818cf8; /* Light indigo for primary */
-            --indigo-hover: #6366f1; /* Original indigo on hover */
-            --indigo-focus-shadow: rgba(129, 140, 248, 0.3); /* Lighter shadow */
-            --red-danger: #f87171; /* Lighter red */
-            --red-danger-hover: #ef4444; /* Original red on hover */
-            --blue-highlight: #60a5fa; /* Lighter blue */
-            --green-highlight: #4ade80; /* Lighter green */
-        }
-
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
+            background-color: #f0f2f5; /* Lighter background for a cleaner look */
             display: flex;
             justify-content: center;
             align-items: flex-start;
             min-height: 100vh;
             padding: 1.5rem 1rem;
             box-sizing: border-box;
-            color: var(--text-color-primary); /* Default body text color */
-            transition: background-color 0.3s ease, color 0.3s ease;
+            color: #1f2937; /* Default body text color (gray-800) */
         }
         .container {
-            background-color: var(--container-bg);
+            background-color: #ffffff;
             border-radius: 1rem;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             padding: 2rem;
             width: 100%;
             max-width: 36rem;
             margin-top: 1rem;
-            transition: background-color 0.3s ease, box-shadow 0.3s ease;
         }
         input[type="text"],
         input[type="number"],
         input[type="date"] {
             padding: 0.875rem 1rem;
-            border: 1px solid var(--input-border);
-            background-color: var(--input-bg);
+            border: 1px solid #e2e8f0; /* Softer border color */
+            background-color: #ffffff;
             border-radius: 0.625rem;
             width: 100%;
             font-size: 1rem;
             margin-bottom: 0.75rem;
             box-sizing: border-box;
-            color: var(--text-color-primary); /* Input text color */
-            transition: border-color 0.2s, box-shadow 0.2s, background-color 0.3s ease, color 0.3s ease;
+            color: #1f2937; /* Input text color (gray-800) */
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
         input[type="text"]:focus,
         input[type="number"]:focus,
         input[type="date"]:focus {
             outline: none;
-            border-color: var(--indigo-primary);
-            box-shadow: 0 0 0 2px var(--indigo-focus-shadow);
+            border-color: #6366f1; /* Indigo-500 for focus */
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2); /* Light indigo glow on focus */
         }
         button {
             padding: 0.875rem 1.75rem;
             border-radius: 0.625rem;
             font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.2s, transform 0.1s, color 0.2s;
+            transition: background-color 0.2s, transform 0.1s;
             min-width: 6rem;
             display: inline-flex;
             justify-content: center;
@@ -113,23 +65,23 @@
             transform: scale(0.98);
         }
         .btn-primary {
-            background-color: var(--indigo-primary);
+            background-color: #6366f1; /* Tailwind indigo-500 */
             color: #ffffff;
-            box-shadow: 0 2px 4px var(--indigo-focus-shadow);
+            box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2); /* Subtle shadow for primary button */
         }
         .btn-primary:hover {
-            background-color: var(--indigo-hover);
+            background-color: #4f46e5; /* Tailwind indigo-600 */
         }
         .btn-danger {
-            background-color: var(--red-danger);
+            background-color: #ef4444; /* red-500 */
             color: #ffffff;
         }
         .btn-danger:hover {
-            background-color: var(--red-danger-hover);
+            background-color: #dc2626; /* red-600 */
         }
         .book-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-light);
+            background-color: #ffffff; /* White background for cards */
+            border: 1px solid #f0f2f5; /* Very light border */
             border-radius: 1rem;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
             padding: 1.25rem;
@@ -138,7 +90,12 @@
             flex-direction: column;
             gap: 0.875rem;
             position: relative;
-            transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .book-card h3 {
+            color: #1f2937; /* gray-800 */
+        }
+        .book-card p {
+            color: #4b5563; /* gray-600 */
         }
         .delete-btn {
             position: absolute;
@@ -146,7 +103,7 @@
             right: 0.75rem;
             background-color: transparent;
             border: none;
-            color: var(--text-color-placeholder); /* Using placeholder color for subtlety */
+            color: #9ca3af; /* gray-400 */
             font-size: 1.5rem;
             cursor: pointer;
             transition: color 0.2s;
@@ -154,7 +111,7 @@
             line-height: 1;
         }
         .delete-btn:hover {
-            color: var(--red-danger);
+            color: #ef4444; /* red-500 */
         }
         .pages-read-input {
             flex-grow: 1;
@@ -166,68 +123,22 @@
             font-size: 0.875rem;
         }
 
-        /* Mapping Tailwind text colors to CSS variables for dark mode consistency */
-        .text-gray-800 { color: var(--text-color-primary); }
-        .text-gray-700 { color: var(--text-color-primary); }
-        .text-gray-600 { color: var(--text-color-secondary); }
-        .text-gray-500 { color: var(--text-color-placeholder); }
-        input::placeholder { color: var(--text-color-placeholder); } /* For placeholders */
+        /* Direct Tailwind color mapping for consistency */
+        .text-gray-800 { color: #1f2937; }
+        .text-gray-700 { color: #1f2937; }
+        .text-gray-600 { color: #4b5563; }
+        .text-gray-500 { color: #9ca3af; }
+        input::placeholder { color: #9ca3af; } /* For placeholders */
 
-        .text-indigo-600 { color: var(--indigo-primary); } /* Ensure these use variables */
-        .text-blue-600 { color: var(--blue-highlight); }
-        .text-green-600 { color: var(--green-highlight); }
-        .bg-indigo-500 { background-color: var(--indigo-primary); }
-        .bg-gray-200 { background-color: var(--progress-bar-bg); }
+        .text-indigo-600 { color: #6366f1; }
+        .text-blue-600 { color: #3b82f6; }
+        .text-green-600 { color: #22c55e; }
+        .bg-indigo-500 { background-color: #6366f1; }
+        .bg-gray-200 { background-color: #e5e7eb; }
         
-        /* Form background and border also use variables */
-        .bg-gray-50 { background-color: var(--form-bg); }
-        .border-gray-100 { border-color: var(--form-border); }
-
-
-        /* Dark mode toggle switch styling */
-        .theme-switch-wrapper {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            margin-bottom: 1rem;
-        }
-        .theme-switch {
-            display: inline-block;
-            height: 34px;
-            position: relative;
-            width: 60px;
-        }
-        .theme-switch input {
-            display: none;
-        }
-        .slider {
-            background-color: #ccc;
-            bottom: 0;
-            cursor: pointer;
-            left: 0;
-            position: absolute;
-            right: 0;
-            top: 0;
-            transition: .4s;
-            border-radius: 34px;
-        }
-        .slider:before {
-            background-color: #fff;
-            bottom: 4px;
-            content: "";
-            height: 26px;
-            left: 4px;
-            position: absolute;
-            transition: .4s;
-            width: 26px;
-            border-radius: 50%;
-        }
-        input:checked + .slider {
-            background-color: #6366f1; /* Indigo for checked state */
-        }
-        input:checked + .slider:before {
-            transform: translateX(26px);
-        }
+        /* Form background and border */
+        .bg-gray-50 { background-color: #f9fafb; }
+        .border-gray-100 { border-color: #e5e7eb; }
 
         /* Responsive adjustments */
         @media (max-width: 640px) { /* Small screens / Mobile */
@@ -244,7 +155,10 @@
             }
             input[type="text"],
             input[type="number"],
-            input[type="date"],
+            input[type="date"] {
+                font-size: 0.95rem;
+                padding: 0.75rem 0.75rem; /* Reduced horizontal padding for date input */
+            }
             button {
                 font-size: 0.95rem;
                 padding: 0.75rem 1rem;
@@ -265,18 +179,9 @@
 </head>
 <body>
     <div class="container">
-        <div class="theme-switch-wrapper">
-            <label class="theme-switch" for="darkModeToggle">
-                <input type="checkbox" id="darkModeToggle">
-                <div class="slider"></div>
-            </label>
-            <span class="ml-2 text-gray-700">Dark Mode</span>
-        </div>
-
         <h1 class="text-3xl font-bold text-gray-800 mb-8 text-center">📚 Reading Plan</h1>
 
         <!-- Add New Book Form -->
-        <!-- Added a class `add-book-form-section` for specific mobile padding adjustments -->
         <div class="mb-8 p-6 md:p-8 add-book-form-section rounded-xl border bg-gray-50 border-gray-100">
             <h2 class="text-xl font-semibold text-gray-700 mb-4">Add New Book</h2>
             <input type="text" id="bookTitle" placeholder="Book Title" class="mb-3">
@@ -301,10 +206,10 @@
             const msgBox = document.createElement('div');
             msgBox.style.cssText = `
                 position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                background-color: var(--container-bg); border: 1px solid var(--input-border); border-radius: 8px;
+                background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px;
                 box-shadow: 0 4px 10px rgba(0,0,0,0.2); padding: 20px; z-index: 1000;
                 font-family: 'Inter', sans-serif; text-align: center; max-width: 300px;
-                color: var(--text-color-primary);
+                color: #1f2937;
             `;
             msgBox.innerHTML = `
                 <p class="text-gray-800 mb-4">Sorry, your browser does not support Web Storage. This app may not work as expected.</p>
@@ -319,7 +224,6 @@
         const addBookBtn = document.getElementById('addBookBtn');
         const bookListDiv = document.getElementById('bookList');
         const noBooksMessage = document.getElementById('noBooksMessage');
-        const darkModeToggle = document.getElementById('darkModeToggle');
 
         let books = []; // Array to store book objects
 
@@ -382,7 +286,6 @@
 
                     const bookCard = document.createElement('div');
                     bookCard.className = 'book-card';
-                    // Using existing Tailwind text-gray-* classes which are now mapped to CSS variables
                     bookCard.innerHTML = `
                         <button class="delete-btn" aria-label="Delete book" data-index="${index}">&times;</button>
                         <h3 class="text-lg font-bold text-gray-800">${book.title}</h3>
@@ -448,10 +351,10 @@
                 const msgBox = document.createElement('div');
                 msgBox.style.cssText = `
                     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                    background-color: var(--container-bg); border: 1px solid var(--input-border); border-radius: 8px;
+                    background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px;
                     box-shadow: 0 4px 10px rgba(0,0,0,0.2); padding: 20px; z-index: 1000;
                     font-family: 'Inter', sans-serif; text-align: center; max-width: 300px;
-                    color: var(--text-color-primary);
+                    color: #1f2937;
                 `;
                 msgBox.innerHTML = `
                     <p class="text-gray-800 mb-4">Please fill in all fields correctly (Title, Total Pages > 0, and Due Date).</p>
@@ -470,10 +373,10 @@
                     const msgBox = document.createElement('div');
                     msgBox.style.cssText = `
                         position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                        background-color: var(--container-bg); border: 1px solid var(--input-border); border-radius: 8px;
+                        background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px;
                         box-shadow: 0 4px 10px rgba(0,0,0,0.2); padding: 20px; z-index: 1000;
                         font-family: 'Inter', sans-serif; text-align: center; max-width: 300px;
-                        color: var(--text-color-primary);
+                        color: #1f2937;
                     `;
                     msgBox.innerHTML = `
                         <p class="text-gray-800 mb-4">Please enter a valid page number (0 or higher).</p>
@@ -487,10 +390,10 @@
                     const msgBox = document.createElement('div');
                     msgBox.style.cssText = `
                         position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                        background-color: var(--container-bg); border: 1px solid var(--input-border); border-radius: 8px;
+                        background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px;
                         box-shadow: 0 4px 10px rgba(0,0,0,0.2); padding: 20px; z-index: 1000;
                         font-family: 'Inter', sans-serif; text-align: center; max-width: 300px;
-                        color: var(--text-color-primary);
+                        color: #1f2937;
                     `;
                     msgBox.innerHTML = `
                         <p class="text-gray-800 mb-4">You cannot read backward! Enter a page number greater than or equal to your current progress (${book.pagesRead}).</p>
@@ -504,10 +407,10 @@
                     const msgBox = document.createElement('div');
                     msgBox.style.cssText = `
                         position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                        background-color: var(--container-bg); border: 1px solid var(--input-border); border-radius: 8px;
+                        background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px;
                         box-shadow: 0 4px 10px rgba(0,0,0,0.2); padding: 20px; z-index: 1000;
                         font-family: 'Inter', sans-serif; text-align: center; max-width: 300px;
-                        color: var(--text-color-primary);
+                        color: #1f2937;
                     `;
                     msgBox.innerHTML = `
                         <p class="text-gray-800 mb-4">You can't read past the total pages! The last page read cannot exceed ${book.totalPages}.</p>
@@ -531,39 +434,8 @@
             }
         }
 
-        // Dark Mode Logic
-        function enableDarkMode() {
-            document.body.classList.add('dark-mode');
-            localStorage.setItem('theme', 'dark');
-            darkModeToggle.checked = true;
-        }
-
-        function disableDarkMode() {
-            document.body.classList.remove('dark-mode');
-            localStorage.setItem('theme', 'light');
-            darkModeToggle.checked = false;
-        }
-
-        function loadThemePreference() {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'dark') {
-                enableDarkMode();
-            } else {
-                disableDarkMode();
-            }
-        }
-
-        darkModeToggle.addEventListener('change', () => {
-            if (darkModeToggle.checked) {
-                enableDarkMode();
-            } else {
-                disableDarkMode();
-            }
-        });
-
-        // Initial load of books and theme when the page loads
+        // Initial load of books when the page loads
         document.addEventListener('DOMContentLoaded', () => {
-            loadThemePreference();
             loadBooks();
         });
     </script>

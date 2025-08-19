@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📚 Reading Plan App</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Lighter background for a cleaner look */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align items to the start to allow scrolling */
+            min-height: 100vh;
+            padding: 1.5rem 1rem; /* More vertical padding */
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 1rem; /* More rounded corners */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* Softer shadow */
+            padding: 2rem; /* Increased padding */
+            width: 100%;
+            max-width: 36rem; /* Slightly wider max-width for better use of space */
+            margin-top: 1rem;
+        }
+        input[type="text"],
+        input[type="number"],
+        input[type="date"] {
+            padding: 0.875rem 1rem; /* Slightly more padding for inputs */
+            border: 1px solid #e2e8f0; /* Softer border color */
+            border-radius: 0.625rem; /* Rounded corners for inputs */
+            width: 100%;
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+            box-sizing: border-box;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        input[type="date"]:focus {
+            outline: none;
+            border-color: #6366f1; /* Indigo-500 for focus */
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2); /* Light indigo glow on focus */
+        }
+        button {
+            padding: 0.875rem 1.75rem; /* Increased padding for buttons */
+            border-radius: 0.625rem; /* Rounded corners for buttons */
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            min-width: 6rem; /* Ensures buttons are adequately sized for touch */
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        button:active {
+            transform: scale(0.98); /* Slight press effect */
+        }
+        .btn-primary {
+            background-color: #6366f1; /* Tailwind indigo-500 */
+            color: #ffffff;
+            box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2); /* Subtle shadow for primary button */
+        }
+        .btn-primary:hover {
+            background-color: #4f46e5; /* Tailwind indigo-600 */
+        }
+        .btn-danger {
+            background-color: #ef4444; /* red-500 */
+            color: #ffffff;
+        }
+        .btn-danger:hover {
+            background-color: #dc2626; /* red-600 */
+        }
+        .book-card {
+            background-color: #ffffff; /* White background for cards */
+            border: 1px solid #f0f2f5; /* Very light border */
+            border-radius: 1rem; /* More rounded corners for cards */
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); /* Even softer shadow for cards */
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.875rem; /* Slightly more space between elements */
+            position: relative;
+        }
+        .delete-btn {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            background-color: transparent;
+            border: none;
+            color: #9ca3af; /* gray-400 */
+            font-size: 1.5rem; /* Larger icon for easier tapping */
+            cursor: pointer;
+            transition: color 0.2s;
+            padding: 0.25rem; /* Add padding for larger touch target */
+            line-height: 1; /* Center the X */
+        }
+        .delete-btn:hover {
+            color: #ef4444; /* red-500 */
+        }
+        .pages-read-input {
+            flex-grow: 1;
+            max-width: calc(100% - 7rem); /* Adjust max-width for input next to button */
+        }
+        .update-progress-btn {
+            min-width: unset; /* Allow button to shrink */
+            padding: 0.625rem 1rem; /* Smaller padding for update button */
+            font-size: 0.875rem; /* Smaller font for update button */
+        }
+        @media (max-width: 640px) { /* Small screens / Mobile */
+            .container {
+                padding: 1.5rem;
+            }
+            .book-card {
+                padding: 1rem;
+            }
+            input[type="text"],
+            input[type="number"],
+            input[type="date"],
+            button {
+                font-size: 0.95rem; /* Slightly smaller font on mobile */
+                padding: 0.75rem 1rem; /* Adjusted padding for inputs and buttons */
+            }
+            .btn-primary.w-full {
+                width: 100%;
+            }
+            .pages-read-input {
+                max-width: calc(100% - 6rem); /* Adjust for smaller update button */
+            }
+            .update-progress-btn {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.8rem;
+                min-width: 5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-3xl font-bold text-gray-800 mb-8 text-center">📚 Reading Plan</h1>
+
+        <!-- Add New Book Form -->
+        <div class="mb-8 p-6 bg-gray-50 rounded-xl border border-gray-100">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Add New Book</h2>
+            <input type="text" id="bookTitle" placeholder="Book Title" class="mb-3">
+            <input type="number" id="totalPages" placeholder="Total Pages" class="mb-3">
+            <input type="date" id="dueDate" class="mb-4">
+            <button id="addBookBtn" class="btn-primary w-full">Add Book</button>
+        </div>
+
+        <!-- Book List -->
+        <div>
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">My Reading List</h2>
+            <div id="bookList">
+                <!-- Books will be displayed here -->
+                <p id="noBooksMessage" class="text-center text-gray-500 text-base py-4">No books added yet. Start by adding one above!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Ensure localStorage is available
+        if (typeof(Storage) === "undefined") {
+            // Using a custom message box instead of alert()
+            const msgBox = document.createElement('div');
+            msgBox.style.cssText = `
+                position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                background-color: #fff; border: 1px solid #ccc; border-radius: 8px;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.2); padding: 20px; z-index: 1000;
+                font-family: 'Inter', sans-serif; text-align: center; max-width: 300px;
+            `;
+            msgBox.innerHTML = `
+                <p class="text-gray-800 mb-4">Sorry, your browser does not support Web Storage. This app may not work as expected.</p>
+                <button onclick="this.parentNode.remove()" class="btn-primary">OK</button>
+            `;
+            document.body.appendChild(msgBox);
+        }
+
+        const bookTitleInput = document.getElementById('bookTitle');
+        const totalPagesInput = document.getElementById('totalPages');
+        const dueDateInput = document.getElementById('dueDate');
+        const addBookBtn = document.getElementById('addBookBtn');
+        const bookListDiv = document.getElementById('bookList');
+        const noBooksMessage = document.getElementById('noBooksMessage');
+
+        let books = []; // Array to store book objects
+
+        // Function to load books from local storage
+        function loadBooks() {
+            try {
+                const storedBooks = localStorage.getItem('readingPlanBooks');
+                if (storedBooks) {
+                    books = JSON.parse(storedBooks);
+                }
+            } catch (e) {
+                console.error("Error loading books from local storage:", e);
+                books = []; // Reset to empty if corrupted
+            }
+            renderBooks();
+        }
+
+        // Function to save books to local storage
+        function saveBooks() {
+            try {
+                localStorage.setItem('readingPlanBooks', JSON.stringify(books));
+            } catch (e) {
+                console.error("Error saving books to local storage:", e);
+                // Optionally, inform the user that saving failed
+            }
+            renderBooks();
+        }
+
+        // Function to calculate days remaining
+        function getDaysRemaining(dueDate) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Normalize today's date to start of day
+            const due = new Date(dueDate);
+            due.setHours(0, 0, 0, 0); // Normalize due date to start of day
+
+            const diffTime = due.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays > 0 ? diffDays : 0; // Return 0 if due date is today or past
+        }
+
+        // Function to render/update the list of books
+        function renderBooks() {
+            bookListDiv.innerHTML = ''; // Clear existing list
+
+            if (books.length === 0) {
+                noBooksMessage.style.display = 'block';
+            } else {
+                noBooksMessage.style.display = 'none';
+                books.forEach((book, index) => {
+                    const daysRemaining = getDaysRemaining(book.dueDate);
+                    const pagesToRead = book.totalPages - book.pagesRead;
+                    let pagesPerDay = 0;
+
+                    if (daysRemaining > 0) {
+                        pagesPerDay = Math.ceil(pagesToRead / daysRemaining);
+                    } else if (pagesToRead > 0) {
+                        pagesPerDay = pagesToRead; // If due today or past, read all remaining today
+                    }
+
+                    const progressPercentage = book.totalPages > 0 ? ((book.pagesRead / book.totalPages) * 100).toFixed(1) : 0;
+
+                    const bookCard = document.createElement('div');
+                    bookCard.className = 'book-card';
+                    bookCard.innerHTML = `
+                        <button class="delete-btn" aria-label="Delete book" data-index="${index}">&times;</button>
+                        <h3 class="text-lg font-bold text-gray-800">${book.title}</h3>
+                        <p class="text-sm text-gray-600">Total Pages: ${book.totalPages}</p>
+                        <p class="text-sm text-gray-600">Pages Read: ${book.pagesRead}</p>
+                        <p class="text-sm text-gray-600">Due Date: ${book.dueDate}</p>
+                        <p class="text-sm text-gray-600">Days Remaining: <span class="font-semibold text-indigo-600">${daysRemaining}</span></p>
+                        <p class="text-sm text-gray-700 font-bold ${pagesPerDay > 0 && daysRemaining > 0 ? 'text-blue-600' : 'text-green-600'}">
+                            Pages Per Day: ${pagesPerDay}
+                        </p>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 overflow-hidden">
+                            <div class="bg-indigo-500 h-full rounded-full transition-all duration-300 ease-out" style="width: ${progressPercentage}%"></div>
+                        </div>
+                        <p class="text-sm text-gray-700 font-medium text-right">${progressPercentage}% Complete</p>
+
+                        <div class="flex items-center gap-3 mt-2">
+                            <input type="number" placeholder="Last page read" class="flex-grow pages-read-input" data-index="${index}" min="0">
+                            <button class="btn-primary update-progress-btn" data-index="${index}">Update</button>
+                        </div>
+                    `;
+                    bookListDiv.appendChild(bookCard);
+                });
+
+                // Add event listeners for update and delete buttons
+                document.querySelectorAll('.update-progress-btn').forEach(button => {
+                    button.addEventListener('click', (event) => {
+                        const index = event.target.dataset.index;
+                        const input = document.querySelector(`.pages-read-input[data-index="${index}"]`);
+                        const lastPageRead = parseInt(input.value);
+
+                        updateBookProgress(index, lastPageRead, input); // Pass input element to reset
+                    });
+                });
+
+                document.querySelectorAll('.delete-btn').forEach(button => {
+                    button.addEventListener('click', (event) => {
+                        const index = event.target.dataset.index;
+                        deleteBook(index);
+                    });
+                });
+            }
+        }
+
+        // Function to add a new book
+        addBookBtn.addEventListener('click', () => {
+            const title = bookTitleInput.value.trim();
+            const totalPages = parseInt(totalPagesInput.value);
+            const dueDate = dueDateInput.value; // YYYY-MM-DD format
+
+            if (title && !isNaN(totalPages) && totalPages > 0 && dueDate) {
+                const newBook = {
+                    id: Date.now(), // Unique ID for the book
+                    title: title,
+                    totalPages: totalPages,
+                    pagesRead: 0, // Start with 0 pages read
+                    dueDate: dueDate
+                };
+                books.push(newBook);
+                saveBooks(); // Save to local storage
+
+                // Clear form fields
+                bookTitleInput.value = '';
+                totalPagesInput.value = '';
+                dueDateInput.value = '';
+            } else {
+                // Using a custom message box instead of alert()
+                const msgBox = document.createElement('div');
+                msgBox.style.cssText = `
+                    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                    background-color: #fff; border: 1px solid #ccc; border-radius: 8px;
+                    box-shadow: 0 4px 10px rgba(0,0,0,0.2); padding: 20px; z-index: 1000;
+                    font-family: 'Inter', sans-serif; text-align: center; max-width: 300px;
+                `;
+                msgBox.innerHTML = `
+                    <p class="text-gray-800 mb-4">Please fill in all fields correctly (Title, Total Pages > 0, and Due Date).</p>
+                    <button onclick="this.parentNode.remove()" class="btn-primary">OK</button>
+                `;
+                document.body.appendChild(msgBox);
+            }
+        });
+
+        // Function to update book progress
+        function updateBookProgress(index, lastPageRead, inputElement) {
+            if (index >= 0 && index < books.length) {
+                const book = books[index];
+
+                if (isNaN(lastPageRead) || lastPageRead < 0) {
+                    const msgBox = document.createElement('div');
+                    msgBox.style.cssText = `
+                        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                        background-color: #fff; border: 1px solid #ccc; border-radius: 8px;
+                        box-shadow: 0 4px 10px rgba(0,0,0,0.2); padding: 20px; z-index: 1000;
+                        font-family: 'Inter', sans-serif; text-align: center; max-width: 300px;
+                    `;
+                    msgBox.innerHTML = `
+                        <p class="text-gray-800 mb-4">Please enter a valid page number (0 or higher).</p>
+                        <button onclick="this.parentNode.remove()" class="btn-primary">OK</button>
+                    `;
+                    document.body.appendChild(msgBox);
+                    return;
+                }
+
+                if (lastPageRead < book.pagesRead) {
+                    const msgBox = document.createElement('div');
+                    msgBox.style.cssText = `
+                        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                        background-color: #fff; border: 1px solid #ccc; border-radius: 8px;
+                        box-shadow: 0 4px 10px rgba(0,0,0,0.2); padding: 20px; z-index: 1000;
+                        font-family: 'Inter', sans-serif; text-align: center; max-width: 300px;
+                    `;
+                    msgBox.innerHTML = `
+                        <p class="text-gray-800 mb-4">You cannot read backward! Enter a page number greater than or equal to your current progress (${book.pagesRead}).</p>
+                        <button onclick="this.parentNode.remove()" class="btn-primary">OK</button>
+                    `;
+                    document.body.appendChild(msgBox);
+                    return;
+                }
+
+                if (lastPageRead > book.totalPages) {
+                    const msgBox = document.createElement('div');
+                    msgBox.style.cssText = `
+                        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                        background-color: #fff; border: 1px solid #ccc; border-radius: 8px;
+                        box-shadow: 0 4px 10px rgba(0,0,0,0.2); padding: 20px; z-index: 1000;
+                        font-family: 'Inter', sans-serif; text-align: center; max-width: 300px;
+                    `;
+                    msgBox.innerHTML = `
+                        <p class="text-gray-800 mb-4">You can't read past the total pages! The last page read cannot exceed ${book.totalPages}.</p>
+                        <button onclick="this.parentNode.remove()" class="btn-primary">OK</button>
+                    `;
+                    document.body.appendChild(msgBox);
+                    return;
+                }
+
+                book.pagesRead = lastPageRead; // Set pagesRead directly
+                saveBooks(); // Save updated progress
+                inputElement.value = ''; // Clear input after update
+            }
+        }
+
+        // Function to delete a book
+        function deleteBook(index) {
+            if (index >= 0 && index < books.length) {
+                books.splice(index, 1); // Remove book from array
+                saveBooks(); // Save updated list
+            }
+        }
+
+        // Initial load of books when the page loads
+        document.addEventListener('DOMContentLoaded', loadBooks);
+    </script>
+</body>
+</html>

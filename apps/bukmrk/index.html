@@ -94,10 +94,12 @@
   </footer>
 
   <!-- User menu -->
-  <div id="user-menu" class="fixed top-3 right-3 hidden">
-    <div class="border rounded-md shadow px-3 py-2 flex items-center gap-3" style="background-color: #272727; border-color: #696773;">
-      <span id="user-email" class="text-sm" style="color: #eff1f3;"></span>
-      <button id="signout-btn" class="text-sm px-3 py-1 rounded hover:opacity-80" style="background-color: #696773; color: #eff1f3;">Sign out</button>
+  <div id="user-menu" class="w-full max-w-xl mb-4 hidden">
+    <div class="flex justify-end">
+      <div class="border rounded-md shadow px-2 py-1 flex items-center gap-2" style="background-color: #272727; border-color: #696773;">
+        <span id="user-email" class="text-xs" style="color: #eff1f3;"></span>
+        <button id="signout-btn" class="text-xs px-2 py-1 rounded hover:opacity-80" style="background-color: #696773; color: #eff1f3;">Sign out</button>
+      </div>
     </div>
   </div>
 
@@ -205,17 +207,17 @@
             <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Time Listened</label>
             <div class="flex gap-2 items-center">
               <div class="flex-1">
-                <input id="progress-hours" type="number" min="0" max="23" value="00" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" required />
+                <input id="progress-hours" type="number" min="0" max="23" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" required />
                 <label class="block text-xs text-center mt-1" style="color: #696773;">Hours</label>
               </div>
               <span style="color: #eff1f3; font-size: 1.2em;">:</span>
               <div class="flex-1">
-                <input id="progress-minutes" type="number" min="0" max="59" value="00" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" required />
+                <input id="progress-minutes" type="number" min="0" max="59" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" required />
                 <label class="block text-xs text-center mt-1" style="color: #696773;">Minutes</label>
               </div>
               <span style="color: #eff1f3; font-size: 1.2em;">:</span>
               <div class="flex-1">
-                <input id="progress-seconds" type="number" min="0" max="59" value="00" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" required />
+                <input id="progress-seconds" type="number" min="0" max="59" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" required />
                 <label class="block text-xs text-center mt-1" style="color: #696773;">Seconds</label>
               </div>
             </div>
@@ -374,6 +376,35 @@
     let currentUser = null;
     let books = [];
     let editingBookId = null;
+    let collapsedBooks = new Set(); // Track which books are collapsed
+
+    // Load collapsed state from localStorage
+    function loadCollapsedState() {
+      try {
+        if (!currentUser) return;
+        const key = `bukmrk-collapsed-books-${currentUser.id}`;
+        const saved = localStorage.getItem(key);
+        if (saved) {
+          const collapsedArray = JSON.parse(saved);
+          collapsedBooks = new Set(collapsedArray);
+        }
+      } catch (error) {
+        console.error('Error loading collapsed state:', error);
+        collapsedBooks = new Set();
+      }
+    }
+
+    // Save collapsed state to localStorage
+    function saveCollapsedState() {
+      try {
+        if (!currentUser) return;
+        const key = `bukmrk-collapsed-books-${currentUser.id}`;
+        const collapsedArray = Array.from(collapsedBooks);
+        localStorage.setItem(key, JSON.stringify(collapsedArray));
+      } catch (error) {
+        console.error('Error saving collapsed state:', error);
+      }
+    }
 
     // DOM Elements
     const authSection = document.getElementById('auth-section');
@@ -406,6 +437,16 @@
     document.addEventListener('DOMContentLoaded', async () => {
       // Set current year in footer
       document.getElementById('current-year').textContent = new Date().getFullYear();
+      
+      // Global error handler
+      window.addEventListener('error', (event) => {
+        console.error('Global error:', event.error);
+        console.error('Error occurred at:', event.filename, 'line', event.lineno, 'column', event.colno);
+      });
+      
+      window.addEventListener('unhandledrejection', (event) => {
+        console.error('Unhandled promise rejection:', event.reason);
+      });
       
       // Show loading state initially
       showAuthSection();
@@ -514,21 +555,134 @@
       resetPasswordModal.addEventListener('click', (e) => {
         if (e.target === resetPasswordModal) hideModal(resetPasswordModal);
       });
+
+      // Time input field handlers
+      setupTimeInputHandlers();
+    }
+
+    function setupTimeInputHandlers() {
+      const timeInputs = ['progress-hours', 'progress-minutes', 'progress-seconds'];
+      
+      timeInputs.forEach(inputId => {
+        const input = document.getElementById(inputId);
+        if (input) {
+          // Clear the field when focused
+          input.addEventListener('focus', function() {
+            if (this.value === '' || this.value === '0' || this.value === '00') {
+              this.value = '';
+            }
+          });
+          
+          // Format the value on blur (when leaving the field)
+          input.addEventListener('blur', function() {
+            if (this.value === '' || this.value === '0') {
+              this.value = '';  // Keep empty to show placeholder
+            } else {
+              // Pad with leading zero if single digit
+              const num = parseInt(this.value);
+              if (num >= 0 && num <= 9) {
+                this.value = '0' + num;
+              }
+            }
+          });
+        }
+      });
+    }
+
+    // Book card toggle functionality
+    function toggleBookCard(bookId) {
+      try {
+        const detailsElement = document.getElementById(`book-details-${bookId}`);
+        const iconElement = document.getElementById(`toggle-icon-${bookId}`);
+        
+        if (!detailsElement || !iconElement) {
+          console.error('Book card elements not found:', bookId);
+          return;
+        }
+        
+        if (collapsedBooks.has(bookId)) {
+          // Expand
+          detailsElement.style.display = 'block';
+          iconElement.textContent = '▼';
+          iconElement.style.transform = 'rotate(0deg)';
+          collapsedBooks.delete(bookId);
+        } else {
+          // Collapse
+          detailsElement.style.display = 'none';
+          iconElement.textContent = '▶';
+          iconElement.style.transform = 'rotate(-90deg)';
+          collapsedBooks.add(bookId);
+        }
+        
+        // Save the updated state
+        saveCollapsedState();
+      } catch (error) {
+        console.error('Error toggling book card:', error);
+      }
+    }
+
+    // Toggle all book cards
+    function toggleAllBooks() {
+      try {
+        const allCollapsed = books.every(book => collapsedBooks.has(book.id));
+        
+        books.forEach(book => {
+          if (allCollapsed) {
+            // Expand all
+            const detailsElement = document.getElementById(`book-details-${book.id}`);
+            const iconElement = document.getElementById(`toggle-icon-${book.id}`);
+            
+            if (detailsElement && iconElement) {
+              detailsElement.style.display = 'block';
+              iconElement.textContent = '▼';
+              iconElement.style.transform = 'rotate(0deg)';
+              collapsedBooks.delete(book.id);
+            }
+          } else {
+            // Collapse all
+            const detailsElement = document.getElementById(`book-details-${book.id}`);
+            const iconElement = document.getElementById(`toggle-icon-${book.id}`);
+            
+            if (detailsElement && iconElement) {
+              detailsElement.style.display = 'none';
+              iconElement.textContent = '▶';
+              iconElement.style.transform = 'rotate(-90deg)';
+              collapsedBooks.add(book.id);
+            }
+          }
+        });
+        
+        // Save the updated state
+        saveCollapsedState();
+      } catch (error) {
+        console.error('Error toggling all book cards:', error);
+      }
     }
 
     async function handleMagicLinkSubmit(e) {
-      e.preventDefault();
-      const email = document.getElementById('magic-email').value;
-      
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: redirectTo }
-      });
+      try {
+        e.preventDefault();
+        const email = document.getElementById('magic-email').value;
+        
+        if (!email) {
+          alert('Please enter your email address');
+          return;
+        }
+        
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: { emailRedirectTo: redirectTo }
+        });
 
-      if (error) {
-        alert('Error sending magic link: ' + error.message);
-      } else {
-        alert('Check your email for the magic link!');
+        if (error) {
+          console.error('Magic link error:', error);
+          alert('Error sending magic link: ' + error.message);
+        } else {
+          alert('Check your email for the magic link!');
+        }
+      } catch (error) {
+        console.error('Error in handleMagicLinkSubmit:', error);
+        alert('An unexpected error occurred. Please try again.');
       }
     }
 
@@ -544,39 +698,56 @@
     }
 
     async function handlePasswordSubmit(e) {
-      e.preventDefault();
-      const email = document.getElementById('password-email').value;
-      const password = document.getElementById('password-password').value;
-      
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      try {
+        e.preventDefault();
+        const email = document.getElementById('password-email').value;
+        const password = document.getElementById('password-password').value;
+        
+        if (!email || !password) {
+          alert('Please enter both email and password');
+          return;
+        }
+        
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
 
-      if (error) {
-        alert('Error signing in: ' + error.message);
+        if (error) {
+          console.error('Password sign-in error:', error);
+          alert('Error signing in: ' + error.message);
+        }
+      } catch (error) {
+        console.error('Error in handlePasswordSubmit:', error);
+        alert('An unexpected error occurred. Please try again.');
       }
     }
 
     async function handleSignUp() {
-      const email = document.getElementById('password-email').value;
-      const password = document.getElementById('password-password').value;
-      
-      if (!email || !password) {
-        alert('Please enter both email and password');
-        return;
-      }
+      try {
+        const email = document.getElementById('password-email').value;
+        const password = document.getElementById('password-password').value;
+        
+        if (!email || !password) {
+          alert('Please enter both email and password');
+          return;
+        }
 
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: redirectTo }
-      });
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: redirectTo }
+        });
 
-      if (error) {
-        alert('Error signing up: ' + error.message);
-      } else {
-        alert('Check your email to confirm your account!');
+        if (error) {
+          console.error('Sign-up error:', error);
+          alert('Error signing up: ' + error.message);
+        } else {
+          alert('Check your email to confirm your account!');
+        }
+      } catch (error) {
+        console.error('Error in handleSignUp:', error);
+        alert('An unexpected error occurred. Please try again.');
       }
     }
 
@@ -618,6 +789,9 @@
       currentUser = user;
       userEmail.textContent = user.email;
       
+      // Load user-specific collapsed state
+      loadCollapsedState();
+      
       hideElement(authSection);
       showElement(userMenu);
       
@@ -629,6 +803,7 @@
       await supabase.auth.signOut();
       currentUser = null;
       books = [];
+      collapsedBooks = new Set(); // Clear collapsed state on sign out
       
       showElement(authSection);
       hideElement(userMenu);
@@ -668,25 +843,70 @@
         target_date: book.due_date,
         progressEntries: book.sessions || []
       }));
+      
+      // Clean up collapsed states for books that no longer exist
+      cleanupCollapsedState();
+    }
+
+    // Clean up collapsed state for deleted books
+    function cleanupCollapsedState() {
+      try {
+        const existingBookIds = new Set(books.map(book => book.id));
+        const collapsedArray = Array.from(collapsedBooks);
+        let hasChanges = false;
+        
+        collapsedArray.forEach(bookId => {
+          if (!existingBookIds.has(bookId)) {
+            collapsedBooks.delete(bookId);
+            hasChanges = true;
+          }
+        });
+        
+        if (hasChanges) {
+          saveCollapsedState();
+        }
+      } catch (error) {
+        console.error('Error cleaning up collapsed state:', error);
+      }
     }
 
     function renderApp() {
-      showElement(appMainContent);
-      
-      const hasBooks = books.length > 0;
-      
-      appMainContent.innerHTML = `
-        <div class="rounded-lg shadow-md p-6 mb-6" style="background-color: #272727; border: 1px solid #696773;">
-          <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold" style="color: #eff1f3;">Your Books</h2>
-            <button onclick="openAddBookModal()" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">
-              Add Book
-            </button>
+      try {
+        showElement(appMainContent);
+        
+        const hasBooks = books.length > 0;
+        
+        appMainContent.innerHTML = `
+          <div class="rounded-lg shadow-md p-6 mb-6" style="background-color: #272727; border: 1px solid #696773;">
+            <div class="flex justify-between items-center mb-6">
+              <h2 class="text-2xl font-bold" style="color: #eff1f3;">Your Books</h2>
+              <div class="flex gap-2">
+                <button onclick="toggleAllBooks()" class="px-3 py-1 text-sm rounded-md hover:opacity-80" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;" title="Expand/Collapse All">
+                  ⇅
+                </button>
+                <button onclick="openAddBookModal()" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">
+                  Add Book
+                </button>
+              </div>
+            </div>
+            
+            ${hasBooks ? renderBooksList() : renderEmptyState()}
           </div>
-          
-          ${hasBooks ? renderBooksList() : renderEmptyState()}
-        </div>
-      `;
+        `;
+      } catch (error) {
+        console.error('Error rendering app:', error);
+        appMainContent.innerHTML = `
+          <div class="rounded-lg shadow-md p-6 mb-6" style="background-color: #272727; border: 1px solid #696773;">
+            <div class="text-center py-12">
+              <h3 class="text-xl font-medium mb-2" style="color: #eff1f3;">Error Loading App</h3>
+              <p class="mb-6" style="color: #696773;">Something went wrong. Please refresh the page to try again.</p>
+              <button onclick="window.location.reload()" class="px-6 py-3 rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">
+                Refresh Page
+              </button>
+            </div>
+          </div>
+        `;
+      }
     }
 
     function renderEmptyState() {
@@ -703,101 +923,135 @@
     }
 
     function renderBooksList() {
-      return books.map(book => {
-        const isAudiobook = book.book_type === 'audiobook';
-        let progress, progressPercent, isCompleted;
-        
-        if (isAudiobook) {
-          progress = book.currentChapter / (book.total_chapters || 1);
-          progressPercent = Math.round(progress * 100);
-          isCompleted = book.currentChapter >= (book.total_chapters || 1);
-        } else {
-          progress = book.currentPage / (book.total_pages || 1);
-          progressPercent = Math.round(progress * 100);
-          isCompleted = book.currentPage >= (book.total_pages || 1);
-        }
-        
-        // Calculate reading days and remaining days
-        const readingDays = book.reading_days || [true,true,true,true,true,true,true];
-        const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-        const readingDaysText = dayNames.filter((day, index) => readingDays[index]).join(', ');
-        
-        let remainingDaysText = '';
-        if (book.target_date && !isCompleted) {
-          const today = new Date();
-          const targetDate = new Date(book.target_date);
-          const totalDays = Math.ceil((targetDate - today) / (1000 * 60 * 60 * 24));
+      try {
+        return books.map(book => {
+          const isAudiobook = book.book_type === 'audiobook';
+          let progress, progressPercent, isCompleted;
           
-          // Calculate how many reading days are left
-          let remainingReadingDays = 0;
-          for (let i = 0; i <= totalDays; i++) {
-            const checkDate = new Date(today);
-            checkDate.setDate(today.getDate() + i);
-            if (readingDays[checkDate.getDay()]) {
-              remainingReadingDays++;
+          if (isAudiobook) {
+            progress = book.currentChapter / (book.total_chapters || 1);
+            progressPercent = Math.round(progress * 100);
+            isCompleted = book.currentChapter >= (book.total_chapters || 1);
+          } else {
+            progress = book.currentPage / (book.total_pages || 1);
+            progressPercent = Math.round(progress * 100);
+            isCompleted = book.currentPage >= (book.total_pages || 1);
+          }
+          
+          // Calculate reading days and remaining days
+          const readingDays = book.reading_days || [true,true,true,true,true,true,true];
+          const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+          const readingDaysText = dayNames.filter((day, index) => readingDays[index]).join(', ');
+          
+          let remainingDaysText = '';
+          if (book.target_date && !isCompleted) {
+            const today = new Date();
+            const targetDate = new Date(book.target_date);
+            const totalDays = Math.ceil((targetDate - today) / (1000 * 60 * 60 * 24));
+            
+            // Calculate how many reading days are left
+            let remainingReadingDays = 0;
+            for (let i = 0; i <= totalDays; i++) {
+              const checkDate = new Date(today);
+              checkDate.setDate(today.getDate() + i);
+              if (readingDays[checkDate.getDay()]) {
+                remainingReadingDays++;
+              }
+            }
+            
+            if (remainingReadingDays > 0) {
+              if (isAudiobook) {
+                const chaptersPerDay = Math.ceil(((book.total_chapters || 1) - book.currentChapter) / remainingReadingDays);
+                remainingDaysText = ` • ${remainingReadingDays} reading days left • ${chaptersPerDay} chapters/day`;
+              } else {
+                const pagesPerDay = Math.ceil(((book.total_pages || 1) - book.currentPage) / remainingReadingDays);
+                remainingDaysText = ` • ${remainingReadingDays} reading days left • ${pagesPerDay} pages/day`;
+              }
             }
           }
           
-          if (remainingReadingDays > 0) {
-            if (isAudiobook) {
-              const chaptersPerDay = Math.ceil(((book.total_chapters || 1) - book.currentChapter) / remainingReadingDays);
-              remainingDaysText = ` • ${remainingReadingDays} reading days left • ${chaptersPerDay} chapters/day`;
-            } else {
-              const pagesPerDay = Math.ceil(((book.total_pages || 1) - book.currentPage) / remainingReadingDays);
-              remainingDaysText = ` • ${remainingReadingDays} reading days left • ${pagesPerDay} pages/day`;
-            }
-          }
-        }
-        
-        const progressText = isAudiobook 
-          ? `${book.currentChapter} of ${book.total_chapters || 1} chapters`
-          : `${book.currentPage} of ${book.total_pages || 1} pages`;
-        
-        return `
-          <div class="border rounded-lg p-4 mb-4 ${isCompleted ? '' : ''}" style="background-color: #272727; border-color: #696773; ${isCompleted ? 'background-color: #009fb7; background-color: rgba(0, 159, 183, 0.1);' : ''}">
-            <div class="mb-3">
-              <div class="flex-1">
-                <h3 class="font-semibold text-lg flex items-center gap-2" style="color: #eff1f3;">
-                  ${isAudiobook ? '🎧' : '📖'} ${book.title}
-                </h3>
-                <div class="mt-2">
-                  <div class="flex items-center gap-2 text-sm flex-wrap" style="color: #696773;">
-                    <span>${progressText}</span>
-                    <span>•</span>
-                    <span>${progressPercent}% complete</span>
-                    ${book.target_date ? `<span>•</span><span>Target: ${new Date(book.target_date).toLocaleDateString()}</span>` : ''}
-                    ${remainingDaysText}
+          const progressText = isAudiobook 
+            ? `${book.currentChapter} of ${book.total_chapters || 1} chapters`
+            : `${book.currentPage} of ${book.total_pages || 1} pages`;
+          
+          const isCollapsed = collapsedBooks.has(book.id);
+          const displayStyle = isCollapsed ? 'none' : 'block';
+          const iconText = isCollapsed ? '▶' : '▼';
+          const iconRotation = isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+          
+          return `
+            <div class="border rounded-lg mb-4 ${isCompleted ? '' : ''}" style="background-color: #272727; border-color: #696773; ${isCompleted ? 'background-color: #009fb7; background-color: rgba(0, 159, 183, 0.1);' : ''}">
+              <!-- Book Header - Always Visible -->
+              <div class="p-4 cursor-pointer hover:opacity-80 transition-opacity" onclick="toggleBookCard('${book.id}')" style="border-radius: inherit;">
+                <div class="flex justify-between items-center">
+                  <div class="flex-1">
+                    <h3 class="font-semibold text-lg flex items-center gap-2" style="color: #eff1f3;">
+                      ${isAudiobook ? '🎧' : '📖'} ${book.title}
+                    </h3>
+                    <div class="mt-1 text-sm" style="color: #696773;">
+                      <span>${progressText}</span>
+                      <span class="mx-2">•</span>
+                      <span>${progressPercent}% complete</span>
+                    </div>
+                    <div class="mt-2 rounded-full h-2" style="background-color: #696773;">
+                      <div class="h-2 rounded-full transition-all" style="width: ${progressPercent}%; background-color: #009fb7;"></div>
+                    </div>
                   </div>
-                  <div class="mt-1 text-xs" style="color: #696773;">
-                    Reading days: ${readingDaysText}
+                  <div class="ml-4">
+                    <span id="toggle-icon-${book.id}" class="text-xl transition-transform duration-200" style="color: #696773; transform: ${iconRotation};">${iconText}</span>
                   </div>
-                  <div class="mt-2 rounded-full h-2" style="background-color: #696773;">
-                    <div class="h-2 rounded-full transition-all" style="width: ${progressPercent}%; background-color: #009fb7;"></div>
+                </div>
+              </div>
+              
+              <!-- Book Details - Collapsible -->
+              <div id="book-details-${book.id}" class="book-details" style="border-top: 1px solid #696773; display: ${displayStyle};">
+                <div class="p-4 pt-3">
+                  <div class="mb-3">
+                    <div class="flex items-center gap-2 text-sm flex-wrap" style="color: #696773;">
+                      ${book.target_date ? `<span>Target: ${new Date(book.target_date).toLocaleDateString()}</span>` : ''}
+                      ${remainingDaysText}
+                    </div>
+                    <div class="mt-1 text-xs" style="color: #696773;">
+                      Reading days: ${readingDaysText}
+                    </div>
+                  </div>
+                  
+                  ${book.progressEntries && book.progressEntries.length > 0 ? renderRecentProgress(book.progressEntries, isAudiobook) : ''}
+                  
+                  <div class="flex gap-2 flex-wrap mt-4 pt-3" style="border-top: 1px solid #696773;">
+                    <button onclick="openProgressModal('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(0, 159, 183, 0.2); color: #009fb7;">
+                      Log Progress
+                    </button>
+                    <button onclick="openEditBookModal('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;">
+                      Edit
+                    </button>
+                    <button onclick="exportBookLogs('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;">
+                      Export
+                    </button>
+                    <button onclick="deleteBook('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(220, 38, 38, 0.2); color: #dc2626;">
+                      Delete
+                    </button>
+                    ${!isCompleted ? `<button onclick="finishBook('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(34, 197, 94, 0.2); color: #22c55e;">
+                      Finish Book
+                    </button>` : ''}
                   </div>
                 </div>
               </div>
             </div>
-            ${book.progressEntries.length > 0 ? renderRecentProgress(book.progressEntries, isAudiobook) : ''}
-            <div class="flex gap-2 flex-wrap mt-4 pt-3" style="border-top: 1px solid #696773;">
-              <button onclick="openProgressModal('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(0, 159, 183, 0.2); color: #009fb7;">
-                Log Progress
-              </button>
-              <button onclick="openEditBookModal('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;">
-                Edit
-              </button>
-              <button onclick="exportBookLogs('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;">
-                Export
-              </button>
-              <button onclick="deleteBook('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(220, 38, 38, 0.2); color: #dc2626;">
-                Delete
-              </button>
-              ${!isCompleted ? `<button onclick="finishBook('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(34, 197, 94, 0.2); color: #22c55e;">
-                Finish Book
-              </button>` : ''}
-            </div>
+          `;
+        }).join('');
+      } catch (error) {
+        console.error('Error rendering books list:', error);
+        return `
+          <div class="text-center py-12">
+            <h3 class="text-xl font-medium mb-2" style="color: #eff1f3;">Error Loading Books</h3>
+            <p class="mb-6" style="color: #696773;">There was an error displaying your books. Please refresh the page.</p>
+            <button onclick="window.location.reload()" class="px-6 py-3 rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">
+              Refresh Page
+            </button>
           </div>
         `;
-      }).join('');
+      }
     }
 
     function formatSecondsToTime(seconds) {
@@ -854,92 +1108,124 @@
 
     // Modal functions
     function openAddBookModal() {
-      editingBookId = null;
-      document.getElementById('book-modal-title').textContent = 'Add Book';
-      resetBookForm();
-      showModal(bookModal);
+      try {
+        editingBookId = null;
+        document.getElementById('book-modal-title').textContent = 'Add Book';
+        resetBookForm();
+        showModal(bookModal);
+      } catch (error) {
+        console.error('Error opening add book modal:', error);
+        alert('Error opening add book form. Please refresh the page.');
+      }
     }
 
     function openHelpModal() {
-      showModal(helpModal);
+      try {
+        showModal(helpModal);
+      } catch (error) {
+        console.error('Error opening help modal:', error);
+        alert('Error opening help. Please refresh the page.');
+      }
     }
 
     function openEditBookModal(bookId) {
-      editingBookId = bookId;
-      const book = books.find(b => b.id === bookId);
-      if (!book) return;
-      
-      document.getElementById('book-modal-title').textContent = 'Edit Book';
-      document.getElementById('book-id').value = book.id;
-      document.getElementById('book-title').value = book.title;
-      document.getElementById('book-target-date').value = book.due_date || '';
-      
-      // Set book type and corresponding fields
-      const bookType = book.book_type || 'physical';
-      if (bookType === 'audiobook') {
-        document.getElementById('book-type-audiobook').checked = true;
-        document.getElementById('book-chapters').value = book.total_chapters || '';
-      } else {
-        document.getElementById('book-type-physical').checked = true;
-        document.getElementById('book-pages').value = book.total_pages || '';
+      try {
+        editingBookId = bookId;
+        const book = books.find(b => b.id === bookId);
+        if (!book) {
+          console.error('Book not found:', bookId);
+          return;
+        }
+        
+        document.getElementById('book-modal-title').textContent = 'Edit Book';
+        document.getElementById('book-id').value = book.id;
+        document.getElementById('book-title').value = book.title;
+        document.getElementById('book-target-date').value = book.due_date || '';
+        
+        // Set book type and corresponding fields
+        const bookType = book.book_type || 'physical';
+        if (bookType === 'audiobook') {
+          document.getElementById('book-type-audiobook').checked = true;
+          document.getElementById('book-chapters').value = book.total_chapters || '';
+        } else {
+          document.getElementById('book-type-physical').checked = true;
+          document.getElementById('book-pages').value = book.total_pages || '';
+        }
+        
+        // Trigger field toggle
+        const event = new Event('change');
+        const selectedRadio = document.querySelector('input[name="book-type"]:checked');
+        if (selectedRadio) {
+          selectedRadio.dispatchEvent(event);
+        }
+        
+        // Set reading days checkboxes from boolean array
+        const readingDays = book.reading_days || [true,true,true,true,true,true,true];
+        const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+        days.forEach((day, index) => {
+          const checkbox = document.getElementById(`reading-${day}`);
+          if (checkbox) {
+            checkbox.checked = readingDays[index];
+          }
+        });
+        
+        showModal(bookModal);
+      } catch (error) {
+        console.error('Error opening edit book modal:', error);
+        alert('Error opening edit book form. Please refresh the page.');
       }
-      
-      // Trigger field toggle
-      const event = new Event('change');
-      document.querySelector('input[name="book-type"]:checked').dispatchEvent(event);
-      
-      // Set reading days checkboxes from boolean array
-      const readingDays = book.reading_days || [true,true,true,true,true,true,true];
-      const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-      days.forEach((day, index) => {
-        document.getElementById(`reading-${day}`).checked = readingDays[index];
-      });
-      
-      showModal(bookModal);
     }
 
     function openProgressModal(bookId) {
-      const book = books.find(b => b.id === bookId);
-      if (!book) return;
-      
-      document.getElementById('progress-book-id').value = bookId;
-      document.getElementById('progress-book-type').value = book.book_type || 'physical';
-      document.getElementById('progress-date').value = new Date().toISOString().split('T')[0];
-      document.getElementById('progress-notes').value = '';
-      
-      const physicalFields = document.getElementById('physical-progress-fields');
-      const audiobookFields = document.getElementById('audiobook-progress-fields');
-      
-      if (book.book_type === 'audiobook') {
-        physicalFields.classList.add('hidden');
-        audiobookFields.classList.remove('hidden');
-        
-        // Populate chapter dropdown
-        const chapterSelect = document.getElementById('progress-chapter');
-        chapterSelect.innerHTML = '<option value="">Select chapter...</option>';
-        for (let i = 1; i <= (book.total_chapters || 1); i++) {
-          chapterSelect.innerHTML += `<option value="${i}">Chapter ${i}</option>`;
+      try {
+        const book = books.find(b => b.id === bookId);
+        if (!book) {
+          console.error('Book not found:', bookId);
+          return;
         }
         
-        document.getElementById('progress-hours').value = '00';
-        document.getElementById('progress-minutes').value = '00';
-        document.getElementById('progress-seconds').value = '00';
-        document.getElementById('progress-pages').required = false;
-        document.getElementById('progress-chapter').required = true;
-        document.getElementById('progress-hours').required = true;
-        document.getElementById('progress-minutes').required = true;
-        document.getElementById('progress-seconds').required = true;
-      } else {
-        physicalFields.classList.remove('hidden');
-        audiobookFields.classList.add('hidden');
+        document.getElementById('progress-book-id').value = bookId;
+        document.getElementById('progress-book-type').value = book.book_type || 'physical';
+        document.getElementById('progress-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('progress-notes').value = '';
         
-        document.getElementById('progress-pages').value = (book.currentPage || 0) + 1;
-        document.getElementById('progress-pages').required = true;
-        document.getElementById('progress-chapter').required = false;
-        document.getElementById('progress-minutes').required = false;
+        const physicalFields = document.getElementById('physical-progress-fields');
+        const audiobookFields = document.getElementById('audiobook-progress-fields');
+        
+        if (book.book_type === 'audiobook') {
+          physicalFields.classList.add('hidden');
+          audiobookFields.classList.remove('hidden');
+          
+          // Populate chapter dropdown
+          const chapterSelect = document.getElementById('progress-chapter');
+          chapterSelect.innerHTML = '<option value="">Select chapter...</option>';
+          for (let i = 1; i <= (book.total_chapters || 1); i++) {
+            chapterSelect.innerHTML += `<option value="${i}">Chapter ${i}</option>`;
+          }
+          
+          document.getElementById('progress-hours').value = '';
+          document.getElementById('progress-minutes').value = '';
+          document.getElementById('progress-seconds').value = '';
+          document.getElementById('progress-pages').required = false;
+          document.getElementById('progress-chapter').required = true;
+          document.getElementById('progress-hours').required = true;
+          document.getElementById('progress-minutes').required = true;
+          document.getElementById('progress-seconds').required = true;
+        } else {
+          physicalFields.classList.remove('hidden');
+          audiobookFields.classList.add('hidden');
+          
+          document.getElementById('progress-pages').value = (book.currentPage || 0) + 1;
+          document.getElementById('progress-pages').required = true;
+          document.getElementById('progress-chapter').required = false;
+          document.getElementById('progress-minutes').required = false;
+        }
+        
+        showModal(progressModal);
+      } catch (error) {
+        console.error('Error opening progress modal:', error);
+        alert('Error opening progress form. Please refresh the page.');
       }
-      
-      showModal(progressModal);
     }
 
     async function handleBookSubmit(e) {
@@ -1010,9 +1296,9 @@
 
       if (bookType === 'audiobook') {
         const chapter = parseInt(document.getElementById('progress-chapter').value);
-        const hours = parseInt(document.getElementById('progress-hours').value);
-        const minutes = parseInt(document.getElementById('progress-minutes').value);
-        const seconds = parseInt(document.getElementById('progress-seconds').value);
+        const hours = parseInt(document.getElementById('progress-hours').value) || 0;
+        const minutes = parseInt(document.getElementById('progress-minutes').value) || 0;
+        const seconds = parseInt(document.getElementById('progress-seconds').value) || 0;
         
         // Convert everything to total seconds for storage
         const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
@@ -1191,22 +1477,28 @@
     }
 
     async function deleteBook(bookId) {
-      if (!confirm('Are you sure you want to delete this book and all its progress?')) {
-        return;
-      }
+      try {
+        if (!confirm('Are you sure you want to delete this book and all its progress?')) {
+          return;
+        }
 
-      const { error } = await supabase
-        .from('books')
-        .delete()
-        .eq('id', bookId);
-        
-      if (error) {
-        alert('Error deleting book: ' + error.message);
-        return;
-      }
+        const { error } = await supabase
+          .from('books')
+          .delete()
+          .eq('id', bookId);
+          
+        if (error) {
+          console.error('Database error deleting book:', error);
+          alert('Error deleting book: ' + error.message);
+          return;
+        }
 
-      await loadBooks();
-      renderApp();
+        await loadBooks();
+        renderApp();
+      } catch (error) {
+        console.error('Error deleting book:', error);
+        alert('Error deleting book. Please refresh the page and try again.');
+      }
     }
 
     function exportLogs() {
@@ -1276,116 +1568,153 @@
     }
 
     async function finishBook(bookId) {
-      const book = books.find(b => b.id === bookId);
-      if (!book) return;
+      try {
+        const book = books.find(b => b.id === bookId);
+        if (!book) {
+          console.error('Book not found:', bookId);
+          alert('Book not found. Please refresh the page and try again.');
+          return;
+        }
 
-      if (book.currentPage >= book.total_pages) {
-        alert('This book is already finished!');
-        return;
+        const isAudiobook = book.book_type === 'audiobook';
+        const isCompleted = isAudiobook 
+          ? book.currentChapter >= (book.total_chapters || 1)
+          : book.currentPage >= (book.total_pages || 1);
+
+        if (isCompleted) {
+          alert('This book is already finished!');
+          return;
+        }
+
+        const confirmMessage = isAudiobook
+          ? `Mark "${book.title}" as finished? This will set your progress to ${book.total_chapters || 1} chapters.`
+          : `Mark "${book.title}" as finished? This will set your progress to ${book.total_pages || 1} pages.`;
+
+        if (!confirm(confirmMessage)) {
+          return;
+        }
+
+        // Update the book's progress to completion
+        let updateData;
+        if (isAudiobook) {
+          updateData = { current_chapter: book.total_chapters || 1 };
+        } else {
+          updateData = { current_page: book.total_pages || 1 };
+        }
+
+        console.log('Finishing book:', bookId, updateData);
+
+        const { error } = await supabase
+          .from('books')
+          .update(updateData)
+          .eq('id', bookId);
+
+        if (error) {
+          console.error('Error finishing book:', error);
+          alert('Error finishing book: ' + error.message);
+          return;
+        }
+
+        await loadBooks();
+        renderApp();
+      } catch (error) {
+        console.error('Error in finishBook:', error);
+        alert('An unexpected error occurred while finishing the book. Please try again.');
       }
-
-      if (!confirm(`Mark "${book.title}" as finished? This will set your progress to ${book.total_pages} pages.`)) {
-        return;
-      }
-
-      // Update the book's current page to total pages
-      const { error } = await supabase
-        .from('books')
-        .update({ current_page: book.total_pages })
-        .eq('id', bookId);
-
-      if (error) {
-        alert('Error finishing book: ' + error.message);
-        return;
-      }
-
-      await loadBooks();
-      renderApp();
     }
 
     function exportBookLogs(bookId) {
-      const book = books.find(b => b.id === bookId);
-      if (!book) return;
-
-      const isAudiobook = book.book_type === 'audiobook';
-      
-      let exportText = `BUKMRK READING LOG\n`;
-      exportText += `Generated: ${new Date().toLocaleDateString()}\n`;
-      exportText += `User: ${currentUser.email}\n`;
-      exportText += `${'='.repeat(50)}\n\n`;
-
-      exportText += `${isAudiobook ? '🎧' : '📖'} ${book.title}\n`;
-      
-      if (isAudiobook) {
-        exportText += `Total Chapters: ${book.total_chapters}\n`;
-        exportText += `Current Progress: Chapter ${book.currentChapter} of ${book.total_chapters} (${Math.round((book.currentChapter / book.total_chapters) * 100)}%)\n`;
-      } else {
-        exportText += `Total Pages: ${book.total_pages}\n`;
-        exportText += `Current Progress: ${book.currentPage} pages (${Math.round((book.currentPage / book.total_pages) * 100)}%)\n`;
-      }
-      
-      if (book.due_date) {
-        exportText += `Target Date: ${new Date(book.due_date).toLocaleDateString()}\n`;
-      }
-      
-      // Reading days
-      const readingDays = book.reading_days || [true,true,true,true,true,true,true];
-      const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-      const readingDaysText = dayNames.filter((day, index) => readingDays[index]).join(', ');
-      exportText += `Reading Days: ${readingDaysText}\n`;
-      
-      exportText += `\n${isAudiobook ? 'Listening' : 'Reading'} Sessions:\n`;
-      exportText += `${'-'.repeat(30)}\n`;
-      
-      if (book.progressEntries && book.progressEntries.length > 0) {
-        // Sort sessions by date
-        const sortedSessions = book.progressEntries
-          .sort((a, b) => new Date(a.date) - new Date(b.date));
-          
-        sortedSessions.forEach(session => {
-          exportText += `${new Date(session.date).toLocaleDateString()}: `;
-          
-          if (isAudiobook) {
-            const timeListened = formatSecondsToTime(session.minutes_listened);
-            exportText += `Chapter ${session.chapter} (${timeListened})`;
-          } else {
-            exportText += `Pages ${session.start_page}-${session.end_page} (${session.pages_read} pages)`;
-          }
-          
-          if (session.notes) {
-            exportText += `\n  Notes: ${session.notes}`;
-          }
-          exportText += `\n`;
-        });
-        
-        // Summary stats
-        if (isAudiobook) {
-          const totalSecondsListened = sortedSessions.reduce((sum, session) => sum + (session.minutes_listened || 0), 0);
-          const avgSecondsPerSession = Math.round(totalSecondsListened / sortedSessions.length);
-          const totalTimeListened = formatSecondsToTime(totalSecondsListened);
-          const avgTimePerSession = formatSecondsToTime(avgSecondsPerSession);
-          exportText += `\nStats: ${sortedSessions.length} sessions, ${totalTimeListened} total time, ${avgTimePerSession} avg time/session\n`;
-        } else {
-          const totalPagesRead = sortedSessions.reduce((sum, session) => sum + session.pages_read, 0);
-          const avgPagesPerSession = Math.round(totalPagesRead / sortedSessions.length);
-          exportText += `\nStats: ${sortedSessions.length} sessions, ${totalPagesRead} total pages, ${avgPagesPerSession} avg pages/session\n`;
+      try {
+        const book = books.find(b => b.id === bookId);
+        if (!book) {
+          console.error('Book not found for export:', bookId);
+          alert('Error: Book not found. Please refresh the page.');
+          return;
         }
-      } else {
-        exportText += `No reading sessions recorded.\n`;
-      }
 
-      // Create and download file
-      const blob = new Blob([exportText], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      // Use book title in filename, sanitized for file system
-      const safeTitle = book.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      a.download = `bukmrk-${safeTitle}-${new Date().toISOString().split('T')[0]}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+        const isAudiobook = book.book_type === 'audiobook';
+        
+        let exportText = `BUKMRK READING LOG\n`;
+        exportText += `Generated: ${new Date().toLocaleDateString()}\n`;
+        exportText += `User: ${currentUser.email}\n`;
+        exportText += `${'='.repeat(50)}\n\n`;
+
+        exportText += `${isAudiobook ? '🎧' : '📖'} ${book.title}\n`;
+        
+        if (isAudiobook) {
+          exportText += `Total Chapters: ${book.total_chapters}\n`;
+          exportText += `Current Progress: Chapter ${book.currentChapter} of ${book.total_chapters} (${Math.round((book.currentChapter / book.total_chapters) * 100)}%)\n`;
+        } else {
+          exportText += `Total Pages: ${book.total_pages}\n`;
+          exportText += `Current Progress: ${book.currentPage} pages (${Math.round((book.currentPage / book.total_pages) * 100)}%)\n`;
+        }
+        
+        if (book.due_date) {
+          exportText += `Target Date: ${new Date(book.due_date).toLocaleDateString()}\n`;
+        }
+        
+        // Reading days
+        const readingDays = book.reading_days || [true,true,true,true,true,true,true];
+        const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        const readingDaysText = dayNames.filter((day, index) => readingDays[index]).join(', ');
+        exportText += `Reading Days: ${readingDaysText}\n`;
+        
+        exportText += `\n${isAudiobook ? 'Listening' : 'Reading'} Sessions:\n`;
+        exportText += `${'-'.repeat(30)}\n`;
+        
+        if (book.progressEntries && book.progressEntries.length > 0) {
+          // Sort sessions by date
+          const sortedSessions = book.progressEntries
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+          sortedSessions.forEach(session => {
+            exportText += `${new Date(session.date).toLocaleDateString()}: `;
+            
+            if (isAudiobook) {
+              const timeListened = formatSecondsToTime(session.minutes_listened);
+              exportText += `Chapter ${session.chapter} (${timeListened})`;
+            } else {
+              exportText += `Pages ${session.start_page}-${session.end_page} (${session.pages_read} pages)`;
+            }
+            
+            if (session.notes) {
+              exportText += `\n  Notes: ${session.notes}`;
+            }
+            exportText += `\n`;
+          });
+          
+          // Summary stats
+          if (isAudiobook) {
+            const totalSecondsListened = sortedSessions.reduce((sum, session) => sum + (session.minutes_listened || 0), 0);
+            const avgSecondsPerSession = Math.round(totalSecondsListened / sortedSessions.length);
+            const totalTimeListened = formatSecondsToTime(totalSecondsListened);
+            const avgTimePerSession = formatSecondsToTime(avgSecondsPerSession);
+            exportText += `\nStats: ${sortedSessions.length} sessions, ${totalTimeListened} total time, ${avgTimePerSession} avg time/session\n`;
+          } else {
+            const totalPagesRead = sortedSessions.reduce((sum, session) => sum + session.pages_read, 0);
+            const avgPagesPerSession = Math.round(totalPagesRead / sortedSessions.length);
+            exportText += `\nStats: ${sortedSessions.length} sessions, ${totalPagesRead} total pages, ${avgPagesPerSession} avg pages/session\n`;
+          }
+        } else {
+          exportText += `No reading sessions recorded.\n`;
+        }
+
+        // Create and download file
+        const blob = new Blob([exportText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        // Use book title in filename, sanitized for file system
+        const safeTitle = book.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        a.download = `bukmrk-${safeTitle}-${new Date().toISOString().split('T')[0]}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Error exporting book logs:', error);
+        alert('Error exporting book data. Please refresh the page and try again.');
+      }
     }
 
     // Utility functions
@@ -1402,7 +1731,15 @@
     }
 
     function hideModal(modal) {
-      modal.classList.add('hidden');
+      try {
+        if (!modal) {
+          console.error('Modal element not found');
+          return;
+        }
+        modal.classList.add('hidden');
+      } catch (error) {
+        console.error('Error hiding modal:', error);
+      }
     }
 
     function resetBookForm() {

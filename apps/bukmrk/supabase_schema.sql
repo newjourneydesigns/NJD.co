@@ -17,8 +17,8 @@ create table if not exists public.books (
   inserted_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint books_physical_pages_check check (
-    (book_type = 'physical' and total_pages is not null) or 
-    (book_type = 'audiobook' and total_chapters is not null)
+    (book_type = 'physical' and total_pages is not null and total_chapters is null) or 
+    (book_type = 'audiobook' and total_chapters is not null and total_pages is null)
   )
 );
 

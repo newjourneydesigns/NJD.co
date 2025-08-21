@@ -26,8 +26,8 @@ ADD CONSTRAINT books_current_chapter_check CHECK (current_chapter >= 0);
 -- Add the complex constraint for book types
 ALTER TABLE public.books
 ADD CONSTRAINT books_physical_pages_check CHECK (
-  (book_type = 'physical' and total_pages is not null) or 
-  (book_type = 'audiobook' and total_chapters is not null)
+  (book_type = 'physical' and total_pages is not null and total_chapters is null) or 
+  (book_type = 'audiobook' and total_chapters is not null and total_pages is null)
 );
 
 -- Add new columns to sessions table  

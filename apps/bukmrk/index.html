@@ -1225,6 +1225,20 @@
         const physicalFields = document.getElementById('physical-progress-fields');
         const audiobookFields = document.getElementById('audiobook-progress-fields');
         
+        // Get all form elements
+        const pagesInput = document.getElementById('progress-pages');
+        const chapterInput = document.getElementById('progress-chapter');
+        const hoursInput = document.getElementById('progress-hours');
+        const minutesInput = document.getElementById('progress-minutes');
+        const secondsInput = document.getElementById('progress-seconds');
+        
+        // Clear all required attributes first
+        pagesInput.required = false;
+        chapterInput.required = false;
+        hoursInput.required = false;
+        minutesInput.required = false;
+        secondsInput.required = false;
+        
         if (book.book_type === 'audiobook') {
           physicalFields.classList.add('hidden');
           audiobookFields.classList.remove('hidden');
@@ -1236,22 +1250,23 @@
             chapterSelect.innerHTML += `<option value="${i}">Chapter ${i}</option>`;
           }
           
-          document.getElementById('progress-hours').value = '';
-          document.getElementById('progress-minutes').value = '';
-          document.getElementById('progress-seconds').value = '';
-          document.getElementById('progress-pages').required = false;
-          document.getElementById('progress-chapter').required = true;
-          document.getElementById('progress-hours').required = true;
-          document.getElementById('progress-minutes').required = true;
-          document.getElementById('progress-seconds').required = true;
+          hoursInput.value = '';
+          minutesInput.value = '';
+          secondsInput.value = '';
+          
+          // Set audiobook field requirements
+          chapterInput.required = true;
+          hoursInput.required = true;
+          minutesInput.required = true;
+          secondsInput.required = true;
         } else {
           physicalFields.classList.remove('hidden');
           audiobookFields.classList.add('hidden');
           
-          document.getElementById('progress-pages').value = (book.currentPage || 0) + 1;
-          document.getElementById('progress-pages').required = true;
-          document.getElementById('progress-chapter').required = false;
-          document.getElementById('progress-minutes').required = false;
+          pagesInput.value = (book.currentPage || 0) + 1;
+          
+          // Set physical book field requirements
+          pagesInput.required = true;
         }
         
         showModal(progressModal);

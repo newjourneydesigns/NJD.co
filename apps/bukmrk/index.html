@@ -246,10 +246,10 @@
         .from('books')
         .select(`
           *,
-          progress:reading_progress(*)
+          sessions:sessions(*)
         `)
         .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false });
+        .order('inserted_at', { ascending: false });
 
       if (error) {
         console.error('Error loading books:', error);
@@ -258,10 +258,9 @@
 
       books = data.map(book => ({
         ...book,
-        currentPage: book.progress.length > 0 
-          ? Math.max(...book.progress.map(p => p.page_number))
-          : 0,
-        progressEntries: book.progress
+        currentPage: book.current_page,
+        target_date: book.due_date,
+        progressEntries: book.sessions || []
       }));
     }
 
@@ -304,8 +303,9 @@
         const isCompleted = book.currentPage >= book.total_pages;
         
         // Calculate reading days and remaining days
-        const readingDays = book.reading_days || [0,1,2,3,4,5,6]; // Default to all days if not set
-        const readingDaysText = readingDays.map(day => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][day]).join(', ');
+        const readingDays = book.reading_days || [true,true,true,true,true,true,true];
+        const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        const readingDaysText = dayNames.filter((day, index) => readingDays[index]).join(', ');
         
         let remainingDaysText = '';
         if (book.target_date && !isCompleted) {
@@ -318,7 +318,7 @@
           for (let i = 0; i <= totalDays; i++) {
             const checkDate = new Date(today);
             checkDate.setDate(today.getDate() + i);
-            if (readingDays.includes(checkDate.getDay())) {
+            if (readingDays[checkDate.getDay()]) {
               remainingReadingDays++;
             }
           }
@@ -351,13 +351,13 @@
                 </div>
               </div>
               <div class="flex gap-2 ml-4">
-                <button onclick="openProgressModal(${book.id})" class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+                <button onclick="openProgressModal('${book.id}')" class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
                   Log Progress
                 </button>
-                <button onclick="openEditBookModal(${book.id})" class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
+                <button onclick="openEditBookModal('${book.id}')" class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
                   Edit
                 </button>
-                <button onclick="deleteBook(${book.id})" class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200">
+                <button onclick="deleteBook('${book.id}')" class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200">
                   Delete
                 </button>
               </div>
@@ -368,8 +368,8 @@
       }).join('');
     }
 
-    function renderRecentProgress(progressEntries) {
-      const recent = progressEntries
+    function renderRecentProgress(sessions) {
+      const recent = sessions
         .sort((a, b) => new Date(b.date) - new Date(a.date))
         .slice(0, 3);
       
@@ -377,12 +377,12 @@
         <div class="border-t pt-3 mt-3">
           <h4 class="text-sm font-medium text-gray-700 mb-2">Recent Progress</h4>
           <div class="space-y-1">
-            ${recent.map(entry => `
+            ${recent.map(session => `
               <div class="text-sm text-gray-600">
-                <span class="font-medium">Page ${entry.page_number}</span>
+                <span class="font-medium">Pages ${session.start_page}-${session.end_page} (${session.pages_read} pages)</span>
                 <span class="mx-2">•</span>
-                <span>${new Date(entry.date).toLocaleDateString()}</span>
-                ${entry.notes ? `<span class="mx-2">•</span><span class="italic">${entry.notes}</span>` : ''}
+                <span>${new Date(session.date).toLocaleDateString()}</span>
+                ${session.notes ? `<span class="mx-2">•</span><span class="italic">${session.notes}</span>` : ''}
               </div>
             `).join('')}
           </div>
@@ -407,13 +407,13 @@
       document.getElementById('book-id').value = book.id;
       document.getElementById('book-title').value = book.title;
       document.getElementById('book-pages').value = book.total_pages;
-      document.getElementById('book-target-date').value = book.target_date || '';
+      document.getElementById('book-target-date').value = book.due_date || '';
       
-      // Set reading days checkboxes
-      const readingDays = book.reading_days || [0,1,2,3,4,5,6];
+      // Set reading days checkboxes from boolean array
+      const readingDays = book.reading_days || [true,true,true,true,true,true,true];
       const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
       days.forEach((day, index) => {
-        document.getElementById(`reading-${day}`).checked = readingDays.includes(index);
+        document.getElementById(`reading-${day}`).checked = readingDays[index];
       });
       
       showModal(bookModal);
@@ -434,16 +434,16 @@
     async function handleBookSubmit(e) {
       e.preventDefault();
       
-      // Get selected reading days
+      // Get selected reading days as boolean array
       const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-      const readingDays = days.map((day, index) => 
-        document.getElementById(`reading-${day}`).checked ? index : null
-      ).filter(day => day !== null);
+      const readingDays = days.map(day => 
+        document.getElementById(`reading-${day}`).checked
+      );
       
       const bookData = {
         title: document.getElementById('book-title').value,
         total_pages: parseInt(document.getElementById('book-pages').value),
-        target_date: document.getElementById('book-target-date').value || null,
+        due_date: document.getElementById('book-target-date').value || null,
         reading_days: readingDays,
         user_id: currentUser.id
       };
@@ -477,20 +477,37 @@
     async function handleProgressSubmit(e) {
       e.preventDefault();
       
-      const progressData = {
-        book_id: parseInt(document.getElementById('progress-book-id').value),
-        page_number: parseInt(document.getElementById('progress-pages').value),
+      const bookId = document.getElementById('progress-book-id').value;
+      const currentBook = books.find(b => b.id === bookId);
+      const startPage = currentBook ? currentBook.current_page : 0;
+      const endPage = parseInt(document.getElementById('progress-pages').value);
+      
+      const sessionData = {
+        book_id: bookId,
         date: document.getElementById('progress-date').value,
-        notes: document.getElementById('progress-notes').value || null,
-        user_id: currentUser.id
+        start_page: startPage,
+        end_page: endPage,
+        pages_read: endPage - startPage,
+        notes: document.getElementById('progress-notes').value || null
       };
 
-      const { error } = await supabase
-        .from('reading_progress')
-        .insert([progressData]);
+      const { error: sessionError } = await supabase
+        .from('sessions')
+        .insert([sessionData]);
         
-      if (error) {
-        alert('Error logging progress: ' + error.message);
+      if (sessionError) {
+        alert('Error logging progress: ' + sessionError.message);
+        return;
+      }
+
+      // Update the book's current page
+      const { error: bookError } = await supabase
+        .from('books')
+        .update({ current_page: endPage })
+        .eq('id', bookId);
+
+      if (bookError) {
+        alert('Error updating book progress: ' + bookError.message);
         return;
       }
 

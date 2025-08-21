@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Bukmrk</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link
     rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%99%3C/text%3E%3C/svg%3E"
@@ -97,6 +97,7 @@
   <script>
     const SUPABASE_URL = "https://avxnsohsmxgjwuxmwqnx.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2eG5zb2hzbXhnand1eG13cW54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3Nzk0OTksImV4cCI6MjA3MTM1NTQ5OX0.3Ltd3dHa5GxE4ph7n84oAqlDLgD4SO9pN7KPIhoY7uY";
+    const redirectTo = "https://newjourneydesigns.co/apps/bukmrk/";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUser = null;
@@ -168,8 +169,8 @@
       const email = document.getElementById('magic-email').value;
       
       const { error } = await supabase.auth.signInWithOtp({
-        email: email,
-        options: { emailRedirectTo: window.location.href }
+        email,
+        options: { emailRedirectTo: redirectTo }
       });
 
       if (error) {
@@ -182,7 +183,7 @@
     async function handleGoogleAuth() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.href }
+        options: { redirectTo }
       });
 
       if (error) {

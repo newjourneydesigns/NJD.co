@@ -1,0 +1,21 @@
+{
+  "name": "Bukmrk",
+  "short_name": "Bukmrk",
+  "description": "Track your books, plan your pace, remember what your read.",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#374151",
+  "background_color": "#F3F4F6",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='43' fill='%23374151'/%3E%3Cpath d='M38 19 L38 163 L67 142 L96 163 L125 142 L154 163 L154 19 Z' fill='%23F9FAFB' stroke='%23F9FAFB' stroke-width='3'/%3E%3Cpath d='M48 38 L144 38 M48 57 L144 57 M48 76 L125 76 M48 95 L134 95 M48 114 L115 114' stroke='%23374151' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='115' fill='%23374151'/%3E%3Cpath d='M102 51 L102 434 L179 379 L256 434 L333 379 L410 434 L410 51 Z' fill='%23F9FAFB' stroke='%23F9FAFB' stroke-width='8'/%3E%3Cpath d='M128 102 L384 102 M128 153 L384 153 M128 204 L333 204 M128 255 L358 255 M128 306 L307 306' stroke='%23374151' stroke-width='8' stroke-linecap='round'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

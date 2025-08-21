@@ -36,6 +36,57 @@
   
   <!-- Custom CSS for iPhone optimization -->
   <style>
+    /* Design System Variables */
+    :root {
+      /* Color System */
+      --primary: #009fb7;
+      --primary-hover: #007a91;
+      --primary-light: rgba(0, 159, 183, 0.1);
+      --primary-dark: rgba(0, 159, 183, 0.2);
+      
+      /* Semantic Colors */
+      --success: #10b981;
+      --success-light: rgba(16, 185, 129, 0.1);
+      --warning: #f59e0b;
+      --warning-light: rgba(245, 158, 11, 0.1);
+      --error: #ef4444;
+      --error-light: rgba(239, 68, 68, 0.1);
+      
+      /* Surface Colors */
+      --surface-primary: #272727;
+      --surface-secondary: rgba(105, 103, 115, 0.1);
+      --border-color: #696773;
+      --text-primary: #eff1f3;
+      --text-secondary: #696773;
+      
+      /* Typography Scale */
+      --text-xs: 0.75rem;    /* 12px */
+      --text-sm: 0.875rem;   /* 14px */
+      --text-base: 1rem;     /* 16px */
+      --text-lg: 1.125rem;   /* 18px */
+      --text-xl: 1.25rem;    /* 20px */
+      --text-2xl: 1.5rem;    /* 24px */
+      
+      /* Spacing System */
+      --space-1: 0.25rem;    /* 4px */
+      --space-2: 0.5rem;     /* 8px */
+      --space-3: 0.75rem;    /* 12px */
+      --space-4: 1rem;       /* 16px */
+      --space-5: 1.25rem;    /* 20px */
+      --space-6: 1.5rem;     /* 24px */
+      --space-8: 2rem;       /* 32px */
+      
+      /* Shadows */
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+      --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.15);
+      --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.2);
+      
+      /* Border Radius */
+      --radius-sm: 0.375rem;  /* 6px */
+      --radius-md: 0.5rem;    /* 8px */
+      --radius-lg: 0.75rem;   /* 12px */
+    }
+    
     /* iPhone safe area support */
     .safe-area-container {
       padding-left: max(1rem, env(safe-area-inset-left));
@@ -70,6 +121,248 @@
       .main-container {
         max-width: 56rem; /* 896px */
       }
+    }
+    
+    /* Enhanced Book Card Design */
+    .book-card-redesigned {
+      background: var(--surface-primary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: var(--space-6);
+      margin-bottom: var(--space-4);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .book-card-redesigned:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--primary);
+    }
+    
+    .book-card-redesigned.completed {
+      background: var(--primary-light);
+      border-color: var(--primary);
+    }
+    
+    .book-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: var(--space-5);
+    }
+    
+    .book-title-section {
+      flex: 1;
+      min-width: 0; /* Allow text truncation */
+    }
+    
+    .book-title {
+      font-size: var(--text-xl);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 var(--space-2) 0;
+      line-height: 1.3;
+      word-break: break-word;
+    }
+    
+    .book-type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      background: var(--surface-secondary);
+      padding: var(--space-1) var(--space-3);
+      border-radius: var(--radius-sm);
+      font-weight: 500;
+    }
+    
+    .toggle-button {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: var(--space-2);
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
+      margin-left: var(--space-3);
+    }
+    
+    .toggle-button:hover {
+      background: var(--surface-secondary);
+      color: var(--primary);
+    }
+    
+    .progress-section {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      margin-bottom: var(--space-5);
+    }
+    
+    .progress-circle {
+      position: relative;
+      width: 64px;
+      height: 64px;
+      flex-shrink: 0;
+    }
+    
+    .progress-circle-bg {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: conic-gradient(var(--primary) 0%, var(--primary) var(--progress-percent, 0%), var(--surface-secondary) var(--progress-percent, 0%));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    
+    .progress-circle-bg::before {
+      content: '';
+      position: absolute;
+      width: 80%;
+      height: 80%;
+      background: var(--surface-primary);
+      border-radius: 50%;
+    }
+    
+    .progress-percentage {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+      z-index: 1;
+    }
+    
+    .progress-details {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .current-status {
+      font-size: var(--text-base);
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: var(--space-2);
+    }
+    
+    .progress-bar-container {
+      width: 100%;
+      height: 6px;
+      background: var(--surface-secondary);
+      border-radius: var(--radius-sm);
+      margin-bottom: var(--space-2);
+      overflow: hidden;
+    }
+    
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--primary-hover));
+      border-radius: var(--radius-sm);
+      transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .reading-pace {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+    }
+    
+    .reading-pace.ahead {
+      color: var(--success);
+    }
+    
+    .reading-pace.behind {
+      color: var(--warning);
+    }
+    
+    .book-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-4);
+      margin-bottom: var(--space-5);
+      padding: var(--space-4);
+      background: var(--surface-secondary);
+      border-radius: var(--radius-md);
+    }
+    
+    .stat-item {
+      text-align: center;
+    }
+    
+    .stat-value {
+      display: block;
+      font-size: var(--text-lg);
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+    
+    .stat-label {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: var(--space-1);
+    }
+    
+    .book-actions {
+      display: flex;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+    }
+    
+    .btn-primary-redesigned {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: var(--space-3) var(--space-5);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      min-height: 44px;
+    }
+    
+    .btn-primary-redesigned:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .btn-secondary-redesigned {
+      background: var(--surface-secondary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+      padding: var(--space-3) var(--space-4);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-height: 44px;
+    }
+    
+    .btn-secondary-redesigned:hover {
+      background: var(--primary-light);
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+    
+    .collapsible-content {
+      margin-top: var(--space-5);
+      padding-top: var(--space-5);
+      border-top: 1px solid var(--border-color);
     }
     
     /* Modal optimizations for iPhone */
@@ -135,6 +428,27 @@
       font-size: 16px !important; /* Prevent zoom on iOS */
     }
     
+    /* Enhanced textarea styling */
+    textarea {
+      resize: vertical; /* Allow vertical resize only */
+      min-height: 120px; /* Minimum height for better UX */
+      line-height: 1.5;
+    }
+    
+    /* Notes formatting preservation */
+    .whitespace-pre-wrap {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    
+    /* Mobile textarea optimizations */
+    @media screen and (max-width: 640px) {
+      textarea {
+        min-height: 140px; /* Larger on mobile for better touch experience */
+        padding: 0.75rem; /* More padding on mobile */
+      }
+    }
+    
     /* Optimize for different iPhone sizes */
     @media screen and (max-width: 375px) {
       /* iPhone SE and smaller */
@@ -153,6 +467,296 @@
       /* iPhone Plus/Pro Max and larger */
       .btn-mobile {
         padding: 0.625rem 1rem;
+      }
+    }
+    
+    /* Book Card Redesign */
+    .book-card-redesigned {
+      background: var(--surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius-lg);
+      margin-bottom: var(--space-4);
+      overflow: hidden;
+      transition: var(--transition-base);
+      position: relative;
+    }
+    
+    .book-card-redesigned.completed {
+      background: var(--surface-accent);
+      border-color: var(--primary);
+    }
+    
+    .book-card-redesigned:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .book-header {
+      padding: var(--space-4);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: var(--space-3);
+    }
+    
+    .book-title-section {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .book-title {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-semibold);
+      color: var(--text-primary);
+      margin: 0 0 var(--space-2) 0;
+      line-height: var(--line-height-tight);
+      word-break: break-word;
+    }
+    
+    .book-type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      font-size: var(--font-size-sm);
+      color: var(--text-secondary);
+      background: rgba(105, 103, 115, 0.1);
+      padding: var(--space-1) var(--space-2);
+      border-radius: var(--border-radius-sm);
+      font-weight: var(--font-weight-medium);
+    }
+    
+    .toggle-button {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: var(--font-size-lg);
+      cursor: pointer;
+      padding: var(--space-2);
+      border-radius: var(--border-radius-sm);
+      transition: var(--transition-base);
+      flex-shrink: 0;
+    }
+    
+    .toggle-button:hover {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+    }
+    
+    .progress-section {
+      padding: 0 var(--space-4) var(--space-4) var(--space-4);
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+    }
+    
+    .progress-circle {
+      flex-shrink: 0;
+      width: 60px;
+      height: 60px;
+    }
+    
+    .progress-circle-bg {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: conic-gradient(
+        var(--primary) calc(var(--progress-percent) * 3.6deg),
+        var(--border-color) calc(var(--progress-percent) * 3.6deg)
+      );
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    
+    .progress-circle-bg::before {
+      content: '';
+      position: absolute;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: var(--surface);
+    }
+    
+    .progress-percentage {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-bold);
+      color: var(--text-primary);
+      z-index: 1;
+    }
+    
+    .progress-details {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .current-status {
+      font-size: var(--font-size-base);
+      font-weight: var(--font-weight-medium);
+      color: var(--text-primary);
+      margin-bottom: var(--space-2);
+    }
+    
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background: var(--border-color);
+      border-radius: var(--border-radius-full);
+      overflow: hidden;
+      margin-bottom: var(--space-2);
+    }
+    
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      border-radius: var(--border-radius-full);
+      transition: width 0.3s ease;
+    }
+    
+    .reading-pace {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      padding: var(--space-1) var(--space-2);
+      border-radius: var(--border-radius-sm);
+      display: inline-block;
+    }
+    
+    .reading-pace.ahead {
+      color: var(--success);
+      background: rgba(34, 197, 94, 0.1);
+    }
+    
+    .reading-pace.behind {
+      color: var(--error);
+      background: rgba(220, 38, 38, 0.1);
+    }
+    
+    .reading-pace.on-track {
+      color: var(--primary);
+      background: rgba(0, 159, 183, 0.1);
+    }
+    
+    .book-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-2);
+      padding: 0 var(--space-4) var(--space-4) var(--space-4);
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .stat-item {
+      text-align: center;
+      padding: var(--space-3) var(--space-2);
+      background: rgba(105, 103, 115, 0.05);
+      border-radius: var(--border-radius-md);
+      transition: var(--transition-base);
+    }
+    
+    .stat-item:hover {
+      background: var(--surface-hover);
+    }
+    
+    .stat-value {
+      display: block;
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-bold);
+      color: var(--text-primary);
+      line-height: var(--line-height-tight);
+    }
+    
+    .stat-label {
+      display: block;
+      font-size: var(--font-size-xs);
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: var(--space-1);
+    }
+    
+    .book-actions {
+      padding: var(--space-4);
+      display: flex;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+    }
+    
+    .btn-primary-redesigned {
+      background: var(--primary);
+      color: var(--primary-foreground);
+      border: none;
+      padding: var(--space-3) var(--space-4);
+      border-radius: var(--border-radius-md);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      cursor: pointer;
+      transition: var(--transition-base);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      flex: 1;
+      justify-content: center;
+      min-height: 44px;
+    }
+    
+    .btn-primary-redesigned:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+    
+    .btn-secondary-redesigned {
+      background: var(--surface);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      padding: var(--space-3) var(--space-4);
+      border-radius: var(--border-radius-md);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      cursor: pointer;
+      transition: var(--transition-base);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      justify-content: center;
+      min-height: 44px;
+      flex: 1;
+    }
+    
+    .btn-secondary-redesigned:hover {
+      background: var(--surface-hover);
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
+    
+    .collapsible-content {
+      border-top: 1px solid var(--border-color);
+      padding: var(--space-4);
+      background: rgba(105, 103, 115, 0.02);
+    }
+    
+    @media (max-width: 640px) {
+      .progress-section {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-3);
+      }
+      
+      .progress-circle {
+        align-self: center;
+      }
+      
+      .book-stats-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-2);
+      }
+      
+      .book-actions {
+        flex-direction: column;
+      }
+      
+      .btn-primary-redesigned,
+      .btn-secondary-redesigned {
+        flex: none;
+        width: 100%;
       }
     }
   </style>
@@ -252,13 +856,13 @@
         <div id="physical-book-fields">
           <div class="mb-4">
             <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Total Pages</label>
-            <input id="book-pages" type="number" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
+            <input id="book-pages" type="number" inputmode="numeric" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
           </div>
         </div>
         <div id="audiobook-fields" class="hidden">
           <div class="mb-4">
             <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Total Chapters</label>
-            <input id="book-chapters" type="number" min="1" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="Number of chapters" />
+            <input id="book-chapters" type="number" min="1" inputmode="numeric" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="Number of chapters" />
           </div>
         </div>
         <div class="mb-4">
@@ -316,7 +920,7 @@
         <div id="physical-progress-fields">
           <div class="mb-4">
             <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Pages Read</label>
-            <input id="progress-pages" type="number" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
+            <input id="progress-pages" type="number" inputmode="numeric" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
           </div>
         </div>
         <div id="audiobook-progress-fields" class="hidden">
@@ -327,20 +931,20 @@
             </select>
           </div>
           <div class="mb-4">
-            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Time Listened</label>
+            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Time Listened (optional - empty fields = 00)</label>
             <div class="flex gap-2 items-center">
               <div class="flex-1">
-                <input id="progress-hours" type="number" min="0" max="23" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" required />
+                <input id="progress-hours" type="number" min="0" max="23" inputmode="numeric" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" />
                 <label class="block text-xs text-center mt-1" style="color: #696773;">Hours</label>
               </div>
               <span style="color: #eff1f3; font-size: 1.2em;">:</span>
               <div class="flex-1">
-                <input id="progress-minutes" type="number" min="0" max="59" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" required />
+                <input id="progress-minutes" type="number" min="0" max="59" inputmode="numeric" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" />
                 <label class="block text-xs text-center mt-1" style="color: #696773;">Minutes</label>
               </div>
               <span style="color: #eff1f3; font-size: 1.2em;">:</span>
               <div class="flex-1">
-                <input id="progress-seconds" type="number" min="0" max="59" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" required />
+                <input id="progress-seconds" type="number" min="0" max="59" inputmode="numeric" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" />
                 <label class="block text-xs text-center mt-1" style="color: #696773;">Seconds</label>
               </div>
             </div>
@@ -352,7 +956,7 @@
         </div>
         <div class="mb-4">
           <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Notes (optional)</label>
-          <textarea id="progress-notes" class="w-full px-3 py-2 border rounded-md" rows="3" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="What you read/heard or remembered..."></textarea>
+          <textarea id="progress-notes" class="w-full px-3 py-2 border rounded-md touch-target" rows="5" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="What did you read about? Any interesting quotes, thoughts, or reactions? How did this section make you feel?"></textarea>
         </div>
         <div class="flex gap-2 justify-end">
           <button type="button" id="cancel-progress" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #696773; color: #eff1f3;">Cancel</button>
@@ -375,11 +979,11 @@
         <div id="edit-physical-fields">
           <div class="mb-4">
             <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Start Page</label>
-            <input id="edit-start-page" type="number" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" />
+            <input id="edit-start-page" type="number" inputmode="numeric" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" />
           </div>
           <div class="mb-4">
             <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">End Page</label>
-            <input id="edit-end-page" type="number" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" />
+            <input id="edit-end-page" type="number" inputmode="numeric" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" />
           </div>
         </div>
         
@@ -390,20 +994,20 @@
             <input id="edit-chapter" type="number" min="1" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" />
           </div>
           <div class="mb-4">
-            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Time Listened</label>
+            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Time Listened (optional - empty fields = 00)</label>
             <div class="flex gap-2 items-center">
               <div class="flex-1">
-                <input id="edit-hours" type="number" min="0" max="23" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" />
+                <input id="edit-hours" type="number" min="0" max="23" inputmode="numeric" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" />
                 <label class="block text-xs text-center mt-1" style="color: #696773;">Hours</label>
               </div>
               <span style="color: #eff1f3; font-size: 1.2em;">:</span>
               <div class="flex-1">
-                <input id="edit-minutes" type="number" min="0" max="59" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" />
+                <input id="edit-minutes" type="number" min="0" max="59" inputmode="numeric" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" />
                 <label class="block text-xs text-center mt-1" style="color: #696773;">Minutes</label>
               </div>
               <span style="color: #eff1f3; font-size: 1.2em;">:</span>
               <div class="flex-1">
-                <input id="edit-seconds" type="number" min="0" max="59" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" />
+                <input id="edit-seconds" type="number" min="0" max="59" inputmode="numeric" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" />
                 <label class="block text-xs text-center mt-1" style="color: #696773;">Seconds</label>
               </div>
             </div>
@@ -416,7 +1020,7 @@
         </div>
         <div class="mb-4">
           <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Notes (optional)</label>
-          <textarea id="edit-session-notes" class="w-full px-3 py-2 border rounded-md" rows="3" style="background-color: #272727; color: #eff1f3; border-color: #696773;"></textarea>
+          <textarea id="edit-session-notes" class="w-full px-3 py-2 border rounded-md touch-target" rows="5" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="Update your thoughts about this reading session..."></textarea>
         </div>
         <div class="flex gap-2 justify-end">
           <button type="button" id="cancel-edit-session" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #696773; color: #eff1f3;">Cancel</button>
@@ -1099,14 +1703,16 @@
           const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
           const readingDaysText = dayNames.filter((day, index) => readingDays[index]).join(', ');
           
-          let remainingDaysText = '';
+          // Calculate reading pace
+          let readingPace = null;
+          let remainingReadingDays = 0;
+          
           if (book.target_date && !isCompleted) {
             const today = new Date();
             const targetDate = new Date(book.target_date);
             const totalDays = Math.ceil((targetDate - today) / (1000 * 60 * 60 * 24));
             
             // Calculate how many reading days are left
-            let remainingReadingDays = 0;
             for (let i = 0; i <= totalDays; i++) {
               const checkDate = new Date(today);
               checkDate.setDate(today.getDate() + i);
@@ -1115,81 +1721,111 @@
               }
             }
             
-            if (remainingReadingDays > 0) {
-              if (isAudiobook) {
-                const chaptersPerDay = Math.ceil(((book.total_chapters || 1) - book.currentChapter) / remainingReadingDays);
-                remainingDaysText = ` • ${remainingReadingDays} reading days left • ${chaptersPerDay} chapters/day`;
-              } else {
-                const pagesPerDay = Math.ceil(((book.total_pages || 1) - book.currentPage) / remainingReadingDays);
-                remainingDaysText = ` • ${remainingReadingDays} reading days left • ${pagesPerDay} pages/day`;
-              }
-            }
+            readingPace = calculateReadingPace(book, remainingReadingDays);
           }
           
-          const progressText = isAudiobook 
-            ? `${book.currentChapter} of ${book.total_chapters || 1} chapters`
-            : `${book.currentPage} of ${book.total_pages || 1} pages`;
+          // Calculate stats
+          const totalSessions = book.progressEntries ? book.progressEntries.length : 0;
+          const avgPagesPerDay = isAudiobook ? 'N/A' : (totalSessions > 0 ? Math.round(book.currentPage / totalSessions) : 0);
+          const targetDate = book.target_date ? new Date(book.target_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Not set';
           
           const isCollapsed = collapsedBooks.has(book.id);
           const displayStyle = isCollapsed ? 'none' : 'block';
-          const iconText = isCollapsed ? '▶' : '▼';
-          const iconRotation = isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
           
           return `
-            <div class="border rounded-lg mb-4 ${isCompleted ? '' : ''}" style="background-color: #272727; border-color: #696773; ${isCompleted ? 'background-color: #009fb7; background-color: rgba(0, 159, 183, 0.1);' : ''}">
-              <!-- Book Header - Always Visible -->
-              <div class="p-4 cursor-pointer hover:opacity-80 transition-opacity" onclick="toggleBookCard('${book.id}')" style="border-radius: inherit;">
-                <div class="flex justify-between items-center">
-                  <div class="flex-1">
-                    <h3 class="font-semibold text-lg flex items-center gap-2" style="color: #eff1f3;">
-                      ${isAudiobook ? '🎧' : '📖'} ${book.title}
-                    </h3>
-                    <div class="mt-1 text-sm" style="color: #696773;">
-                      <span>${progressText}</span>
-                      <span class="mx-2">•</span>
-                      <span>${progressPercent}% complete</span>
-                    </div>
-                    <div class="mt-2 rounded-full h-2" style="background-color: #696773;">
-                      <div class="h-2 rounded-full transition-all" style="width: ${progressPercent}%; background-color: #009fb7;"></div>
-                    </div>
+            <div class="book-card-redesigned ${isCompleted ? 'completed' : ''}" style="--progress-percent: ${progressPercent}%">
+              <!-- Book Header -->
+              <div class="book-header">
+                <div class="book-title-section">
+                  <h3 class="book-title">${book.title}</h3>
+                  <span class="book-type-badge">
+                    ${isAudiobook ? 'Audiobook' : 'Physical Book'}
+                  </span>
+                </div>
+                <button class="toggle-button" onclick="toggleBookCard('${book.id}')" id="toggle-icon-${book.id}">
+                  ${isCollapsed ? '▶' : '▼'}
+                </button>
+              </div>
+              
+              <!-- Progress Section -->
+              <div class="progress-section">
+                <div class="progress-circle">
+                  <div class="progress-circle-bg" style="--progress-percent: ${progressPercent}%">
+                    <span class="progress-percentage">${progressPercent}%</span>
                   </div>
-                  <div class="ml-4">
-                    <span id="toggle-icon-${book.id}" class="text-xl transition-transform duration-200" style="color: #696773; transform: ${iconRotation};">${iconText}</span>
+                </div>
+                
+                <div class="progress-details">
+                  <div class="current-status">
+                    ${isAudiobook 
+                      ? `Chapter ${book.currentChapter} of ${book.total_chapters || 1}`
+                      : `Page ${book.currentPage} of ${book.total_pages || 1}`
+                    }
                   </div>
+                  <div class="progress-bar-container">
+                    <div class="progress-bar" style="width: ${progressPercent}%"></div>
+                  </div>
+                  ${readingPace ? `<div class="reading-pace ${readingPace.type}">${readingPace.text}</div>` : ''}
                 </div>
               </div>
               
-              <!-- Book Details - Collapsible -->
-              <div id="book-details-${book.id}" class="book-details" style="border-top: 1px solid #696773; display: ${displayStyle};">
-                <div class="p-4 pt-3">
-                  <div class="mb-3">
-                    <div class="flex items-center gap-2 text-sm flex-wrap" style="color: #696773;">
-                      ${book.target_date ? `<span>Target: ${new Date(book.target_date).toLocaleDateString()}</span>` : ''}
-                      ${remainingDaysText}
-                    </div>
-                    <div class="mt-1 text-xs" style="color: #696773;">
-                      Reading days: ${readingDaysText}
-                    </div>
+              <!-- Stats Grid -->
+              <div class="book-stats-grid">
+                <div class="stat-item">
+                  <span class="stat-value">${totalSessions}</span>
+                  <span class="stat-label">Sessions</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-value">${targetDate}</span>
+                  <span class="stat-label">Target</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-value">${isAudiobook ? (book.total_chapters || 1) - book.currentChapter : avgPagesPerDay}</span>
+                  <span class="stat-label">${isAudiobook ? 'Chapters Left' : 'Avg/Day'}</span>
+                </div>
+              </div>
+              
+              <!-- Quick Actions -->
+              <div class="book-actions">
+                <button onclick="openProgressModal('${book.id}')" class="btn-primary-redesigned">
+                  Log Progress
+                </button>
+                <button onclick="toggleBookCard('${book.id}')" class="btn-secondary-redesigned">
+                  ${isCollapsed ? 'View Details' : 'Hide Details'}
+                </button>
+              </div>
+              
+              <!-- Collapsible Details -->
+              <div id="book-details-${book.id}" class="collapsible-content" style="display: ${displayStyle};">
+                <div class="mb-4">
+                  <div class="text-sm mb-2" style="color: var(--text-secondary);">
+                    <strong>Reading Schedule:</strong> ${readingDaysText}
                   </div>
-                  
-                  ${book.progressEntries && book.progressEntries.length > 0 ? renderRecentProgress(book.progressEntries, isAudiobook) : ''}
-                  
-                  <div class="flex gap-2 flex-wrap mt-4 pt-3" style="border-top: 1px solid #696773;">
-                    <button onclick="openProgressModal('${book.id}')" class="btn-small-mobile text-sm rounded hover:opacity-80" style="background-color: rgba(0, 159, 183, 0.2); color: #009fb7;">
-                      Log Progress
+                  ${remainingReadingDays > 0 ? `
+                    <div class="text-sm" style="color: var(--text-secondary);">
+                      <strong>Days Remaining:</strong> ${remainingReadingDays} reading days
+                    </div>
+                  ` : ''}
+                </div>
+                
+                ${book.progressEntries && book.progressEntries.length > 0 ? renderRecentProgress(book.progressEntries, isAudiobook) : ''}
+                
+                <div style="margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border-color);">
+                  <div class="flex gap-2 flex-wrap">
+                    <button onclick="openEditBookModal('${book.id}')" class="btn-secondary-redesigned">
+                      Edit Book
                     </button>
-                    <button onclick="openEditBookModal('${book.id}')" class="btn-small-mobile text-sm rounded hover:opacity-80" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;">
-                      Edit
+                    <button onclick="exportBookLogs('${book.id}')" class="btn-secondary-redesigned">
+                      Export Data
                     </button>
-                    <button onclick="exportBookLogs('${book.id}')" class="btn-small-mobile text-sm rounded hover:opacity-80" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;">
-                      Export
-                    </button>
-                    <button onclick="deleteBook('${book.id}')" class="btn-small-mobile text-sm rounded hover:opacity-80" style="background-color: rgba(220, 38, 38, 0.2); color: #dc2626;">
+                    <button onclick="deleteBook('${book.id}')" class="btn-secondary-redesigned" style="color: var(--error); border-color: var(--error);">
                       Delete
                     </button>
-                    ${!isCompleted ? `<button onclick="finishBook('${book.id}')" class="btn-small-mobile text-sm rounded hover:opacity-80" style="background-color: rgba(34, 197, 94, 0.2); color: #22c55e;">
-                      Finish Book
-                    </button>` : ''}
+                    ${!isCompleted ? `
+                      <button onclick="finishBook('${book.id}')" class="btn-secondary-redesigned" style="color: var(--success); border-color: var(--success);">
+                        Mark Complete
+                      </button>
+                    ` : ''}
                   </div>
                 </div>
               </div>
@@ -1220,6 +1856,58 @@
       return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
 
+    function formatNotesForDisplay(notes) {
+      if (!notes) return '';
+      
+      // Escape HTML to prevent XSS attacks
+      const escaped = notes
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+      
+      // Convert line breaks to HTML breaks and preserve multiple spaces
+      return escaped
+        .replace(/\n/g, '<br>')
+        .replace(/\r\n/g, '<br>')
+        .replace(/\r/g, '<br>');
+    }
+
+    function calculateReadingPace(book, remainingReadingDays) {
+      if (!book.target_date || !remainingReadingDays) return null;
+      
+      const today = new Date();
+      const targetDate = new Date(book.target_date);
+      const isOverdue = today > targetDate;
+      
+      if (book.book_type === 'audiobook') {
+        const remainingChapters = (book.total_chapters || 1) - book.currentChapter;
+        const chaptersPerDay = remainingReadingDays > 0 ? Math.ceil(remainingChapters / remainingReadingDays) : 0;
+        
+        if (isOverdue && remainingChapters > 0) {
+          return { text: `${Math.abs(remainingReadingDays)} days overdue`, type: 'behind' };
+        } else if (remainingChapters <= 0) {
+          return { text: 'Completed!', type: 'ahead' };
+        } else {
+          return { text: `${chaptersPerDay} chapters/day to finish on time`, type: 'on-track' };
+        }
+      } else {
+        const remainingPages = (book.total_pages || 1) - book.currentPage;
+        const pagesPerDay = remainingReadingDays > 0 ? Math.ceil(remainingPages / remainingReadingDays) : 0;
+        
+        if (isOverdue && remainingPages > 0) {
+          return { text: `${Math.abs(remainingReadingDays)} days overdue`, type: 'behind' };
+        } else if (remainingPages <= 0) {
+          return { text: 'Completed!', type: 'ahead' };
+        } else if (pagesPerDay <= 20) {
+          return { text: `${pagesPerDay} pages/day - right on track!`, type: 'ahead' };
+        } else {
+          return { text: `${pagesPerDay} pages/day needed`, type: 'on-track' };
+        }
+      }
+    }
+
     function renderRecentProgress(sessions, isAudiobook = false) {
       const recent = sessions
         .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -1244,7 +1932,7 @@
                     <span class="font-medium" style="color: #eff1f3;">${progressText}</span>
                     <span class="mx-2">•</span>
                     <span>${new Date(session.date).toLocaleDateString()}</span>
-                    ${session.notes ? `<br><span class="italic" style="color: #696773;">${session.notes}</span>` : ''}
+                    ${session.notes ? `<br><div class="mt-2 italic whitespace-pre-wrap" style="color: #696773;">${formatNotesForDisplay(session.notes)}</div>` : ''}
                   </div>
                   <div class="flex gap-1">
                     <button onclick="openEditSessionModal('${session.id}')" class="btn-xs-mobile text-xs rounded hover:opacity-80" style="background-color: rgba(0, 159, 183, 0.2); color: #009fb7;">
@@ -1379,9 +2067,10 @@
           
           // Set audiobook field requirements
           chapterInput.required = true;
-          hoursInput.required = true;
-          minutesInput.required = true;
-          secondsInput.required = true;
+          // Time fields are optional - they'll default to 0 if empty
+          hoursInput.required = false;
+          minutesInput.required = false;
+          secondsInput.required = false;
         } else {
           physicalFields.classList.remove('hidden');
           audiobookFields.classList.add('hidden');
@@ -1590,9 +2279,10 @@
         
         // Set audiobook field requirements
         chapterInput.required = true;
-        hoursInput.required = true;
-        minutesInput.required = true;
-        secondsInput.required = true;
+        // Time fields are optional - they'll default to 0 if empty
+        hoursInput.required = false;
+        minutesInput.required = false;
+        secondsInput.required = false;
       } else {
         physicalFields.classList.remove('hidden');
         audiobookFields.classList.add('hidden');

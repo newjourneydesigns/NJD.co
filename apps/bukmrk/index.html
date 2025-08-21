@@ -1414,16 +1414,31 @@
       document.getElementById('edit-session-date').value = session.date;
       document.getElementById('edit-session-notes').value = session.notes || '';
       
-      // Show/hide appropriate fields
+      // Get field elements
       const physicalFields = document.getElementById('edit-physical-fields');
       const audiobookFields = document.getElementById('edit-audiobook-fields');
+      const startPageInput = document.getElementById('edit-start-page');
+      const endPageInput = document.getElementById('edit-end-page');
+      const chapterInput = document.getElementById('edit-chapter');
+      const hoursInput = document.getElementById('edit-hours');
+      const minutesInput = document.getElementById('edit-minutes');
+      const secondsInput = document.getElementById('edit-seconds');
       
+      // Clear all required attributes first
+      startPageInput.required = false;
+      endPageInput.required = false;
+      chapterInput.required = false;
+      hoursInput.required = false;
+      minutesInput.required = false;
+      secondsInput.required = false;
+      
+      // Show/hide appropriate fields and set requirements
       if (isAudiobook) {
         physicalFields.classList.add('hidden');
         audiobookFields.classList.remove('hidden');
         
         // Populate audiobook fields
-        document.getElementById('edit-chapter').value = session.chapter || '';
+        chapterInput.value = session.chapter || '';
         
         // Convert seconds back to hours, minutes, seconds
         const totalSeconds = session.minutes_listened || 0;
@@ -1431,32 +1446,26 @@
         const minutes = Math.floor((totalSeconds % 3600) / 60);
         const seconds = totalSeconds % 60;
         
-        document.getElementById('edit-hours').value = hours.toString().padStart(2, '0');
-        document.getElementById('edit-minutes').value = minutes.toString().padStart(2, '0');
-        document.getElementById('edit-seconds').value = seconds.toString().padStart(2, '0');
+        hoursInput.value = hours.toString().padStart(2, '0');
+        minutesInput.value = minutes.toString().padStart(2, '0');
+        secondsInput.value = seconds.toString().padStart(2, '0');
         
-        // Set field requirements
-        document.getElementById('edit-start-page').required = false;
-        document.getElementById('edit-end-page').required = false;
-        document.getElementById('edit-chapter').required = true;
-        document.getElementById('edit-hours').required = true;
-        document.getElementById('edit-minutes').required = true;
-        document.getElementById('edit-seconds').required = true;
+        // Set audiobook field requirements
+        chapterInput.required = true;
+        hoursInput.required = true;
+        minutesInput.required = true;
+        secondsInput.required = true;
       } else {
         physicalFields.classList.remove('hidden');
         audiobookFields.classList.add('hidden');
         
         // Populate physical book fields
-        document.getElementById('edit-start-page').value = session.start_page || '';
-        document.getElementById('edit-end-page').value = session.end_page || '';
+        startPageInput.value = session.start_page || '';
+        endPageInput.value = session.end_page || '';
         
-        // Set field requirements
-        document.getElementById('edit-start-page').required = true;
-        document.getElementById('edit-end-page').required = true;
-        document.getElementById('edit-chapter').required = false;
-        document.getElementById('edit-hours').required = false;
-        document.getElementById('edit-minutes').required = false;
-        document.getElementById('edit-seconds').required = false;
+        // Set physical book field requirements
+        startPageInput.required = true;
+        endPageInput.required = true;
       }
       
       showModal(editSessionModal);

@@ -242,18 +242,51 @@
   <!-- Edit Session Modal -->
   <div id="edit-session-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center p-4">
     <div class="rounded-lg p-6 w-full max-w-sm" style="background-color: #272727; border: 1px solid #696773;">
-      <h2 class="text-xl font-bold mb-4" style="color: #eff1f3;">Edit Reading Session</h2>
+      <h2 class="text-xl font-bold mb-4" style="color: #eff1f3;">Edit Session</h2>
       <form id="edit-session-form">
         <input type="hidden" id="edit-session-id" />
         <input type="hidden" id="edit-session-book-id" />
-        <div class="mb-4">
-          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Start Page</label>
-          <input id="edit-start-page" type="number" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
+        <input type="hidden" id="edit-session-book-type" />
+        
+        <!-- Physical Book Fields -->
+        <div id="edit-physical-fields">
+          <div class="mb-4">
+            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Start Page</label>
+            <input id="edit-start-page" type="number" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" />
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">End Page</label>
+            <input id="edit-end-page" type="number" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" />
+          </div>
         </div>
-        <div class="mb-4">
-          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">End Page</label>
-          <input id="edit-end-page" type="number" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
+        
+        <!-- Audiobook Fields -->
+        <div id="edit-audiobook-fields" class="hidden">
+          <div class="mb-4">
+            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Chapter</label>
+            <input id="edit-chapter" type="number" min="1" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" />
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Time Listened</label>
+            <div class="flex gap-2 items-center">
+              <div class="flex-1">
+                <input id="edit-hours" type="number" min="0" max="23" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" />
+                <label class="block text-xs text-center mt-1" style="color: #696773;">Hours</label>
+              </div>
+              <span style="color: #eff1f3; font-size: 1.2em;">:</span>
+              <div class="flex-1">
+                <input id="edit-minutes" type="number" min="0" max="59" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" />
+                <label class="block text-xs text-center mt-1" style="color: #696773;">Minutes</label>
+              </div>
+              <span style="color: #eff1f3; font-size: 1.2em;">:</span>
+              <div class="flex-1">
+                <input id="edit-seconds" type="number" min="0" max="59" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" />
+                <label class="block text-xs text-center mt-1" style="color: #696773;">Seconds</label>
+              </div>
+            </div>
+          </div>
         </div>
+        
         <div class="mb-4">
           <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Date</label>
           <input id="edit-session-date" type="date" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
@@ -561,7 +594,7 @@
     }
 
     function setupTimeInputHandlers() {
-      const timeInputs = ['progress-hours', 'progress-minutes', 'progress-seconds'];
+      const timeInputs = ['progress-hours', 'progress-minutes', 'progress-seconds', 'edit-hours', 'edit-minutes', 'edit-seconds'];
       
       timeInputs.forEach(inputId => {
         const input = document.getElementById(inputId);
@@ -1072,7 +1105,7 @@
       return `
         <div class="border-t pt-3 mt-3" style="border-color: #696773;">
           <h4 class="text-sm font-medium mb-2" style="color: #eff1f3;">Recent Progress</h4>
-          <div class="space-y-2 mb-3">
+          <div class="space-y-3">
             ${recent.map(session => {
               let progressText;
               if (isAudiobook) {
@@ -1084,30 +1117,21 @@
               
               return `
                 <div class="text-sm rounded p-2" style="color: #696773; background-color: rgba(105, 103, 115, 0.1);">
-                  <span class="font-medium" style="color: #eff1f3;">${progressText}</span>
-                  <span class="mx-2">•</span>
-                  <span>${new Date(session.date).toLocaleDateString()}</span>
-                  ${session.notes ? `<br><span class="italic" style="color: #696773;">${session.notes}</span>` : ''}
+                  <div class="mb-2">
+                    <span class="font-medium" style="color: #eff1f3;">${progressText}</span>
+                    <span class="mx-2">•</span>
+                    <span>${new Date(session.date).toLocaleDateString()}</span>
+                    ${session.notes ? `<br><span class="italic" style="color: #696773;">${session.notes}</span>` : ''}
+                  </div>
+                  <div class="flex gap-1">
+                    <button onclick="openEditSessionModal('${session.id}')" class="px-2 py-1 text-xs rounded hover:opacity-80" style="background-color: rgba(0, 159, 183, 0.2); color: #009fb7;">
+                      Edit
+                    </button>
+                    <button onclick="deleteSession('${session.id}')" class="px-2 py-1 text-xs rounded hover:opacity-80" style="background-color: rgba(220, 38, 38, 0.2); color: #dc2626;">
+                      Delete
+                    </button>
+                  </div>
                 </div>
-              `;
-            }).join('')}
-          </div>
-          <div class="flex flex-wrap gap-1">
-            ${recent.map(session => {
-              let sessionLabel;
-              if (isAudiobook) {
-                sessionLabel = `Ch ${session.chapter}`;
-              } else {
-                sessionLabel = `${session.start_page}-${session.end_page}`;
-              }
-              
-              return `
-                <button onclick="openEditSessionModal('${session.id}')" class="px-2 py-1 text-xs rounded hover:opacity-80" style="background-color: rgba(0, 159, 183, 0.2); color: #009fb7;" title="Edit ${sessionLabel}">
-                  Edit ${sessionLabel}
-                </button>
-                <button onclick="deleteSession('${session.id}')" class="px-2 py-1 text-xs rounded hover:opacity-80" style="background-color: rgba(220, 38, 38, 0.2); color: #dc2626;" title="Delete ${sessionLabel}">
-                  Delete ${sessionLabel}
-                </button>
               `;
             }).join('')}
           </div>
@@ -1369,24 +1393,71 @@
     function openEditSessionModal(sessionId) {
       // Find the session across all books
       let session = null;
-      let bookId = null;
+      let book = null;
       
-      for (const book of books) {
-        session = book.progressEntries.find(s => s.id === sessionId);
+      for (const currentBook of books) {
+        session = currentBook.progressEntries.find(s => s.id === sessionId);
         if (session) {
-          bookId = book.id;
+          book = currentBook;
           break;
         }
       }
       
-      if (!session) return;
+      if (!session || !book) return;
       
+      const isAudiobook = book.book_type === 'audiobook';
+      
+      // Set hidden fields
       document.getElementById('edit-session-id').value = session.id;
-      document.getElementById('edit-session-book-id').value = bookId;
-      document.getElementById('edit-start-page').value = session.start_page;
-      document.getElementById('edit-end-page').value = session.end_page;
+      document.getElementById('edit-session-book-id').value = book.id;
+      document.getElementById('edit-session-book-type').value = book.book_type || 'physical';
       document.getElementById('edit-session-date').value = session.date;
       document.getElementById('edit-session-notes').value = session.notes || '';
+      
+      // Show/hide appropriate fields
+      const physicalFields = document.getElementById('edit-physical-fields');
+      const audiobookFields = document.getElementById('edit-audiobook-fields');
+      
+      if (isAudiobook) {
+        physicalFields.classList.add('hidden');
+        audiobookFields.classList.remove('hidden');
+        
+        // Populate audiobook fields
+        document.getElementById('edit-chapter').value = session.chapter || '';
+        
+        // Convert seconds back to hours, minutes, seconds
+        const totalSeconds = session.minutes_listened || 0;
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        
+        document.getElementById('edit-hours').value = hours.toString().padStart(2, '0');
+        document.getElementById('edit-minutes').value = minutes.toString().padStart(2, '0');
+        document.getElementById('edit-seconds').value = seconds.toString().padStart(2, '0');
+        
+        // Set field requirements
+        document.getElementById('edit-start-page').required = false;
+        document.getElementById('edit-end-page').required = false;
+        document.getElementById('edit-chapter').required = true;
+        document.getElementById('edit-hours').required = true;
+        document.getElementById('edit-minutes').required = true;
+        document.getElementById('edit-seconds').required = true;
+      } else {
+        physicalFields.classList.remove('hidden');
+        audiobookFields.classList.add('hidden');
+        
+        // Populate physical book fields
+        document.getElementById('edit-start-page').value = session.start_page || '';
+        document.getElementById('edit-end-page').value = session.end_page || '';
+        
+        // Set field requirements
+        document.getElementById('edit-start-page').required = true;
+        document.getElementById('edit-end-page').required = true;
+        document.getElementById('edit-chapter').required = false;
+        document.getElementById('edit-hours').required = false;
+        document.getElementById('edit-minutes').required = false;
+        document.getElementById('edit-seconds').required = false;
+      }
       
       showModal(editSessionModal);
     }
@@ -1396,16 +1467,37 @@
       
       const sessionId = document.getElementById('edit-session-id').value;
       const bookId = document.getElementById('edit-session-book-id').value;
-      const startPage = parseInt(document.getElementById('edit-start-page').value);
-      const endPage = parseInt(document.getElementById('edit-end-page').value);
+      const bookType = document.getElementById('edit-session-book-type').value;
       
-      const sessionData = {
-        start_page: startPage,
-        end_page: endPage,
-        pages_read: endPage - startPage,
+      let sessionData = {
         date: document.getElementById('edit-session-date').value,
         notes: document.getElementById('edit-session-notes').value || null
       };
+
+      if (bookType === 'audiobook') {
+        const chapter = parseInt(document.getElementById('edit-chapter').value);
+        const hours = parseInt(document.getElementById('edit-hours').value) || 0;
+        const minutes = parseInt(document.getElementById('edit-minutes').value) || 0;
+        const seconds = parseInt(document.getElementById('edit-seconds').value) || 0;
+        
+        // Convert to total seconds
+        const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+        
+        sessionData.chapter = chapter;
+        sessionData.minutes_listened = totalSeconds;
+        sessionData.start_page = null;
+        sessionData.end_page = null;
+        sessionData.pages_read = null;
+      } else {
+        const startPage = parseInt(document.getElementById('edit-start-page').value);
+        const endPage = parseInt(document.getElementById('edit-end-page').value);
+        
+        sessionData.start_page = startPage;
+        sessionData.end_page = endPage;
+        sessionData.pages_read = endPage - startPage;
+        sessionData.chapter = null;
+        sessionData.minutes_listened = null;
+      }
 
       const { error: sessionError } = await supabase
         .from('sessions')
@@ -1417,8 +1509,21 @@
         return;
       }
 
-      // Recalculate the book's current page from all sessions
-      await recalculateBookProgress(bookId);
+      // Recalculate the book's current progress
+      if (bookType === 'audiobook') {
+        // For audiobooks, update current chapter
+        const { error: bookError } = await supabase
+          .from('books')
+          .update({ current_chapter: sessionData.chapter })
+          .eq('id', bookId);
+
+        if (bookError) {
+          console.error('Error updating audiobook progress:', bookError.message);
+        }
+      } else {
+        // For physical books, recalculate from all sessions
+        await recalculateBookProgress(bookId);
+      }
 
       hideModal(editSessionModal);
       await loadBooks();

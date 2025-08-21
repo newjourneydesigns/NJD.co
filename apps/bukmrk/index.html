@@ -105,6 +105,16 @@
     .main-container {
       max-width: 100%;
       width: 100%;
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+    
+    /* Mobile gets full width with just padding for safety */
+    @media (max-width: 767px) {
+      .main-container {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+      }
     }
     
     /* Tablet+ constraint for better readability */
@@ -113,6 +123,8 @@
         max-width: 48rem; /* 768px */
         margin-left: auto;
         margin-right: auto;
+        padding-left: 2rem;
+        padding-right: 2rem;
       }
     }
     
@@ -120,6 +132,8 @@
     @media (min-width: 1024px) {
       .main-container {
         max-width: 56rem; /* 896px */
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
       }
     }
     
@@ -367,9 +381,17 @@
     
     /* Modal optimizations for iPhone */
     .modal-content-mobile {
-      width: calc(100% - 2rem);
-      max-width: 28rem; /* 448px */
-      margin: 1rem;
+      width: calc(100% - 1.5rem);
+      max-width: 32rem; /* 512px */
+      margin: 0.75rem;
+    }
+    
+    @media (max-width: 640px) {
+      .modal-content-mobile {
+        width: calc(100% - 1rem);
+        max-width: none;
+        margin: 0.5rem;
+      }
     }
     
     /* Touch target improvements */

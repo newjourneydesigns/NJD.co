@@ -360,14 +360,9 @@
         <div class="rounded-lg shadow-md p-6 mb-6" style="background-color: #272727; border: 1px solid #696773;">
           <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold" style="color: #eff1f3;">Your Books</h2>
-            <div class="flex gap-2">
-              <button onclick="exportLogs()" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #696773; color: #eff1f3;">
-                Export Logs
-              </button>
-              <button onclick="openAddBookModal()" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">
-                Add Book
-              </button>
-            </div>
+            <button onclick="openAddBookModal()" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">
+              Add Book
+            </button>
           </div>
           
           ${hasBooks ? renderBooksList() : renderEmptyState()}
@@ -442,9 +437,15 @@
                   </div>
                 </div>
               </div>
-              <div class="flex gap-2 ml-4">
+              <div class="flex gap-2 ml-4 flex-wrap">
+                ${!isCompleted ? `<button onclick="finishBook('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(34, 197, 94, 0.2); color: #22c55e;">
+                  Finish Book
+                </button>` : ''}
                 <button onclick="openProgressModal('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(0, 159, 183, 0.2); color: #009fb7;">
                   Log Progress
+                </button>
+                <button onclick="exportBookLogs('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;">
+                  Export
                 </button>
                 <button onclick="openEditBookModal('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;">
                   Edit
@@ -816,6 +817,96 @@
       const a = document.createElement('a');
       a.href = url;
       a.download = `bukmrk-reading-logs-${new Date().toISOString().split('T')[0]}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    async function finishBook(bookId) {
+      const book = books.find(b => b.id === bookId);
+      if (!book) return;
+
+      if (book.currentPage >= book.total_pages) {
+        alert('This book is already finished!');
+        return;
+      }
+
+      if (!confirm(`Mark "${book.title}" as finished? This will set your progress to ${book.total_pages} pages.`)) {
+        return;
+      }
+
+      // Update the book's current page to total pages
+      const { error } = await supabase
+        .from('books')
+        .update({ current_page: book.total_pages })
+        .eq('id', bookId);
+
+      if (error) {
+        alert('Error finishing book: ' + error.message);
+        return;
+      }
+
+      await loadBooks();
+      renderApp();
+    }
+
+    function exportBookLogs(bookId) {
+      const book = books.find(b => b.id === bookId);
+      if (!book) return;
+
+      let exportText = `BUKMRK READING LOG\n`;
+      exportText += `Generated: ${new Date().toLocaleDateString()}\n`;
+      exportText += `User: ${currentUser.email}\n`;
+      exportText += `${'='.repeat(50)}\n\n`;
+
+      exportText += `📖 ${book.title}\n`;
+      exportText += `Total Pages: ${book.total_pages}\n`;
+      exportText += `Current Progress: ${book.currentPage} pages (${Math.round((book.currentPage / book.total_pages) * 100)}%)\n`;
+      
+      if (book.due_date) {
+        exportText += `Target Date: ${new Date(book.due_date).toLocaleDateString()}\n`;
+      }
+      
+      // Reading days
+      const readingDays = book.reading_days || [true,true,true,true,true,true,true];
+      const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const readingDaysText = dayNames.filter((day, index) => readingDays[index]).join(', ');
+      exportText += `Reading Days: ${readingDaysText}\n`;
+      
+      exportText += `\nReading Sessions:\n`;
+      exportText += `${'-'.repeat(30)}\n`;
+      
+      if (book.progressEntries && book.progressEntries.length > 0) {
+        // Sort sessions by date
+        const sortedSessions = book.progressEntries
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+          
+        sortedSessions.forEach(session => {
+          exportText += `${new Date(session.date).toLocaleDateString()}: `;
+          exportText += `Pages ${session.start_page}-${session.end_page} (${session.pages_read} pages)`;
+          if (session.notes) {
+            exportText += `\n  Notes: ${session.notes}`;
+          }
+          exportText += `\n`;
+        });
+        
+        // Summary stats
+        const totalPagesRead = sortedSessions.reduce((sum, session) => sum + session.pages_read, 0);
+        const avgPagesPerSession = Math.round(totalPagesRead / sortedSessions.length);
+        exportText += `\nStats: ${sortedSessions.length} sessions, ${totalPagesRead} total pages, ${avgPagesPerSession} avg pages/session\n`;
+      } else {
+        exportText += `No reading sessions recorded.\n`;
+      }
+
+      // Create and download file
+      const blob = new Blob([exportText], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      // Use book title in filename, sanitized for file system
+      const safeTitle = book.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      a.download = `bukmrk-${safeTitle}-${new Date().toISOString().split('T')[0]}.txt`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

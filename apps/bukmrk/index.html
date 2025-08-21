@@ -33,20 +33,20 @@
   <meta name="apple-mobile-web-app-title" content="Bukmrk">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="min-h-screen bg-gray-100 font-sans antialiased text-gray-900 flex flex-col items-center p-4 sm:p-6">
+<body class="min-h-screen font-sans antialiased flex flex-col items-center p-4 sm:p-6" style="background-color: #272727; color: #eff1f3;">
   <header class="w-full max-w-xl text-center mb-6">
-    <h1 class="text-4xl sm:text-5xl font-extrabold text-blue-700 leading-tight">Bukmrk</h1>
-    <p class="text-lg sm:text-xl text-gray-600 mt-2">Track your books, plan your pace.</p>
+    <h1 class="text-4xl sm:text-5xl font-extrabold leading-tight" style="color: #009fb7;">Bukmrk</h1>
+    <p class="text-lg sm:text-xl mt-2" style="color: #eff1f3;">Track your books, plan your pace.</p>
   </header>
 
   <!-- Auth -->
-  <section id="auth-section" class="w-full max-w-xl bg-white rounded-lg shadow-md p-5 mb-6 hidden">
-    <h2 class="text-xl font-bold mb-3">Sign in</h2>
+  <section id="auth-section" class="w-full max-w-xl rounded-lg shadow-md p-5 mb-6 hidden" style="background-color: #272727; border: 1px solid #696773;">
+    <h2 class="text-xl font-bold mb-3" style="color: #eff1f3;">Sign in</h2>
     <form id="magic-form" class="flex gap-2 mb-3">
-      <input id="magic-email" type="email" placeholder="you@example.com" class="flex-1 px-3 py-2 border rounded-md" required />
-      <button class="px-4 py-2 bg-blue-600 text-white rounded-md">Send magic link</button>
+      <input id="magic-email" type="email" placeholder="you@example.com" class="flex-1 px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
+      <button class="px-4 py-2 rounded-md" style="background-color: #009fb7; color: #eff1f3;">Send magic link</button>
     </form>
-    <button id="google-btn" class="px-4 py-2 bg-gray-800 text-white rounded-md">Continue with Google</button>
+    <button id="google-btn" class="px-4 py-2 rounded-md" style="background-color: #696773; color: #eff1f3;">Continue with Google</button>
   </section>
 
   <!-- App -->
@@ -54,123 +54,123 @@
 
   <!-- User menu -->
   <div id="user-menu" class="fixed top-3 right-3 hidden">
-    <div class="bg-white border rounded-md shadow px-3 py-2 flex items-center gap-3">
-      <span id="user-email" class="text-sm text-gray-700"></span>
-      <button id="signout-btn" class="text-sm bg-gray-100 px-3 py-1 rounded hover:bg-gray-200">Sign out</button>
+    <div class="border rounded-md shadow px-3 py-2 flex items-center gap-3" style="background-color: #272727; border-color: #696773;">
+      <span id="user-email" class="text-sm" style="color: #eff1f3;"></span>
+      <button id="signout-btn" class="text-sm px-3 py-1 rounded hover:opacity-80" style="background-color: #696773; color: #eff1f3;">Sign out</button>
     </div>
   </div>
 
   <!-- Add/Edit Book Modal -->
-  <div id="book-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg p-6 w-full max-w-md">
-      <h2 id="book-modal-title" class="text-xl font-bold mb-4">Add Book</h2>
+  <div id="book-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center p-4">
+    <div class="rounded-lg p-4 sm:p-6 w-full max-w-xs sm:max-w-md" style="background-color: #272727; border: 1px solid #696773;">
+      <h2 id="book-modal-title" class="text-xl font-bold mb-4" style="color: #eff1f3;">Add Book</h2>
       <form id="book-form">
         <input type="hidden" id="book-id" />
         <div class="mb-4">
-          <label class="block text-sm font-medium mb-2">Title</label>
-          <input id="book-title" type="text" class="w-full px-3 py-2 border rounded-md" required />
+          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Title</label>
+          <input id="book-title" type="text" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
         </div>
         <div class="mb-4">
-          <label class="block text-sm font-medium mb-2">Total Pages</label>
-          <input id="book-pages" type="number" class="w-full px-3 py-2 border rounded-md" required />
+          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Total Pages</label>
+          <input id="book-pages" type="number" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
         </div>
         <div class="mb-4">
-          <label class="block text-sm font-medium mb-2">Reading Days</label>
+          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Reading Days</label>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <label class="flex items-center">
-              <input type="checkbox" id="reading-sun" class="mr-2" checked />
+            <label class="flex items-center" style="color: #eff1f3;">
+              <input type="checkbox" id="reading-sun" class="mr-2" style="accent-color: #009fb7;" checked />
               <span class="text-sm">Sun</span>
             </label>
-            <label class="flex items-center">
-              <input type="checkbox" id="reading-mon" class="mr-2" checked />
+            <label class="flex items-center" style="color: #eff1f3;">
+              <input type="checkbox" id="reading-mon" class="mr-2" style="accent-color: #009fb7;" checked />
               <span class="text-sm">Mon</span>
             </label>
-            <label class="flex items-center">
-              <input type="checkbox" id="reading-tue" class="mr-2" checked />
+            <label class="flex items-center" style="color: #eff1f3;">
+              <input type="checkbox" id="reading-tue" class="mr-2" style="accent-color: #009fb7;" checked />
               <span class="text-sm">Tue</span>
             </label>
-            <label class="flex items-center">
-              <input type="checkbox" id="reading-wed" class="mr-2" checked />
+            <label class="flex items-center" style="color: #eff1f3;">
+              <input type="checkbox" id="reading-wed" class="mr-2" style="accent-color: #009fb7;" checked />
               <span class="text-sm">Wed</span>
             </label>
-            <label class="flex items-center">
-              <input type="checkbox" id="reading-thu" class="mr-2" checked />
+            <label class="flex items-center" style="color: #eff1f3;">
+              <input type="checkbox" id="reading-thu" class="mr-2" style="accent-color: #009fb7;" checked />
               <span class="text-sm">Thu</span>
             </label>
-            <label class="flex items-center">
-              <input type="checkbox" id="reading-fri" class="mr-2" checked />
+            <label class="flex items-center" style="color: #eff1f3;">
+              <input type="checkbox" id="reading-fri" class="mr-2" style="accent-color: #009fb7;" checked />
               <span class="text-sm">Fri</span>
             </label>
-            <label class="flex items-center">
-              <input type="checkbox" id="reading-sat" class="mr-2" checked />
+            <label class="flex items-center" style="color: #eff1f3;">
+              <input type="checkbox" id="reading-sat" class="mr-2" style="accent-color: #009fb7;" checked />
               <span class="text-sm">Sat</span>
             </label>
           </div>
         </div>
         <div class="mb-4">
-          <label class="block text-sm font-medium mb-2">Target Finish Date (optional)</label>
-          <input id="book-target-date" type="date" class="w-full px-3 py-2 border rounded-md" />
+          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Target Finish Date (optional)</label>
+          <input id="book-target-date" type="date" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" />
         </div>
         <div class="flex gap-2 justify-end">
-          <button type="button" id="cancel-book" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md">Cancel</button>
-          <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Save</button>
+          <button type="button" id="cancel-book" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #696773; color: #eff1f3;">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">Save</button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- Progress Log Modal -->
-  <div id="progress-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg p-6 w-full max-w-md">
-      <h2 class="text-xl font-bold mb-4">Log Reading Progress</h2>
+  <div id="progress-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center p-4">
+    <div class="rounded-lg p-6 w-full max-w-md" style="background-color: #272727; border: 1px solid #696773;">
+      <h2 class="text-xl font-bold mb-4" style="color: #eff1f3;">Log Reading Progress</h2>
       <form id="progress-form">
         <input type="hidden" id="progress-book-id" />
         <div class="mb-4">
-          <label class="block text-sm font-medium mb-2">Pages Read</label>
-          <input id="progress-pages" type="number" class="w-full px-3 py-2 border rounded-md" required />
+          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Pages Read</label>
+          <input id="progress-pages" type="number" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
         </div>
         <div class="mb-4">
-          <label class="block text-sm font-medium mb-2">Date</label>
-          <input id="progress-date" type="date" class="w-full px-3 py-2 border rounded-md" required />
+          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Date</label>
+          <input id="progress-date" type="date" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
         </div>
         <div class="mb-4">
-          <label class="block text-sm font-medium mb-2">Notes (optional)</label>
-          <textarea id="progress-notes" class="w-full px-3 py-2 border rounded-md" rows="3"></textarea>
+          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Notes (optional)</label>
+          <textarea id="progress-notes" class="w-full px-3 py-2 border rounded-md" rows="3" style="background-color: #272727; color: #eff1f3; border-color: #696773;"></textarea>
         </div>
         <div class="flex gap-2 justify-end">
-          <button type="button" id="cancel-progress" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md">Cancel</button>
-          <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Log Progress</button>
+          <button type="button" id="cancel-progress" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #696773; color: #eff1f3;">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">Log Progress</button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- Edit Session Modal -->
-  <div id="edit-session-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg p-6 w-full max-w-md">
-      <h2 class="text-xl font-bold mb-4">Edit Reading Session</h2>
+  <div id="edit-session-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center p-4">
+    <div class="rounded-lg p-6 w-full max-w-md" style="background-color: #272727; border: 1px solid #696773;">
+      <h2 class="text-xl font-bold mb-4" style="color: #eff1f3;">Edit Reading Session</h2>
       <form id="edit-session-form">
         <input type="hidden" id="edit-session-id" />
         <input type="hidden" id="edit-session-book-id" />
         <div class="mb-4">
-          <label class="block text-sm font-medium mb-2">Start Page</label>
-          <input id="edit-start-page" type="number" class="w-full px-3 py-2 border rounded-md" required />
+          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Start Page</label>
+          <input id="edit-start-page" type="number" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
         </div>
         <div class="mb-4">
-          <label class="block text-sm font-medium mb-2">End Page</label>
-          <input id="edit-end-page" type="number" class="w-full px-3 py-2 border rounded-md" required />
+          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">End Page</label>
+          <input id="edit-end-page" type="number" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
         </div>
         <div class="mb-4">
-          <label class="block text-sm font-medium mb-2">Date</label>
-          <input id="edit-session-date" type="date" class="w-full px-3 py-2 border rounded-md" required />
+          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Date</label>
+          <input id="edit-session-date" type="date" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
         </div>
         <div class="mb-4">
-          <label class="block text-sm font-medium mb-2">Notes (optional)</label>
-          <textarea id="edit-session-notes" class="w-full px-3 py-2 border rounded-md" rows="3"></textarea>
+          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Notes (optional)</label>
+          <textarea id="edit-session-notes" class="w-full px-3 py-2 border rounded-md" rows="3" style="background-color: #272727; color: #eff1f3; border-color: #696773;"></textarea>
         </div>
         <div class="flex gap-2 justify-end">
-          <button type="button" id="cancel-edit-session" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md">Cancel</button>
-          <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Update Session</button>
+          <button type="button" id="cancel-edit-session" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #696773; color: #eff1f3;">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">Update Session</button>
         </div>
       </form>
     </div>
@@ -357,10 +357,10 @@
       const hasBooks = books.length > 0;
       
       appMainContent.innerHTML = `
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="rounded-lg shadow-md p-6 mb-6" style="background-color: #272727; border: 1px solid #696773;">
           <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold">Your Books</h2>
-            <button onclick="openAddBookModal()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+            <h2 class="text-2xl font-bold" style="color: #eff1f3;">Your Books</h2>
+            <button onclick="openAddBookModal()" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">
               Add Book
             </button>
           </div>
@@ -373,10 +373,10 @@
     function renderEmptyState() {
       return `
         <div class="text-center py-12">
-          <div class="text-gray-400 text-6xl mb-4">📚</div>
-          <h3 class="text-xl font-medium text-gray-600 mb-2">No books yet</h3>
-          <p class="text-gray-500 mb-6">Start tracking your reading journey by adding your first book.</p>
-          <button onclick="openAddBookModal()" class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+          <div class="text-6xl mb-4" style="color: #696773;">📚</div>
+          <h3 class="text-xl font-medium mb-2" style="color: #eff1f3;">No books yet</h3>
+          <p class="mb-6" style="color: #696773;">Start tracking your reading journey by adding your first book.</p>
+          <button onclick="openAddBookModal()" class="px-6 py-3 rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">
             Add Your First Book
           </button>
         </div>
@@ -417,34 +417,34 @@
         }
         
         return `
-          <div class="border rounded-lg p-4 mb-4 ${isCompleted ? 'bg-green-50 border-green-200' : ''}">
+          <div class="border rounded-lg p-4 mb-4 ${isCompleted ? '' : ''}" style="background-color: #272727; border-color: #696773; ${isCompleted ? 'background-color: #009fb7; background-color: rgba(0, 159, 183, 0.1);' : ''}">
             <div class="flex justify-between items-start mb-3">
               <div class="flex-1">
-                <h3 class="font-semibold text-lg">${book.title}</h3>
+                <h3 class="font-semibold text-lg" style="color: #eff1f3;">${book.title}</h3>
                 <div class="mt-2">
-                  <div class="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
+                  <div class="flex items-center gap-2 text-sm flex-wrap" style="color: #696773;">
                     <span>${book.currentPage} of ${book.total_pages} pages</span>
                     <span>•</span>
                     <span>${progressPercent}% complete</span>
                     ${book.target_date ? `<span>•</span><span>Target: ${new Date(book.target_date).toLocaleDateString()}</span>` : ''}
                     ${remainingDaysText}
                   </div>
-                  <div class="mt-1 text-xs text-gray-400">
+                  <div class="mt-1 text-xs" style="color: #696773;">
                     Reading days: ${readingDaysText}
                   </div>
-                  <div class="mt-2 bg-gray-200 rounded-full h-2">
-                    <div class="bg-blue-600 h-2 rounded-full transition-all" style="width: ${progressPercent}%"></div>
+                  <div class="mt-2 rounded-full h-2" style="background-color: #696773;">
+                    <div class="h-2 rounded-full transition-all" style="width: ${progressPercent}%; background-color: #009fb7;"></div>
                   </div>
                 </div>
               </div>
               <div class="flex gap-2 ml-4">
-                <button onclick="openProgressModal('${book.id}')" class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+                <button onclick="openProgressModal('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(0, 159, 183, 0.2); color: #009fb7;">
                   Log Progress
                 </button>
-                <button onclick="openEditBookModal('${book.id}')" class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
+                <button onclick="openEditBookModal('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;">
                   Edit
                 </button>
-                <button onclick="deleteBook('${book.id}')" class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200">
+                <button onclick="deleteBook('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(220, 38, 38, 0.2); color: #dc2626;">
                   Delete
                 </button>
               </div>
@@ -461,22 +461,22 @@
         .slice(0, 3);
       
       return `
-        <div class="border-t pt-3 mt-3">
-          <h4 class="text-sm font-medium text-gray-700 mb-2">Recent Progress</h4>
+        <div class="border-t pt-3 mt-3" style="border-color: #696773;">
+          <h4 class="text-sm font-medium mb-2" style="color: #eff1f3;">Recent Progress</h4>
           <div class="space-y-2">
             ${recent.map(session => `
-              <div class="flex justify-between items-center text-sm text-gray-600 bg-gray-50 rounded p-2">
+              <div class="flex justify-between items-center text-sm rounded p-2" style="color: #696773; background-color: rgba(105, 103, 115, 0.1);">
                 <div class="flex-1">
-                  <span class="font-medium">Pages ${session.start_page}-${session.end_page} (${session.pages_read} pages)</span>
+                  <span class="font-medium" style="color: #eff1f3;">Pages ${session.start_page}-${session.end_page} (${session.pages_read} pages)</span>
                   <span class="mx-2">•</span>
                   <span>${new Date(session.date).toLocaleDateString()}</span>
-                  ${session.notes ? `<br><span class="italic text-gray-500">${session.notes}</span>` : ''}
+                  ${session.notes ? `<br><span class="italic" style="color: #696773;">${session.notes}</span>` : ''}
                 </div>
                 <div class="flex gap-1 ml-2">
-                  <button onclick="openEditSessionModal('${session.id}')" class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+                  <button onclick="openEditSessionModal('${session.id}')" class="px-2 py-1 text-xs rounded hover:opacity-80" style="background-color: rgba(0, 159, 183, 0.2); color: #009fb7;">
                     Edit
                   </button>
-                  <button onclick="deleteSession('${session.id}')" class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200">
+                  <button onclick="deleteSession('${session.id}')" class="px-2 py-1 text-xs rounded hover:opacity-80" style="background-color: rgba(220, 38, 38, 0.2); color: #dc2626;">
                     Delete
                   </button>
                 </div>

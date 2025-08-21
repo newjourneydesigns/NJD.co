@@ -151,7 +151,7 @@
     
     /* Enhanced Book Card Design */
     .book-card-redesigned {
-      background: var(--surface-primary);
+      background: linear-gradient(135deg, var(--surface-primary) 0%, rgba(35, 35, 35, 1) 100%);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
       padding: var(--space-6);
@@ -399,12 +399,26 @@
       border-radius: 14px;
     }
     
+    /* Progress modal - maximum width on mobile */
+    #progress-modal .modal-content-mobile {
+      width: calc(100vw - 1rem);
+      max-width: none;
+      margin: 0.5rem;
+    }
+    
     /* iPhone modal optimization */
     @media (max-width: 428px) {
       .modal-content-mobile {
         width: calc(100vw - 1rem);
         margin: 0.5rem;
         border-radius: 12px;
+      }
+      
+      /* Progress modal gets even more aggressive width on small screens */
+      #progress-modal .modal-content-mobile {
+        width: calc(100vw - 0.5rem);
+        margin: 0.25rem;
+        border-radius: 10px;
       }
     }
     
@@ -414,6 +428,11 @@
         width: auto;
         max-width: 32rem;
         margin: 2rem auto;
+      }
+      
+      /* Progress modal stays wider even on larger screens for better form layout */
+      #progress-modal .modal-content-mobile {
+        max-width: 40rem;
       }
     }
     
@@ -1983,7 +2002,7 @@
                     <span class="font-medium" style="color: #eff1f3;">${progressText}</span>
                     <span class="mx-2">•</span>
                     <span>${new Date(session.date).toLocaleDateString()}</span>
-                    ${session.notes ? `<br><div class="mt-2 italic whitespace-pre-wrap" style="color: #696773;">${formatNotesForDisplay(session.notes)}</div>` : ''}
+                    ${session.notes ? `<br><div class="mt-2 italic whitespace-pre-wrap" style="color: #a0a0a0;">${formatNotesForDisplay(session.notes)}</div>` : ''}
                   </div>
                   <div class="flex gap-1">
                     <button onclick="openEditSessionModal('${session.id}')" class="btn-xs-mobile text-xs rounded hover:opacity-80" style="background-color: rgba(0, 159, 183, 0.2); color: #009fb7;">

@@ -87,51 +87,63 @@
       --radius-lg: 0.75rem;   /* 12px */
     }
     
-    /* iPhone safe area support */
+    /* iPhone safe area support - iOS edge-to-edge design */
     .safe-area-container {
-      padding-left: max(1rem, env(safe-area-inset-left));
-      padding-right: max(1rem, env(safe-area-inset-right));
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
     }
     
     .safe-area-top {
-      padding-top: max(1.5rem, env(safe-area-inset-top));
+      padding-top: max(0.5rem, env(safe-area-inset-top));
     }
     
     .safe-area-bottom {
-      padding-bottom: max(2rem, env(safe-area-inset-bottom));
+      padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
     }
     
-    /* Responsive layout containers */
+    /* iOS-style full-width containers */
     .main-container {
-      max-width: 100%;
       width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 0;
+    }
+    
+    /* Content gets iOS-standard padding */
+    .ios-content {
       padding-left: 1rem;
       padding-right: 1rem;
     }
     
-    /* Mobile gets full width with just padding for safety */
-    @media (max-width: 767px) {
-      .main-container {
-        padding-left: 0.75rem;
-        padding-right: 0.75rem;
-      }
+    /* iOS card margins */
+    .ios-section {
+      margin-bottom: 1rem;
     }
     
-    /* Tablet+ constraint for better readability */
+    .ios-section:not(.no-margin) {
+      margin-left: 1rem;
+      margin-right: 1rem;
+    }
+    
+    /* Only constrain width on large screens (desktop) */
     @media (min-width: 768px) {
       .main-container {
-        max-width: 48rem; /* 768px */
+        max-width: 48rem;
         margin-left: auto;
         margin-right: auto;
-        padding-left: 2rem;
-        padding-right: 2rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+      
+      .ios-section:not(.no-margin) {
+        margin-left: 0;
+        margin-right: 0;
       }
     }
     
-    /* Desktop constraint */
     @media (min-width: 1024px) {
       .main-container {
-        max-width: 56rem; /* 896px */
+        max-width: 56rem;
         padding-left: 1.5rem;
         padding-right: 1.5rem;
       }
@@ -379,18 +391,29 @@
       border-top: 1px solid var(--border-color);
     }
     
-    /* Modal optimizations for iPhone */
+    /* iOS-style modals */
     .modal-content-mobile {
-      width: calc(100% - 1.5rem);
-      max-width: 32rem; /* 512px */
-      margin: 0.75rem;
+      width: calc(100vw - 2rem);
+      max-width: none;
+      margin: 1rem;
+      border-radius: 14px;
     }
     
-    @media (max-width: 640px) {
+    /* iPhone modal optimization */
+    @media (max-width: 428px) {
       .modal-content-mobile {
-        width: calc(100% - 1rem);
-        max-width: none;
+        width: calc(100vw - 1rem);
         margin: 0.5rem;
+        border-radius: 12px;
+      }
+    }
+    
+    /* Larger screens get reasonable constraints */
+    @media (min-width: 768px) {
+      .modal-content-mobile {
+        width: auto;
+        max-width: 32rem;
+        margin: 2rem auto;
       }
     }
     
@@ -492,18 +515,27 @@
       }
     }
     
-    /* Book Card Redesign */
-    .book-card-redesigned {
-      background: var(--surface);
-      border: 1px solid var(--border-color);
-      border-radius: var(--border-radius-lg);
-      margin-bottom: var(--space-4);
-      overflow: hidden;
-      transition: var(--transition-base);
-      position: relative;
-    }
-    
-    .book-card-redesigned.completed {
+        /* Book Card Redesign - iOS Style */
+        .book-card-redesigned {
+          background: var(--surface);
+          border: 1px solid var(--border-color);
+          border-radius: 12px;
+          margin-bottom: var(--space-3);
+          margin-left: 0;
+          margin-right: 0;
+          overflow: hidden;
+          transition: var(--transition-base);
+          position: relative;
+        }
+        
+        /* iOS-style margins on mobile */
+        @media (max-width: 767px) {
+          .book-card-redesigned {
+            margin-left: 0;
+            margin-right: 0;
+            border-radius: 12px;
+          }
+        }    .book-card-redesigned.completed {
       background: var(--surface-accent);
       border-color: var(--primary);
     }
@@ -784,7 +816,7 @@
   </style>
 </head>
 <body class="min-h-screen font-sans antialiased flex flex-col items-center safe-area-container safe-area-top safe-area-bottom" style="background-color: #272727; color: #eff1f3;">
-  <header class="w-full main-container text-center mb-6">
+  <header class="w-full main-container ios-content text-center mb-6">
     <div class="flex justify-between items-start mb-2">
       <div></div>
       <div class="flex-1">
@@ -798,7 +830,7 @@
   </header>
 
   <!-- Auth -->
-  <section id="auth-section" class="w-full main-container rounded-lg shadow-md p-5 mb-6 hidden" style="background-color: #272727; border: 1px solid #696773;">
+  <section id="auth-section" class="w-full main-container ios-section rounded-lg shadow-md p-5 mb-6 hidden" style="background-color: #272727; border: 1px solid #696773;">
     <div class="flex gap-2 mb-4">
       <button id="magic-tab" class="flex-1 px-3 py-2 text-sm rounded-md transition-colors" style="background-color: #009fb7; color: #eff1f3;">Magic Link</button>
       <button id="password-tab" class="flex-1 px-3 py-2 text-sm rounded-md transition-colors" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;">Password</button>
@@ -836,14 +868,14 @@
   <main id="app-main-content" class="w-full main-container"></main>
 
   <!-- Footer -->
-  <footer class="w-full main-container text-center mt-8 pt-6" style="border-top: 1px solid #696773;">
+  <footer class="w-full main-container ios-content text-center mt-8 pt-6" style="border-top: 1px solid #696773;">
     <p class="text-sm" style="color: #696773;">
       © <span id="current-year"></span> Created by <a href="https://NewJourneyDesigns.Co" target="_blank" class="hover:opacity-80" style="color: #009fb7;">NewJourneyDesigns.Co</a> for the betterment of your mind, body, and soul.
     </p>
   </footer>
 
   <!-- User menu -->
-  <div id="user-menu" class="w-full main-container mb-4 hidden">
+  <div id="user-menu" class="w-full main-container ios-content mb-4 hidden">
     <div class="flex justify-end">
       <div class="border rounded-md shadow px-2 py-1 flex items-center gap-2" style="background-color: #272727; border-color: #696773;">
         <span id="user-email" class="text-xs" style="color: #eff1f3;"></span>
@@ -1665,7 +1697,7 @@
         const hasBooks = books.length > 0;
         
         appMainContent.innerHTML = `
-          <div class="rounded-lg shadow-md p-6 mb-6" style="background-color: #272727; border: 1px solid #696773;">
+          <div class="ios-section rounded-lg shadow-md p-6 mb-6" style="background-color: #272727; border: 1px solid #696773;">
             <div class="flex justify-between items-center mb-6">
               <h2 class="text-2xl font-bold" style="color: #eff1f3;">Your Books</h2>
               <div class="flex gap-2">
@@ -1684,7 +1716,7 @@
       } catch (error) {
         console.error('Error rendering app:', error);
         appMainContent.innerHTML = `
-          <div class="rounded-lg shadow-md p-6 mb-6" style="background-color: #272727; border: 1px solid #696773;">
+          <div class="ios-section rounded-lg shadow-md p-6 mb-6" style="background-color: #272727; border: 1px solid #696773;">
             <div class="text-center py-12">
               <h3 class="text-xl font-medium mb-2" style="color: #eff1f3;">Error Loading App</h3>
               <p class="mb-6" style="color: #696773;">Something went wrong. Please refresh the page to try again.</p>

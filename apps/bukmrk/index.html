@@ -38,16 +38,445 @@
     </div>
   </div>
 
-  <!-- Modals (add/edit book + log progress) -->
-  <!-- ... trimmed for brevity but same structure as before ... -->
+  <!-- Add/Edit Book Modal -->
+  <div id="book-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+      <h2 id="book-modal-title" class="text-xl font-bold mb-4">Add Book</h2>
+      <form id="book-form">
+        <input type="hidden" id="book-id" />
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">Title</label>
+          <input id="book-title" type="text" class="w-full px-3 py-2 border rounded-md" required />
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">Author</label>
+          <input id="book-author" type="text" class="w-full px-3 py-2 border rounded-md" required />
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">Total Pages</label>
+          <input id="book-pages" type="number" class="w-full px-3 py-2 border rounded-md" required />
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">Target Finish Date (optional)</label>
+          <input id="book-target-date" type="date" class="w-full px-3 py-2 border rounded-md" />
+        </div>
+        <div class="flex gap-2 justify-end">
+          <button type="button" id="cancel-book" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md">Cancel</button>
+          <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Progress Log Modal -->
+  <div id="progress-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+      <h2 class="text-xl font-bold mb-4">Log Reading Progress</h2>
+      <form id="progress-form">
+        <input type="hidden" id="progress-book-id" />
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">Pages Read</label>
+          <input id="progress-pages" type="number" class="w-full px-3 py-2 border rounded-md" required />
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">Date</label>
+          <input id="progress-date" type="date" class="w-full px-3 py-2 border rounded-md" required />
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">Notes (optional)</label>
+          <textarea id="progress-notes" class="w-full px-3 py-2 border rounded-md" rows="3"></textarea>
+        </div>
+        <div class="flex gap-2 justify-end">
+          <button type="button" id="cancel-progress" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md">Cancel</button>
+          <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Log Progress</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script>
     const SUPABASE_URL = "https://avxnsohsmxgjwuxmwqnx.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2eG5zb2hzbXhnand1eG13cW54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3Nzk0OTksImV4cCI6MjA3MTM1NTQ5OX0.3Ltd3dHa5GxE4ph7n84oAqlDLgD4SO9pN7KPIhoY7uY";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Basic flow: auth → load books → CRUD via Supabase
-    // (full JS logic from previous generated file goes here, including RLS-safe queries)
+    let currentUser = null;
+    let books = [];
+    let editingBookId = null;
+
+    // DOM Elements
+    const authSection = document.getElementById('auth-section');
+    const appMainContent = document.getElementById('app-main-content');
+    const userMenu = document.getElementById('user-menu');
+    const userEmail = document.getElementById('user-email');
+    const magicForm = document.getElementById('magic-form');
+    const googleBtn = document.getElementById('google-btn');
+    const signoutBtn = document.getElementById('signout-btn');
+    
+    // Modal elements
+    const bookModal = document.getElementById('book-modal');
+    const bookForm = document.getElementById('book-form');
+    const progressModal = document.getElementById('progress-modal');
+    const progressForm = document.getElementById('progress-form');
+
+    // Initialize app
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Check for existing session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        handleAuthSuccess(session.user);
+      } else {
+        showAuthSection();
+      }
+
+      // Listen for auth changes
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          handleAuthSuccess(session.user);
+        } else if (event === 'SIGNED_OUT') {
+          handleSignOut();
+        }
+      });
+
+      setupEventListeners();
+    });
+
+    function setupEventListeners() {
+      // Auth form handlers
+      magicForm.addEventListener('submit', handleMagicLinkSubmit);
+      googleBtn.addEventListener('click', handleGoogleAuth);
+      signoutBtn.addEventListener('click', handleSignOut);
+
+      // Modal handlers
+      bookForm.addEventListener('submit', handleBookSubmit);
+      progressForm.addEventListener('submit', handleProgressSubmit);
+      
+      // Modal close handlers
+      document.getElementById('cancel-book').addEventListener('click', () => hideModal(bookModal));
+      document.getElementById('cancel-progress').addEventListener('click', () => hideModal(progressModal));
+      
+      // Close modals when clicking outside
+      bookModal.addEventListener('click', (e) => {
+        if (e.target === bookModal) hideModal(bookModal);
+      });
+      progressModal.addEventListener('click', (e) => {
+        if (e.target === progressModal) hideModal(progressModal);
+      });
+    }
+
+    async function handleMagicLinkSubmit(e) {
+      e.preventDefault();
+      const email = document.getElementById('magic-email').value;
+      
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: { emailRedirectTo: window.location.href }
+      });
+
+      if (error) {
+        alert('Error sending magic link: ' + error.message);
+      } else {
+        alert('Check your email for the magic link!');
+      }
+    }
+
+    async function handleGoogleAuth() {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.href }
+      });
+
+      if (error) {
+        alert('Error with Google auth: ' + error.message);
+      }
+    }
+
+    async function handleAuthSuccess(user) {
+      currentUser = user;
+      userEmail.textContent = user.email;
+      
+      hideElement(authSection);
+      showElement(userMenu);
+      
+      await loadBooks();
+      renderApp();
+    }
+
+    async function handleSignOut() {
+      await supabase.auth.signOut();
+      currentUser = null;
+      books = [];
+      
+      showElement(authSection);
+      hideElement(userMenu);
+      hideElement(appMainContent);
+    }
+
+    async function loadBooks() {
+      const { data, error } = await supabase
+        .from('books')
+        .select(`
+          *,
+          progress:reading_progress(*)
+        `)
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading books:', error);
+        return;
+      }
+
+      books = data.map(book => ({
+        ...book,
+        currentPage: book.progress.length > 0 
+          ? Math.max(...book.progress.map(p => p.page_number))
+          : 0,
+        progressEntries: book.progress
+      }));
+    }
+
+    function renderApp() {
+      showElement(appMainContent);
+      
+      const hasBooks = books.length > 0;
+      
+      appMainContent.innerHTML = `
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold">Your Books</h2>
+            <button onclick="openAddBookModal()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+              Add Book
+            </button>
+          </div>
+          
+          ${hasBooks ? renderBooksList() : renderEmptyState()}
+        </div>
+      `;
+    }
+
+    function renderEmptyState() {
+      return `
+        <div class="text-center py-12">
+          <div class="text-gray-400 text-6xl mb-4">📚</div>
+          <h3 class="text-xl font-medium text-gray-600 mb-2">No books yet</h3>
+          <p class="text-gray-500 mb-6">Start tracking your reading journey by adding your first book.</p>
+          <button onclick="openAddBookModal()" class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+            Add Your First Book
+          </button>
+        </div>
+      `;
+    }
+
+    function renderBooksList() {
+      return books.map(book => {
+        const progress = book.currentPage / book.total_pages;
+        const progressPercent = Math.round(progress * 100);
+        const isCompleted = book.currentPage >= book.total_pages;
+        
+        return `
+          <div class="border rounded-lg p-4 mb-4 ${isCompleted ? 'bg-green-50 border-green-200' : ''}">
+            <div class="flex justify-between items-start mb-3">
+              <div class="flex-1">
+                <h3 class="font-semibold text-lg">${book.title}</h3>
+                <p class="text-gray-600">by ${book.author}</p>
+                <div class="mt-2">
+                  <div class="flex items-center gap-2 text-sm text-gray-500">
+                    <span>${book.currentPage} of ${book.total_pages} pages</span>
+                    <span>•</span>
+                    <span>${progressPercent}% complete</span>
+                    ${book.target_date ? `<span>•</span><span>Target: ${new Date(book.target_date).toLocaleDateString()}</span>` : ''}
+                  </div>
+                  <div class="mt-2 bg-gray-200 rounded-full h-2">
+                    <div class="bg-blue-600 h-2 rounded-full transition-all" style="width: ${progressPercent}%"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="flex gap-2 ml-4">
+                <button onclick="openProgressModal(${book.id})" class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+                  Log Progress
+                </button>
+                <button onclick="openEditBookModal(${book.id})" class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
+                  Edit
+                </button>
+                <button onclick="deleteBook(${book.id})" class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200">
+                  Delete
+                </button>
+              </div>
+            </div>
+            ${book.progressEntries.length > 0 ? renderRecentProgress(book.progressEntries) : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderRecentProgress(progressEntries) {
+      const recent = progressEntries
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 3);
+      
+      return `
+        <div class="border-t pt-3 mt-3">
+          <h4 class="text-sm font-medium text-gray-700 mb-2">Recent Progress</h4>
+          <div class="space-y-1">
+            ${recent.map(entry => `
+              <div class="text-sm text-gray-600">
+                <span class="font-medium">Page ${entry.page_number}</span>
+                <span class="mx-2">•</span>
+                <span>${new Date(entry.date).toLocaleDateString()}</span>
+                ${entry.notes ? `<span class="mx-2">•</span><span class="italic">${entry.notes}</span>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // Modal functions
+    function openAddBookModal() {
+      editingBookId = null;
+      document.getElementById('book-modal-title').textContent = 'Add Book';
+      resetBookForm();
+      showModal(bookModal);
+    }
+
+    function openEditBookModal(bookId) {
+      editingBookId = bookId;
+      const book = books.find(b => b.id === bookId);
+      if (!book) return;
+      
+      document.getElementById('book-modal-title').textContent = 'Edit Book';
+      document.getElementById('book-id').value = book.id;
+      document.getElementById('book-title').value = book.title;
+      document.getElementById('book-author').value = book.author;
+      document.getElementById('book-pages').value = book.total_pages;
+      document.getElementById('book-target-date').value = book.target_date || '';
+      
+      showModal(bookModal);
+    }
+
+    function openProgressModal(bookId) {
+      const book = books.find(b => b.id === bookId);
+      if (!book) return;
+      
+      document.getElementById('progress-book-id').value = bookId;
+      document.getElementById('progress-pages').value = book.currentPage + 1;
+      document.getElementById('progress-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('progress-notes').value = '';
+      
+      showModal(progressModal);
+    }
+
+    async function handleBookSubmit(e) {
+      e.preventDefault();
+      
+      const bookData = {
+        title: document.getElementById('book-title').value,
+        author: document.getElementById('book-author').value,
+        total_pages: parseInt(document.getElementById('book-pages').value),
+        target_date: document.getElementById('book-target-date').value || null,
+        user_id: currentUser.id
+      };
+
+      if (editingBookId) {
+        const { error } = await supabase
+          .from('books')
+          .update(bookData)
+          .eq('id', editingBookId);
+          
+        if (error) {
+          alert('Error updating book: ' + error.message);
+          return;
+        }
+      } else {
+        const { error } = await supabase
+          .from('books')
+          .insert([bookData]);
+          
+        if (error) {
+          alert('Error adding book: ' + error.message);
+          return;
+        }
+      }
+
+      hideModal(bookModal);
+      await loadBooks();
+      renderApp();
+    }
+
+    async function handleProgressSubmit(e) {
+      e.preventDefault();
+      
+      const progressData = {
+        book_id: parseInt(document.getElementById('progress-book-id').value),
+        page_number: parseInt(document.getElementById('progress-pages').value),
+        date: document.getElementById('progress-date').value,
+        notes: document.getElementById('progress-notes').value || null,
+        user_id: currentUser.id
+      };
+
+      const { error } = await supabase
+        .from('reading_progress')
+        .insert([progressData]);
+        
+      if (error) {
+        alert('Error logging progress: ' + error.message);
+        return;
+      }
+
+      hideModal(progressModal);
+      await loadBooks();
+      renderApp();
+    }
+
+    async function deleteBook(bookId) {
+      if (!confirm('Are you sure you want to delete this book and all its progress?')) {
+        return;
+      }
+
+      const { error } = await supabase
+        .from('books')
+        .delete()
+        .eq('id', bookId);
+        
+      if (error) {
+        alert('Error deleting book: ' + error.message);
+        return;
+      }
+
+      await loadBooks();
+      renderApp();
+    }
+
+    // Utility functions
+    function showElement(element) {
+      element.classList.remove('hidden');
+    }
+
+    function hideElement(element) {
+      element.classList.add('hidden');
+    }
+
+    function showModal(modal) {
+      modal.classList.remove('hidden');
+    }
+
+    function hideModal(modal) {
+      modal.classList.add('hidden');
+    }
+
+    function resetBookForm() {
+      document.getElementById('book-id').value = '';
+      document.getElementById('book-title').value = '';
+      document.getElementById('book-author').value = '';
+      document.getElementById('book-pages').value = '';
+      document.getElementById('book-target-date').value = '';
+    }
+
+    function showAuthSection() {
+      showElement(authSection);
+      hideElement(userMenu);
+      hideElement(appMainContent);
+    }
   </script>
 </body>
 </html>

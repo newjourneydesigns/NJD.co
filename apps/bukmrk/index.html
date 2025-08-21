@@ -614,7 +614,17 @@
       const { data, error } = await supabase
         .from('books')
         .select(`
-          *,
+          id,
+          title,
+          book_type,
+          total_pages,
+          current_page,
+          total_chapters,
+          current_chapter,
+          due_date,
+          reading_days,
+          user_id,
+          inserted_at,
           sessions:sessions(*)
         `)
         .eq('user_id', currentUser.id)
@@ -627,6 +637,7 @@
 
       books = data.map(book => ({
         ...book,
+        book_type: book.book_type || 'physical',
         currentPage: book.current_page || 0,
         currentChapter: book.current_chapter || 0,
         target_date: book.due_date,

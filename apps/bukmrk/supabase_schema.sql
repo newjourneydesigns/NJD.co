@@ -40,6 +40,7 @@ create or replace function public.set_updated_at()
 returns trigger language plpgsql as $$
 begin new.updated_at = now(); return new; end; $$;
 
+drop trigger if exists trg_books_updated_at on public.books;
 create trigger trg_books_updated_at
 before update on public.books
 for each row execute function public.set_updated_at();
@@ -49,6 +50,11 @@ alter table public.books enable row level security;
 alter table public.sessions enable row level security;
 
 -- Book policies
+drop policy if exists "Books readable by owner" on public.books;
+drop policy if exists "Books insertable by owner" on public.books;
+drop policy if exists "Books updatable by owner" on public.books;
+drop policy if exists "Books deletable by owner" on public.books;
+
 create policy "Books readable by owner" on public.books
   for select using (auth.uid() = user_id);
 create policy "Books insertable by owner" on public.books
@@ -59,6 +65,11 @@ create policy "Books deletable by owner" on public.books
   for delete using (auth.uid() = user_id);
 
 -- Session policies
+drop policy if exists "Sessions readable if book belongs to user" on public.sessions;
+drop policy if exists "Sessions insertable if book belongs to user" on public.sessions;
+drop policy if exists "Sessions updatable if book belongs to user" on public.sessions;
+drop policy if exists "Sessions deletable if book belongs to user" on public.sessions;
+
 create policy "Sessions readable if book belongs to user" on public.sessions
   for select using (exists (select 1 from books b where b.id = sessions.book_id and b.user_id = auth.uid()));
 create policy "Sessions insertable if book belongs to user" on public.sessions

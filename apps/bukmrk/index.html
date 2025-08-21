@@ -179,7 +179,7 @@
   <script>
     const SUPABASE_URL = "https://avxnsohsmxgjwuxmwqnx.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2eG5zb2hzbXhnand1eG13cW54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3Nzk0OTksImV4cCI6MjA3MTM1NTQ5OX0.3Ltd3dHa5GxE4ph7n84oAqlDLgD4SO9pN7KPIhoY7uY";
-    const redirectTo = "https://newjourneydesigns.co/apps/bukmrk/";
+    const redirectTo = window.location.origin + window.location.pathname;
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         storage: window.localStorage,
@@ -418,7 +418,7 @@
         
         return `
           <div class="border rounded-lg p-4 mb-4 ${isCompleted ? '' : ''}" style="background-color: #272727; border-color: #696773; ${isCompleted ? 'background-color: #009fb7; background-color: rgba(0, 159, 183, 0.1);' : ''}">
-            <div class="flex justify-between items-start mb-3">
+            <div class="mb-3">
               <div class="flex-1">
                 <h3 class="font-semibold text-lg" style="color: #eff1f3;">${book.title}</h3>
                 <div class="mt-2">
@@ -437,25 +437,25 @@
                   </div>
                 </div>
               </div>
-              <div class="flex gap-2 ml-4 flex-wrap">
-                ${!isCompleted ? `<button onclick="finishBook('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(34, 197, 94, 0.2); color: #22c55e;">
-                  Finish Book
-                </button>` : ''}
-                <button onclick="openProgressModal('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(0, 159, 183, 0.2); color: #009fb7;">
-                  Log Progress
-                </button>
-                <button onclick="exportBookLogs('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;">
-                  Export
-                </button>
-                <button onclick="openEditBookModal('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;">
-                  Edit
-                </button>
-                <button onclick="deleteBook('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(220, 38, 38, 0.2); color: #dc2626;">
-                  Delete
-                </button>
-              </div>
             </div>
             ${book.progressEntries.length > 0 ? renderRecentProgress(book.progressEntries) : ''}
+            <div class="flex gap-2 flex-wrap mt-4 pt-3" style="border-top: 1px solid #696773;">
+              <button onclick="openProgressModal('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(0, 159, 183, 0.2); color: #009fb7;">
+                Log Progress
+              </button>
+              <button onclick="openEditBookModal('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;">
+                Edit
+              </button>
+              <button onclick="exportBookLogs('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;">
+                Export
+              </button>
+              <button onclick="deleteBook('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(220, 38, 38, 0.2); color: #dc2626;">
+                Delete
+              </button>
+              ${!isCompleted ? `<button onclick="finishBook('${book.id}')" class="px-3 py-1 text-sm rounded hover:opacity-80" style="background-color: rgba(34, 197, 94, 0.2); color: #22c55e;">
+                Finish Book
+              </button>` : ''}
+            </div>
           </div>
         `;
       }).join('');

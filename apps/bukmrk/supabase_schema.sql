@@ -5,14 +5,21 @@ create table if not exists public.books (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   title text not null,
-  total_pages int not null check (total_pages > 0),
+  book_type text not null default 'physical' check (book_type in ('physical', 'audiobook')),
+  total_pages int check (total_pages > 0),
   current_page int not null default 0 check (current_page >= 0),
+  total_chapters int check (total_chapters > 0),
+  current_chapter int not null default 0 check (current_chapter >= 0),
   start_date date not null default current_date,
-  due_date date not null,
+  due_date date,
   reading_days boolean[] not null check (array_length(reading_days,1) = 7),
   status text not null default 'active' check (status in ('active','completed')),
   inserted_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint books_physical_pages_check check (
+    (book_type = 'physical' and total_pages is not null) or 
+    (book_type = 'audiobook' and total_chapters is not null)
+  )
 );
 
 -- SESSIONS
@@ -20,9 +27,11 @@ create table if not exists public.sessions (
   id uuid primary key default gen_random_uuid(),
   book_id uuid not null references public.books(id) on delete cascade,
   date date not null default current_date,
-  start_page int not null,
-  end_page int not null,
-  pages_read int not null,
+  start_page int,
+  end_page int,
+  pages_read int,
+  chapter int,
+  minutes_listened int,
   notes text
 );
 

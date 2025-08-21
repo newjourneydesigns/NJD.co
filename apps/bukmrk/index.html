@@ -35,18 +35,51 @@
 </head>
 <body class="min-h-screen font-sans antialiased flex flex-col items-center p-4 sm:p-6" style="background-color: #272727; color: #eff1f3;">
   <header class="w-full max-w-xl text-center mb-6">
-    <h1 class="text-4xl sm:text-5xl font-extrabold leading-tight" style="color: #009fb7;">Bukmrk</h1>
-    <p class="text-lg sm:text-xl mt-2" style="color: #eff1f3;">Track your books, plan your pace.</p>
+    <div class="flex justify-between items-start mb-2">
+      <div></div>
+      <div class="flex-1">
+        <h1 class="text-4xl sm:text-5xl font-extrabold leading-tight" style="color: #009fb7;">Bukmrk</h1>
+        <p class="text-lg sm:text-xl mt-2" style="color: #eff1f3;">Track your books, plan your pace.</p>
+      </div>
+      <button onclick="openHelpModal()" class="text-sm px-3 py-1 rounded hover:opacity-80 mt-2" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;" title="Help & FAQ">
+        ?
+      </button>
+    </div>
   </header>
 
   <!-- Auth -->
   <section id="auth-section" class="w-full max-w-xl rounded-lg shadow-md p-5 mb-6 hidden" style="background-color: #272727; border: 1px solid #696773;">
-    <h2 class="text-xl font-bold mb-3" style="color: #eff1f3;">Sign in</h2>
-    <form id="magic-form" class="flex gap-2 mb-3">
-      <input id="magic-email" type="email" placeholder="you@example.com" class="flex-1 px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
-      <button class="px-4 py-2 rounded-md" style="background-color: #009fb7; color: #eff1f3;">Send magic link</button>
-    </form>
-    <button id="google-btn" class="px-4 py-2 rounded-md" style="background-color: #696773; color: #eff1f3;">Continue with Google</button>
+    <div class="flex gap-2 mb-4">
+      <button id="magic-tab" class="flex-1 px-3 py-2 text-sm rounded-md transition-colors" style="background-color: #009fb7; color: #eff1f3;">Magic Link</button>
+      <button id="password-tab" class="flex-1 px-3 py-2 text-sm rounded-md transition-colors" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;">Password</button>
+    </div>
+
+    <!-- Magic Link Auth -->
+    <div id="magic-auth" class="auth-method">
+      <h2 class="text-xl font-bold mb-3" style="color: #eff1f3;">Sign in with Magic Link</h2>
+      <form id="magic-form" class="flex gap-2 mb-3">
+        <input id="magic-email" type="email" placeholder="you@example.com" class="flex-1 px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
+        <button class="px-4 py-2 rounded-md" style="background-color: #009fb7; color: #eff1f3;">Send magic link</button>
+      </form>
+    </div>
+
+    <!-- Password Auth -->
+    <div id="password-auth" class="auth-method hidden">
+      <h2 class="text-xl font-bold mb-3" style="color: #eff1f3;">Sign in with Password</h2>
+      <form id="password-form" class="space-y-3 mb-3">
+        <input id="password-email" type="email" placeholder="you@example.com" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
+        <input id="password-password" type="password" placeholder="Your password" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
+        <div class="flex gap-2">
+          <button type="submit" class="flex-1 px-4 py-2 rounded-md" style="background-color: #009fb7; color: #eff1f3;">Sign In</button>
+          <button type="button" id="signup-btn" class="flex-1 px-4 py-2 rounded-md" style="background-color: #696773; color: #eff1f3;">Sign Up</button>
+        </div>
+      </form>
+      <button id="forgot-password-btn" class="text-sm underline hover:opacity-80" style="color: #009fb7;">Forgot your password?</button>
+    </div>
+
+    <div class="mt-4 pt-3" style="border-top: 1px solid #696773;">
+      <button id="google-btn" class="w-full px-4 py-2 rounded-md" style="background-color: #696773; color: #eff1f3;">Continue with Google</button>
+    </div>
   </section>
 
   <!-- App -->
@@ -176,6 +209,94 @@
     </div>
   </div>
 
+  <!-- Help/FAQ Modal -->
+  <div id="help-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center p-4 z-50">
+    <div class="rounded-lg p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto" style="background-color: #272727; border: 1px solid #696773;">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold" style="color: #eff1f3;">Help & FAQ</h2>
+        <button onclick="hideModal(document.getElementById('help-modal'))" class="text-2xl hover:opacity-70" style="color: #696773;">&times;</button>
+      </div>
+      
+      <div class="space-y-6">
+        <div>
+          <h3 class="font-semibold mb-2" style="color: #009fb7;">📚 Getting Started</h3>
+          <p class="text-sm mb-2" style="color: #eff1f3;">Click "Add Book" to start tracking a new book. Enter the title, total pages, set your reading days, and optionally add a target finish date.</p>
+        </div>
+
+        <div>
+          <h3 class="font-semibold mb-2" style="color: #009fb7;">📖 Logging Progress</h3>
+          <p class="text-sm mb-2" style="color: #eff1f3;">Use "Log Progress" to record your reading sessions. The app automatically calculates pages read based on your current position.</p>
+          <p class="text-sm" style="color: #696773;">💡 Tip: Add notes to remember what happened or your thoughts about that reading session.</p>
+        </div>
+
+        <div>
+          <h3 class="font-semibold mb-2" style="color: #009fb7;">📅 Reading Schedule</h3>
+          <p class="text-sm mb-2" style="color: #eff1f3;">Select which days you plan to read when adding a book. The app will calculate how many pages you need to read per day to meet your target date.</p>
+        </div>
+
+        <div>
+          <h3 class="font-semibold mb-2" style="color: #009fb7;">⚡ Quick Actions</h3>
+          <ul class="text-sm space-y-1" style="color: #eff1f3;">
+            <li><strong style="color: #009fb7;">Log Progress:</strong> Record pages read</li>
+            <li><strong style="color: #696773;">Edit:</strong> Modify book details or reading schedule</li>
+            <li><strong style="color: #696773;">Export:</strong> Download your reading data as a text file</li>
+            <li><strong style="color: #dc2626;">Delete:</strong> Remove book and all progress</li>
+            <li><strong style="color: #22c55e;">Finish Book:</strong> Mark book as completed (100%)</li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="font-semibold mb-2" style="color: #009fb7;">📊 Progress Tracking</h3>
+          <p class="text-sm mb-2" style="color: #eff1f3;">Your progress bar shows completion percentage. Recent reading sessions appear below each book with edit and delete options.</p>
+        </div>
+
+        <div>
+          <h3 class="font-semibold mb-2" style="color: #009fb7;">📱 Mobile App</h3>
+          <p class="text-sm mb-2" style="color: #eff1f3;">Add Bukmrk to your phone's home screen for quick access. In Safari, tap the share button and select "Add to Home Screen".</p>
+        </div>
+
+        <div>
+          <h3 class="font-semibold mb-2" style="color: #009fb7;">💾 Data Export</h3>
+          <p class="text-sm mb-2" style="color: #eff1f3;">Export individual book data or use the main export for all books. Files include reading sessions, notes, and statistics.</p>
+        </div>
+
+        <div>
+          <h3 class="font-semibold mb-2" style="color: #009fb7;">🔐 Your Data</h3>
+          <p class="text-sm" style="color: #eff1f3;">All your reading data is stored securely and synced across your devices when you're signed in.</p>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-4" style="border-top: 1px solid #696773;">
+        <button onclick="hideModal(document.getElementById('help-modal'))" class="w-full px-4 py-2 rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">
+          Got it!
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Password Reset Modal -->
+  <div id="reset-password-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center p-4 z-50">
+    <div class="rounded-lg p-6 w-full max-w-sm" style="background-color: #272727; border: 1px solid #696773;">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold" style="color: #eff1f3;">Reset Password</h2>
+        <button onclick="hideModal(document.getElementById('reset-password-modal'))" class="text-2xl hover:opacity-70" style="color: #696773;">&times;</button>
+      </div>
+      
+      <form id="reset-password-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Email Address</label>
+          <input id="reset-email" type="email" placeholder="you@example.com" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
+        </div>
+        <p class="text-sm" style="color: #696773;">We'll send you a link to reset your password.</p>
+        
+        <div class="flex gap-2 justify-end">
+          <button type="button" onclick="hideModal(document.getElementById('reset-password-modal'))" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #696773; color: #eff1f3;">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">Send Reset Link</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     const SUPABASE_URL = "https://avxnsohsmxgjwuxmwqnx.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2eG5zb2hzbXhnand1eG13cW54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3Nzk0OTksImV4cCI6MjA3MTM1NTQ5OX0.3Ltd3dHa5GxE4ph7n84oAqlDLgD4SO9pN7KPIhoY7uY";
@@ -199,8 +320,16 @@
     const userMenu = document.getElementById('user-menu');
     const userEmail = document.getElementById('user-email');
     const magicForm = document.getElementById('magic-form');
+    const passwordForm = document.getElementById('password-form');
+    const signupBtn = document.getElementById('signup-btn');
+    const forgotPasswordBtn = document.getElementById('forgot-password-btn');
+    const resetPasswordForm = document.getElementById('reset-password-form');
     const googleBtn = document.getElementById('google-btn');
     const signoutBtn = document.getElementById('signout-btn');
+    const magicTab = document.getElementById('magic-tab');
+    const passwordTab = document.getElementById('password-tab');
+    const magicAuth = document.getElementById('magic-auth');
+    const passwordAuth = document.getElementById('password-auth');
     
     // Modal elements
     const bookModal = document.getElementById('book-modal');
@@ -209,6 +338,8 @@
     const progressForm = document.getElementById('progress-form');
     const editSessionModal = document.getElementById('edit-session-modal');
     const editSessionForm = document.getElementById('edit-session-form');
+    const helpModal = document.getElementById('help-modal');
+    const resetPasswordModal = document.getElementById('reset-password-modal');
 
     // Initialize app
     document.addEventListener('DOMContentLoaded', async () => {
@@ -255,8 +386,16 @@
     function setupEventListeners() {
       // Auth form handlers
       magicForm.addEventListener('submit', handleMagicLinkSubmit);
+      passwordForm.addEventListener('submit', handlePasswordSubmit);
+      signupBtn.addEventListener('click', handleSignUp);
+      forgotPasswordBtn.addEventListener('click', () => showModal(resetPasswordModal));
+      resetPasswordForm.addEventListener('submit', handlePasswordReset);
       googleBtn.addEventListener('click', handleGoogleAuth);
       signoutBtn.addEventListener('click', handleSignOut);
+
+      // Auth tab switching
+      magicTab.addEventListener('click', () => switchAuthTab('magic'));
+      passwordTab.addEventListener('click', () => switchAuthTab('password'));
 
       // Modal handlers
       bookForm.addEventListener('submit', handleBookSubmit);
@@ -277,6 +416,12 @@
       });
       editSessionModal.addEventListener('click', (e) => {
         if (e.target === editSessionModal) hideModal(editSessionModal);
+      });
+      helpModal.addEventListener('click', (e) => {
+        if (e.target === helpModal) hideModal(helpModal);
+      });
+      resetPasswordModal.addEventListener('click', (e) => {
+        if (e.target === resetPasswordModal) hideModal(resetPasswordModal);
       });
     }
 
@@ -304,6 +449,77 @@
 
       if (error) {
         alert('Error with Google auth: ' + error.message);
+      }
+    }
+
+    async function handlePasswordSubmit(e) {
+      e.preventDefault();
+      const email = document.getElementById('password-email').value;
+      const password = document.getElementById('password-password').value;
+      
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        alert('Error signing in: ' + error.message);
+      }
+    }
+
+    async function handleSignUp() {
+      const email = document.getElementById('password-email').value;
+      const password = document.getElementById('password-password').value;
+      
+      if (!email || !password) {
+        alert('Please enter both email and password');
+        return;
+      }
+
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: redirectTo }
+      });
+
+      if (error) {
+        alert('Error signing up: ' + error.message);
+      } else {
+        alert('Check your email to confirm your account!');
+      }
+    }
+
+    async function handlePasswordReset(e) {
+      e.preventDefault();
+      const email = document.getElementById('reset-email').value;
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectTo
+      });
+
+      if (error) {
+        alert('Error sending reset email: ' + error.message);
+      } else {
+        alert('Check your email for the password reset link!');
+        hideModal(resetPasswordModal);
+      }
+    }
+
+    function switchAuthTab(tab) {
+      if (tab === 'magic') {
+        magicTab.style.backgroundColor = '#009fb7';
+        magicTab.style.color = '#eff1f3';
+        passwordTab.style.backgroundColor = 'rgba(105, 103, 115, 0.2)';
+        passwordTab.style.color = '#696773';
+        magicAuth.classList.remove('hidden');
+        passwordAuth.classList.add('hidden');
+      } else {
+        passwordTab.style.backgroundColor = '#009fb7';
+        passwordTab.style.color = '#eff1f3';
+        magicTab.style.backgroundColor = 'rgba(105, 103, 115, 0.2)';
+        magicTab.style.color = '#696773';
+        passwordAuth.classList.remove('hidden');
+        magicAuth.classList.add('hidden');
       }
     }
 
@@ -499,6 +715,10 @@
       document.getElementById('book-modal-title').textContent = 'Add Book';
       resetBookForm();
       showModal(bookModal);
+    }
+
+    function openHelpModal() {
+      showModal(helpModal);
     }
 
     function openEditBookModal(bookId) {

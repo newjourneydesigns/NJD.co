@@ -89,7 +89,7 @@
   <!-- Footer -->
   <footer class="w-full max-w-xl text-center mt-8 pt-6" style="border-top: 1px solid #696773;">
     <p class="text-sm" style="color: #696773;">
-      © Created by <a href="https://NewJourneyDesigns.Co" target="_blank" class="hover:opacity-80" style="color: #009fb7;">NewJourneyDesigns.Co</a> for the betterment of your mind, body, and soul.
+      © <span id="current-year"></span> Created by <a href="https://NewJourneyDesigns.Co" target="_blank" class="hover:opacity-80" style="color: #009fb7;">NewJourneyDesigns.Co</a> for the betterment of your mind, body, and soul.
     </p>
   </footer>
 
@@ -270,13 +270,13 @@
 
   <!-- Help/FAQ Modal -->
   <div id="help-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center p-4 z-50">
-    <div class="rounded-lg w-full max-w-lg max-h-[80vh] flex flex-col" style="background-color: #272727; border: 1px solid #696773;">
+    <div class="rounded-lg w-full max-w-lg max-h-[90vh] flex flex-col" style="background-color: #272727; border: 1px solid #696773;">
       <div class="flex justify-between items-center p-6 pb-4 flex-shrink-0">
         <h2 class="text-xl font-bold" style="color: #eff1f3;">Help & FAQ</h2>
         <button onclick="hideModal(document.getElementById('help-modal'))" class="text-2xl hover:opacity-70" style="color: #696773;">&times;</button>
       </div>
       
-      <div class="px-6 overflow-y-auto flex-1 min-h-0">
+      <div class="px-6 overflow-y-auto flex-1" style="max-height: calc(90vh - 160px);">
         <div class="space-y-6 pb-4">
           <div>
             <h3 class="font-semibold mb-2" style="color: #009fb7;">📚 Getting Started</h3>
@@ -404,6 +404,9 @@
 
     // Initialize app
     document.addEventListener('DOMContentLoaded', async () => {
+      // Set current year in footer
+      document.getElementById('current-year').textContent = new Date().getFullYear();
+      
       // Show loading state initially
       showAuthSection();
       

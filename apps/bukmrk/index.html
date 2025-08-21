@@ -49,12 +49,41 @@
           <input id="book-title" type="text" class="w-full px-3 py-2 border rounded-md" required />
         </div>
         <div class="mb-4">
-          <label class="block text-sm font-medium mb-2">Author</label>
-          <input id="book-author" type="text" class="w-full px-3 py-2 border rounded-md" required />
-        </div>
-        <div class="mb-4">
           <label class="block text-sm font-medium mb-2">Total Pages</label>
           <input id="book-pages" type="number" class="w-full px-3 py-2 border rounded-md" required />
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">Reading Days</label>
+          <div class="grid grid-cols-4 gap-2">
+            <label class="flex items-center">
+              <input type="checkbox" id="reading-sun" class="mr-2" checked />
+              <span class="text-sm">Sun</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" id="reading-mon" class="mr-2" checked />
+              <span class="text-sm">Mon</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" id="reading-tue" class="mr-2" checked />
+              <span class="text-sm">Tue</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" id="reading-wed" class="mr-2" checked />
+              <span class="text-sm">Wed</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" id="reading-thu" class="mr-2" checked />
+              <span class="text-sm">Thu</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" id="reading-fri" class="mr-2" checked />
+              <span class="text-sm">Fri</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" id="reading-sat" class="mr-2" checked />
+              <span class="text-sm">Sat</span>
+            </label>
+          </div>
         </div>
         <div class="mb-4">
           <label class="block text-sm font-medium mb-2">Target Finish Date (optional)</label>
@@ -274,18 +303,47 @@
         const progressPercent = Math.round(progress * 100);
         const isCompleted = book.currentPage >= book.total_pages;
         
+        // Calculate reading days and remaining days
+        const readingDays = book.reading_days || [0,1,2,3,4,5,6]; // Default to all days if not set
+        const readingDaysText = readingDays.map(day => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][day]).join(', ');
+        
+        let remainingDaysText = '';
+        if (book.target_date && !isCompleted) {
+          const today = new Date();
+          const targetDate = new Date(book.target_date);
+          const totalDays = Math.ceil((targetDate - today) / (1000 * 60 * 60 * 24));
+          
+          // Calculate how many reading days are left
+          let remainingReadingDays = 0;
+          for (let i = 0; i <= totalDays; i++) {
+            const checkDate = new Date(today);
+            checkDate.setDate(today.getDate() + i);
+            if (readingDays.includes(checkDate.getDay())) {
+              remainingReadingDays++;
+            }
+          }
+          
+          if (remainingReadingDays > 0) {
+            const pagesPerDay = Math.ceil((book.total_pages - book.currentPage) / remainingReadingDays);
+            remainingDaysText = ` • ${remainingReadingDays} reading days left • ${pagesPerDay} pages/day`;
+          }
+        }
+        
         return `
           <div class="border rounded-lg p-4 mb-4 ${isCompleted ? 'bg-green-50 border-green-200' : ''}">
             <div class="flex justify-between items-start mb-3">
               <div class="flex-1">
                 <h3 class="font-semibold text-lg">${book.title}</h3>
-                <p class="text-gray-600">by ${book.author}</p>
                 <div class="mt-2">
-                  <div class="flex items-center gap-2 text-sm text-gray-500">
+                  <div class="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
                     <span>${book.currentPage} of ${book.total_pages} pages</span>
                     <span>•</span>
                     <span>${progressPercent}% complete</span>
                     ${book.target_date ? `<span>•</span><span>Target: ${new Date(book.target_date).toLocaleDateString()}</span>` : ''}
+                    ${remainingDaysText}
+                  </div>
+                  <div class="mt-1 text-xs text-gray-400">
+                    Reading days: ${readingDaysText}
                   </div>
                   <div class="mt-2 bg-gray-200 rounded-full h-2">
                     <div class="bg-blue-600 h-2 rounded-full transition-all" style="width: ${progressPercent}%"></div>
@@ -348,9 +406,15 @@
       document.getElementById('book-modal-title').textContent = 'Edit Book';
       document.getElementById('book-id').value = book.id;
       document.getElementById('book-title').value = book.title;
-      document.getElementById('book-author').value = book.author;
       document.getElementById('book-pages').value = book.total_pages;
       document.getElementById('book-target-date').value = book.target_date || '';
+      
+      // Set reading days checkboxes
+      const readingDays = book.reading_days || [0,1,2,3,4,5,6];
+      const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+      days.forEach((day, index) => {
+        document.getElementById(`reading-${day}`).checked = readingDays.includes(index);
+      });
       
       showModal(bookModal);
     }
@@ -370,11 +434,17 @@
     async function handleBookSubmit(e) {
       e.preventDefault();
       
+      // Get selected reading days
+      const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+      const readingDays = days.map((day, index) => 
+        document.getElementById(`reading-${day}`).checked ? index : null
+      ).filter(day => day !== null);
+      
       const bookData = {
         title: document.getElementById('book-title').value,
-        author: document.getElementById('book-author').value,
         total_pages: parseInt(document.getElementById('book-pages').value),
         target_date: document.getElementById('book-target-date').value || null,
+        reading_days: readingDays,
         user_id: currentUser.id
       };
 
@@ -468,9 +538,14 @@
     function resetBookForm() {
       document.getElementById('book-id').value = '';
       document.getElementById('book-title').value = '';
-      document.getElementById('book-author').value = '';
       document.getElementById('book-pages').value = '';
       document.getElementById('book-target-date').value = '';
+      
+      // Reset reading days to all checked
+      const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+      days.forEach(day => {
+        document.getElementById(`reading-${day}`).checked = true;
+      });
     }
 
     function showAuthSection() {

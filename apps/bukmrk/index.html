@@ -158,7 +158,14 @@
     const SUPABASE_URL = "https://avxnsohsmxgjwuxmwqnx.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2eG5zb2hzbXhnand1eG13cW54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3Nzk0OTksImV4cCI6MjA3MTM1NTQ5OX0.3Ltd3dHa5GxE4ph7n84oAqlDLgD4SO9pN7KPIhoY7uY";
     const redirectTo = "https://newjourneydesigns.co/apps/bukmrk/";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        storage: window.localStorage,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true
+      }
+    });
 
     let currentUser = null;
     let books = [];
@@ -183,20 +190,40 @@
 
     // Initialize app
     document.addEventListener('DOMContentLoaded', async () => {
-      // Check for existing session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        handleAuthSuccess(session.user);
-      } else {
+      // Show loading state initially
+      showAuthSection();
+      
+      try {
+        // Check for existing session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error checking session:', error);
+          showAuthSection();
+          return;
+        }
+        
+        if (session && session.user) {
+          await handleAuthSuccess(session.user);
+        } else {
+          showAuthSection();
+        }
+      } catch (error) {
+        console.error('Session initialization error:', error);
         showAuthSection();
       }
 
       // Listen for auth changes
-      supabase.auth.onAuthStateChange((event, session) => {
+      supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
+        
         if (event === 'SIGNED_IN' && session) {
-          handleAuthSuccess(session.user);
+          await handleAuthSuccess(session.user);
         } else if (event === 'SIGNED_OUT') {
           handleSignOut();
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          // Session was refreshed, user is still logged in
+          currentUser = session.user;
         }
       });
 

@@ -111,8 +111,8 @@
     
     /* Content gets iOS-standard padding */
     .ios-content {
-      padding-left: 0.25rem;
-      padding-right: 0.25rem;
+      padding-left: 1rem;
+      padding-right: 1rem;
     }
     
     /* iOS card margins */
@@ -121,8 +121,8 @@
     }
     
     .ios-section:not(.no-margin) {
-      margin-left: 1rem;
-      margin-right: 1rem;
+      margin-left: 0;
+      margin-right: 0;
     }
     
     /* Only constrain width on large screens (desktop) */
@@ -176,34 +176,40 @@
       display: flex;
       justify-content: flex-start;
       align-items: flex-start;
-      margin-bottom: var(--space-4);
+      margin-bottom: var(--space-6);
       gap: var(--space-3);
+      padding-bottom: var(--space-4);
+      border-bottom: 1px solid rgba(105, 103, 115, 0.2);
     }
     
     .book-title-section {
       flex: 1;
-      min-width: 0; /* Allow text truncation */
+      min-width: 0;
     }
     
     .book-title {
       font-size: var(--text-xl);
       font-weight: 600;
       color: var(--text-primary);
-      margin: 0 0 var(--space-2) 0;
+      margin: 0 0 var(--space-3) 0;
       line-height: 1.3;
       word-break: break-word;
     }
     
     .book-type-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--space-1);
-      font-size: var(--text-sm);
+      position: absolute;
+      top: 12px;
+      left: 12px;
       color: var(--text-secondary);
-      background: var(--surface-secondary);
-      padding: var(--space-1) var(--space-3);
-      border-radius: var(--radius-full);
+      font-size: 0.5rem;
       font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      text-transform: capitalize;
+      white-space: nowrap;
+      z-index: 10;
     }
     
     .toggle-button {
@@ -237,40 +243,114 @@
     
     .progress-section {
       display: flex;
-      align-items: center;
+      flex-direction: column;
       gap: var(--space-4);
       margin-bottom: var(--space-4);
-      padding: var(--space-3);
-      background: rgba(0, 159, 183, 0.1);
-      border-radius: var(--radius-md);
-      border: 1px solid rgba(0, 159, 183, 0.2);
+      margin-top: var(--space-6);
+      padding: var(--space-5);
+      background: linear-gradient(135deg, rgba(0, 159, 183, 0.08) 0%, rgba(0, 159, 183, 0.12) 100%);
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(0, 159, 183, 0.15);
+    }
+    
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--space-2);
+    }
+    
+    .progress-main {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+    }
+    
+    .progress-visual {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+    
+    .progress-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      align-items: center;
+      text-align: center;
+      margin-top: 0;
+    }
+    
+    .current-status-prominent {
+      font-size: var(--text-sm);
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.2;
+      margin-top: 0;
+      margin: 0;
+      padding: 0;
+      margin-bottom: var(--space-2);
+    }
+    
+    .reading-pace-prominent {
+      font-size: var(--text-base);
+      font-weight: 600;
+      padding: var(--space-2) var(--space-4);
+      border-radius: var(--radius-lg);
+      text-align: center;
+    }
+    
+    .reading-pace-prominent.ahead {
+      background: rgba(16, 185, 129, 0.15);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    
+    .reading-pace-prominent.on-track {
+      background: rgba(0, 159, 183, 0.15);
+      color: var(--primary);
+      border: 1px solid rgba(0, 159, 183, 0.3);
+    }
+    
+    .reading-pace-prominent.behind {
+      background: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.3);
     }
     
     .progress-circle {
       position: relative;
-      width: 64px;
-      height: 64px;
+      width: 75px;
+      height: 75px;
       flex-shrink: 0;
+      margin: 0 auto;
     }
     
     .progress-circle-bg {
       width: 100%;
       height: 100%;
       border-radius: 50%;
-      background: conic-gradient(var(--primary) 0%, var(--primary) var(--progress-percent, 0%), var(--surface-secondary) var(--progress-percent, 0%));
+      background: conic-gradient(
+        var(--primary) 0deg,
+        var(--primary) calc(var(--progress-percent, 0%) * 3.6deg),
+        rgba(105, 103, 115, 0.2) calc(var(--progress-percent, 0%) * 3.6deg)
+      );
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
+      box-shadow: 0 2px 8px rgba(0, 159, 183, 0.2);
     }
     
     .progress-circle-bg::before {
       content: '';
       position: absolute;
-      width: 80%;
-      height: 80%;
+      width: 75%;
+      height: 75%;
       background: var(--surface-primary);
       border-radius: 50%;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
     }
     
     .progress-percentage {
@@ -278,39 +358,35 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      font-size: var(--text-sm);
-      font-weight: 600;
-      color: var(--text-primary);
+      font-size: 11px;
+      font-weight: 900;
+      color: var(--primary);
       z-index: 1;
     }
     
     .progress-details {
       flex: 1;
       min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
     }
     
     .current-status {
       font-size: var(--text-base);
-      font-weight: 500;
+      font-weight: 600;
       color: var(--text-primary);
-      margin-bottom: var(--space-2);
+      text-align: center;
+      margin-bottom: var(--space-1);
     }
     
-    .progress-bar-container {
-      width: 100%;
-      height: 6px;
-      background: var(--surface-secondary);
-      border-radius: var(--radius-sm);
-      margin-bottom: var(--space-2);
-      overflow: hidden;
-    }
-    
-    .progress-bar {
-      height: 100%;
-      background: linear-gradient(90deg, var(--primary), var(--primary-hover));
-      border-radius: var(--radius-sm);
-      transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
-      min-width: 2px; /* DEBUG: ensure bar is visible even at low percentages */
+    .progress-text {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      font-weight: 500;
     }
     
     .reading-pace {
@@ -489,6 +565,8 @@
       align-items: center;
       justify-content: center;
       padding: 0.5rem 0.75rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
     }
     
     .btn-small-mobile {
@@ -497,6 +575,159 @@
       align-items: center;
       justify-content: center;
       padding: 0.375rem 0.625rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    
+    /* Enhanced header layout for mobile */
+    .mobile-header {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .mobile-header h2 {
+      order: 1;
+      text-align: center;
+    }
+    
+    .mobile-buttons {
+      order: 2;
+      display: flex;
+      flex-direction: row;
+      gap: 0.1875rem;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .secondary-buttons {
+      display: flex;
+      gap: 0.125rem;
+      justify-content: center;
+    }
+    
+    /* Add book button styling */
+    .add-book-btn {
+      background: linear-gradient(135deg, #009fb7 0%, #007a91 100%);
+      box-shadow: 0 2px 8px rgba(0, 159, 183, 0.3);
+      border: none;
+      flex-shrink: 0;
+    }
+    
+    .add-book-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 159, 183, 0.4);
+    }
+    
+    /* Responsive improvements */
+    @media (min-width: 640px) {
+      .mobile-buttons {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      .add-book-btn {
+        order: 1;
+      }
+      
+      .secondary-buttons {
+        order: 2;
+      }
+      
+      .progress-section {
+        flex-direction: row;
+        align-items: center;
+        gap: var(--space-6);
+        padding: var(--space-6);
+        margin-top: var(--space-8);
+      }
+      
+      .progress-main {
+        flex-direction: row;
+        align-items: center;
+        gap: var(--space-6);
+      }
+      
+      .progress-circle {
+        margin: 0;
+      }
+      
+      .progress-content {
+        text-align: left;
+        align-items: flex-start;
+        margin-top: 0;
+      }
+      
+      .current-status-prominent {
+        font-size: var(--text-sm);
+        margin-top: 0;
+      }
+      
+      .book-header {
+        text-align: left;
+      }
+      
+      .book-title-section {
+        text-align: left;
+      }
+    }
+    
+    @media (max-width: 639px) {
+      .book-header {
+        text-align: center;
+        justify-content: center;
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .book-title-section {
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-2);
+      }
+      
+      .progress-main {
+        align-items: center;
+        text-align: center;
+      }
+      
+      .progress-content {
+        align-items: center;
+        text-align: center;
+      }
+    }
+    
+    @media (min-width: 768px) {
+      .progress-circle {
+        width: 88px;
+        height: 88px;
+      }
+      
+      .progress-percentage {
+        font-size: 12px;
+        font-weight: 900;
+      }
+      
+      .current-status-prominent {
+        font-size: 0.875rem;
+      }
+      
+      .book-title {
+        font-size: var(--text-2xl);
+      }
+      
+      .progress-section {
+        margin-top: var(--space-8);
+        padding: var(--space-8);
+      }
+      
+      .book-header {
+        margin-bottom: var(--space-8);
+        padding-bottom: var(--space-5);
+      }
     }
     
     /* Book card touch optimization */
@@ -614,6 +845,7 @@
         .book-header {
           padding: var(--space-4);
           display: block;
+          text-align: center; /* Center all content in book header */
         }
         
         .book-title {
@@ -623,7 +855,17 @@
           margin: 0;
           line-height: 1.3;
           word-break: break-word;
-          margin-right: var(--space-2);
+          margin-right: 0; /* Remove right margin for perfect centering */
+          padding-right: 0; /* Remove right padding */
+          padding-top: var(--space-6); /* Push title below toggle button */
+          text-align: center; /* Center the title text */
+        }
+        
+        .toggle-button {
+          top: var(--space-2);
+          right: var(--space-2);
+          font-size: 0.6875rem; /* Slightly smaller text */
+          padding: 3px 6px; /* Smaller padding */
         }    .book-type-badge {
       display: inline-flex;
       align-items: center;
@@ -643,9 +885,9 @@
       background: var(--surface-secondary);
       border: 1px solid var(--border-color);
       color: var(--text-secondary);
-      font-size: var(--font-size-xs);
+      font-size: 10px;
       cursor: pointer;
-      padding: 3px 6px;
+      padding: 2px 4px;
       border-radius: var(--border-radius-sm);
       transition: var(--transition-base);
       flex-shrink: 0;
@@ -661,7 +903,7 @@
     }
     
     .progress-section {
-      padding: 0 var(--space-4) var(--space-4) var(--space-4);
+      padding: var(--space-4) var(--space-4) var(--space-4);
       display: flex;
       align-items: center;
       gap: var(--space-4);
@@ -669,13 +911,13 @@
     
     .progress-circle {
       flex-shrink: 0;
-      width: 60px;
-      height: 60px;
+      width: 75px;
+      height: 75px;
     }
     
     .progress-circle-bg {
-      width: 60px;
-      height: 60px;
+      width: 75px;
+      height: 75px;
       border-radius: 50%;
       background: conic-gradient(
         var(--primary) calc(var(--progress-percent) * 3.6deg),
@@ -690,8 +932,8 @@
     .progress-circle-bg::before {
       content: '';
       position: absolute;
-      width: 46px;
-      height: 46px;
+      width: 58px;
+      height: 58px;
       border-radius: 50%;
       background: var(--surface);
     }
@@ -854,8 +1096,9 @@
     @media (max-width: 640px) {
       .progress-section {
         flex-direction: column;
-        align-items: flex-start;
-        gap: var(--space-3);
+        align-items: center;
+        gap: var(--space-2);
+        text-align: center;
       }
       
       .progress-circle {
@@ -880,16 +1123,12 @@
   </style>
 </head>
 <body class="min-h-screen font-sans antialiased flex flex-col items-center safe-area-container safe-area-top safe-area-bottom" style="background-color: #272727; color: #eff1f3;">
-  <header class="w-full main-container ios-content text-center mb-6">
-    <div class="flex justify-between items-start mb-2">
-      <div></div>
+  <header class="w-full main-container ios-content text-center mb-4">
+    <div class="flex justify-center items-start mb-2">
       <div class="flex-1">
-        <h1 class="text-4xl sm:text-5xl font-extrabold leading-tight" style="color: #009fb7;">Bukmrk</h1>
-        <p class="text-lg sm:text-xl mt-2" style="color: #eff1f3;">Track your books, plan your pace, remember what you read.</p>
+        <h1 class="text-3xl sm:text-5xl font-extrabold leading-tight" style="color: #009fb7;">Bukmrk</h1>
+        <p class="text-base sm:text-xl mt-1 px-4" style="color: #eff1f3;">Track your books, plan your pace, remember what you read.</p>
       </div>
-      <button onclick="openHelpModal()" class="btn-small-mobile text-sm rounded hover:opacity-80 mt-2" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;" title="Help & FAQ">
-        ?
-      </button>
     </div>
   </header>
 
@@ -1778,15 +2017,19 @@
         
         appMainContent.innerHTML = `
           <div class="ios-content mb-6">
-            <div class="flex justify-between items-center mb-6">
-              <h2 class="text-2xl font-bold" style="color: #eff1f3;">Your Books</h2>
-              <div class="flex gap-2">
-                <button onclick="toggleAllBooks()" class="btn-small-mobile text-sm rounded-md hover:opacity-80" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;" title="Expand/Collapse All">
-                  ⇅
-                </button>
-                <button onclick="openAddBookModal()" class="btn-mobile rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">
+            <div class="mobile-header mb-6">
+              <div class="mobile-buttons">
+                <button onclick="openAddBookModal()" class="btn-mobile rounded-md hover:opacity-80 add-book-btn" style="background-color: #009fb7; color: #eff1f3;">
                   Add Book
                 </button>
+                <div class="secondary-buttons">
+                  <button onclick="toggleAllBooks()" class="btn-small-mobile text-sm rounded-md hover:opacity-80" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;" title="Expand/Collapse All Books">
+                    ${books.every(book => collapsedBooks.has(book.id)) ? 'Expand All' : 'Collapse All'}
+                  </button>
+                  <button onclick="openHelpModal()" class="btn-small-mobile text-sm rounded hover:opacity-80" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;" title="Help & FAQ">
+                    Help
+                  </button>
+                </div>
               </div>
             </div>
             
@@ -1887,6 +2130,11 @@
           
           return `
             <div class="book-card-redesigned ${isCompleted ? 'completed' : ''}" style="--progress-percent: ${progressPercent}%">
+              <!-- Book Type Badge -->
+              <span class="book-type-badge">
+                ${isAudiobook ? '🎧' : '📖'}
+              </span>
+              
               <!-- Toggle Button -->
               <button class="toggle-button" onclick="toggleBookCard('${book.id}')" id="toggle-icon-${book.id}">
                 ${isCollapsed ? 'Show' : 'Hide'}
@@ -1896,31 +2144,27 @@
               <div class="book-header">
                 <div class="book-title-section">
                   <h3 class="book-title">${book.title}</h3>
-                  <span class="book-type-badge">
-                    ${isAudiobook ? 'Audiobook' : 'Physical Book'}
-                  </span>
                 </div>
               </div>
               
               <!-- Progress Section -->
               <div class="progress-section">
-                <div class="progress-circle">
-                  <div class="progress-circle-bg" style="--progress-percent: ${progressPercent}%">
-                    <span class="progress-percentage">${progressPercent}%</span>
+                <div class="progress-main">
+                  <div class="progress-circle">
+                    <div class="progress-circle-bg" style="--progress-percent: ${progressPercent}">
+                      <span class="progress-percentage">${progressPercent}%</span>
+                    </div>
                   </div>
-                </div>
-                
-                <div class="progress-details">
-                  <div class="current-status">
-                    ${book.total_pages && book.total_pages > 0 
-                      ? `Page ${book.currentPage} of ${book.total_pages}`
-                      : `Chapter ${book.currentChapter} of ${book.total_chapters || 1}`
-                    }
+                  
+                  <div class="progress-content">
+                    <div class="current-status-prominent">
+                      ${book.total_pages && book.total_pages > 0 
+                        ? `Page ${book.currentPage} of ${book.total_pages}`
+                        : `Chapter ${book.currentChapter} of ${book.total_chapters || 1}`
+                      }
+                    </div>
+                    ${readingPace ? `<div class="reading-pace-prominent ${readingPace.type}">${readingPace.text}</div>` : ''}
                   </div>
-                  <div class="progress-bar-container">
-                    <div class="progress-bar" style="width: ${progressPercent}%; background: #009fb7;"></div>
-                  </div>
-                  ${readingPace ? `<div class="reading-pace ${readingPace.type}">${readingPace.text}</div>` : ''}
                 </div>
               </div>
               
@@ -2074,7 +2318,7 @@
       
       return `
         <div class="border-t pt-3 mt-3" style="border-color: #696773;">
-          <h4 class="text-sm font-medium mb-2" style="color: #eff1f3;">Recent Progress</h4>
+          <h4 class="text-sm font-medium mb-2" style="color: #eff1f3;">Your Notes</h4>
           <div class="space-y-3">
             ${recent.map(session => {
               // Format as: Chapter X | Pages X-XX | MM/DD/YYYY

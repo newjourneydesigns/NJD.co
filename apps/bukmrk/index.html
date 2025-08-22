@@ -1425,6 +1425,38 @@
         if (e.target === resetPasswordModal) hideModal(resetPasswordModal);
       });
 
+      // Global keyboard event handler for modals
+      document.addEventListener('keydown', (e) => {
+        // Don't close modal on Backspace if user is editing text
+        if (e.key === 'Backspace') {
+          const activeElement = document.activeElement;
+          const isEditingText = activeElement && (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.tagName === 'SELECT' ||
+            activeElement.isContentEditable
+          );
+          
+          if (isEditingText) {
+            // Let the default behavior happen (delete text)
+            return;
+          }
+        }
+        
+        // Close modals on Escape key
+        if (e.key === 'Escape') {
+          if (!bookModal.classList.contains('hidden')) {
+            hideModal(bookModal);
+          } else if (!progressModal.classList.contains('hidden')) {
+            hideModal(progressModal);
+          } else if (!helpModal.classList.contains('hidden')) {
+            hideModal(helpModal);
+          } else if (!resetPasswordModal.classList.contains('hidden')) {
+            hideModal(resetPasswordModal);
+          }
+        }
+      });
+
       // Time input field handlers
       setupTimeInputHandlers();
     }
@@ -2045,17 +2077,15 @@
           <h4 class="text-sm font-medium mb-2" style="color: #eff1f3;">Recent Progress</h4>
           <div class="space-y-3">
             ${recent.map(session => {
-              let progressText = '';
-              
-              // Always show chapter first (since all books use chapters as primary tracking)
+              // Format as: Chapter X | Pages X-XX | MM/DD/YYYY
               const chapterText = session.chapter ? `Chapter ${session.chapter}` : 'Chapter ?';
               
-              // Then show the tracking method details
+              // Build tracking details
               let trackingText = '';
               if (session.start_page !== null || session.end_page !== null) {
                 // Page tracking was used
                 if (session.start_page && session.end_page) {
-                  trackingText = `Pages ${session.start_page}-${session.end_page} (${session.pages_read || (session.end_page - session.start_page)} pages)`;
+                  trackingText = `Pages ${session.start_page}-${session.end_page}`;
                 } else if (session.end_page) {
                   trackingText = `Page ${session.end_page}`;
                 } else if (session.start_page) {
@@ -2067,26 +2097,23 @@
                 trackingText = `Time: ${timeListened}`;
               }
               
-              // Combine chapter and tracking info
+              // Build the progress text with pipe separators
+              let progressText = chapterText;
               if (trackingText) {
-                progressText = `${chapterText} • ${trackingText}`;
-              } else {
-                progressText = chapterText;
+                progressText += ` | ${trackingText}`;
               }
               
               return `
                 <div class="text-sm rounded p-2" style="color: #696773; background-color: rgba(105, 103, 115, 0.1);">
-                  <div class="mb-2">
-                    <span class="font-medium" style="color: #eff1f3;">${progressText}</span>
-                    <span class="mx-2">•</span>
-                    <span>${new Date(session.date).toLocaleDateString()}</span>
-                    ${session.notes ? `<br><div class="mt-2 italic whitespace-pre-wrap" style="color: #a0a0a0;">${formatNotesForDisplay(session.notes)}</div>` : ''}
+                  <div class="mb-3">
+                    <span class="font-medium" style="color: #eff1f3;">${progressText} | ${new Date(session.date).toLocaleDateString()}</span>
+                    ${session.notes ? `<div class="mt-2 italic whitespace-pre-wrap" style="color: #a0a0a0;">${formatNotesForDisplay(session.notes)}</div>` : ''}
                   </div>
-                  <div class="flex gap-1">
-                    <button onclick="openEditSessionModal('${session.id}')" class="btn-xs-mobile text-xs rounded hover:opacity-80" style="background-color: rgba(0, 159, 183, 0.2); color: #009fb7;">
+                  <div class="flex gap-2 justify-end">
+                    <button onclick="openEditSessionModal('${session.id}')" class="btn-xs-mobile text-xs rounded-lg hover:opacity-80" style="background-color: rgba(0, 159, 183, 0.2); color: #009fb7;">
                       Edit
                     </button>
-                    <button onclick="deleteSession('${session.id}')" class="btn-xs-mobile text-xs rounded hover:opacity-80" style="background-color: rgba(220, 38, 38, 0.2); color: #dc2626;">
+                    <button onclick="deleteSession('${session.id}')" class="btn-xs-mobile text-xs rounded-lg hover:opacity-80" style="background-color: rgba(220, 38, 38, 0.2); color: #dc2626;">
                       Delete
                     </button>
                   </div>

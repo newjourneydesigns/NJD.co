@@ -174,7 +174,7 @@
     
     .book-header {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-start;
       align-items: flex-start;
       margin-bottom: var(--space-4);
       gap: var(--space-3);
@@ -207,20 +207,25 @@
     }
     
     .toggle-button {
+      position: absolute;
+      top: 12px;
+      right: 12px;
       background: var(--surface-secondary);
       border: 1px solid var(--border-color);
       color: var(--text-secondary);
-      font-size: 1.2rem;
+      font-size: 0.75rem;
       cursor: pointer;
-      padding: var(--space-2);
-      border-radius: var(--radius-md);
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
       transition: all 0.2s ease;
-      width: 40px;
-      height: 40px;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
+      font-weight: 500;
+      text-transform: capitalize;
+      white-space: nowrap;
+      z-index: 10;
     }
     
     .toggle-button:hover {
@@ -385,7 +390,7 @@
       color: white;
       border: none;
       padding: 0.2rem 0.4rem;
-      border-radius: var(--radius-md);
+      border-radius: 1rem;
       font-size: var(--text-sm);
       font-weight: 500;
       cursor: pointer;
@@ -632,15 +637,22 @@
     }
     
     .toggle-button {
-      background: none;
-      border: none;
+      position: absolute;
+      top: var(--space-3);
+      right: var(--space-3);
+      background: var(--surface-secondary);
+      border: 1px solid var(--border-color);
       color: var(--text-secondary);
-      font-size: var(--font-size-lg);
+      font-size: var(--font-size-xs);
       cursor: pointer;
-      padding: var(--space-2);
+      padding: 3px 6px;
       border-radius: var(--border-radius-sm);
       transition: var(--transition-base);
       flex-shrink: 0;
+      font-weight: var(--font-weight-medium);
+      text-transform: capitalize;
+      white-space: nowrap;
+      z-index: 10;
     }
     
     .toggle-button:hover {
@@ -791,7 +803,7 @@
       color: var(--primary-foreground);
       border: none;
       padding: var(--space-3) var(--space-4);
-      border-radius: var(--border-radius-md);
+      border-radius: 1rem;
       font-size: var(--font-size-sm);
       font-weight: var(--font-weight-medium);
       cursor: pointer;
@@ -920,8 +932,8 @@
   <main id="app-main-content" class="w-full main-container"></main>
 
   <!-- Footer -->
-  <footer class="w-full main-container ios-content text-center mt-8 pt-6" style="border-top: 1px solid #696773;">
-    <p class="text-sm" style="color: #696773;">
+  <footer class="w-full main-container ios-content text-center mt-8 pt-8 pb-6" style="border-top: 1px solid #696773;">
+    <p class="text-sm py-4" style="color: #696773;">
       © <span id="current-year"></span> Created by <a href="https://NewJourneyDesigns.Co" target="_blank" class="hover:opacity-80" style="color: #009fb7;">NewJourneyDesigns.Co</a> for the betterment of your mind, body, and soul.
     </p>
   </footer>
@@ -1022,9 +1034,14 @@
 
   <!-- Progress/Session Modal (handles both logging and editing) -->
   <div id="progress-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center p-4 safe-area-container">
-    <div class="rounded-lg p-6 modal-content-mobile" style="background-color: #272727; border: 1px solid #696773;">
-      <h2 id="progress-modal-title" class="text-xl font-bold mb-4" style="color: #eff1f3;">Log Reading Session</h2>
-      <form id="progress-form">
+    <div class="rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col modal-content-mobile" style="background-color: #272727; border: 1px solid #696773;">
+      <div class="flex justify-between items-center p-6 pb-4 flex-shrink-0">
+        <h2 id="progress-modal-title" class="text-xl font-bold" style="color: #eff1f3;">Log Reading Session</h2>
+        <button onclick="hideModal(document.getElementById('progress-modal'))" class="text-2xl hover:opacity-70" style="color: #696773;">&times;</button>
+      </div>
+      
+      <div class="px-6 overflow-y-auto flex-1" style="max-height: calc(90vh - 160px);">
+        <form id="progress-form" class="pb-4">
         <input type="hidden" id="progress-session-id" />
         <input type="hidden" id="progress-book-id" />
         <input type="hidden" id="progress-book-type" />
@@ -1067,7 +1084,7 @@
         <!-- Time Tracking Fields -->
         <div id="time-tracking-fields" class="hidden">
           <div class="mb-4">
-            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Time Spent Reading (optional - empty fields = 00)</label>
+            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Time Code</label>
             <div class="flex gap-2 items-center">
               <div class="flex-1">
                 <input id="progress-hours" type="number" min="0" max="23" inputmode="numeric" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" />
@@ -1099,7 +1116,8 @@
           <button type="button" id="cancel-progress" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #696773; color: #eff1f3;">Cancel</button>
           <button type="submit" id="submit-progress" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">Log Session</button>
         </div>
-      </form>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -1454,14 +1472,12 @@
         if (collapsedBooks.has(bookId)) {
           // Expand
           detailsElement.style.display = 'block';
-          iconElement.textContent = '▼';
-          iconElement.style.transform = 'rotate(0deg)';
+          iconElement.textContent = 'Hide';
           collapsedBooks.delete(bookId);
         } else {
           // Collapse
           detailsElement.style.display = 'none';
-          iconElement.textContent = '▶';
-          iconElement.style.transform = 'rotate(-90deg)';
+          iconElement.textContent = 'Show';
           collapsedBooks.add(bookId);
         }
         
@@ -1485,8 +1501,7 @@
             
             if (detailsElement && iconElement) {
               detailsElement.style.display = 'block';
-              iconElement.textContent = '▼';
-              iconElement.style.transform = 'rotate(0deg)';
+              iconElement.textContent = 'Hide';
               collapsedBooks.delete(book.id);
             }
           } else {
@@ -1496,8 +1511,7 @@
             
             if (detailsElement && iconElement) {
               detailsElement.style.display = 'none';
-              iconElement.textContent = '▶';
-              iconElement.style.transform = 'rotate(-90deg)';
+              iconElement.textContent = 'Show';
               collapsedBooks.add(book.id);
             }
           }
@@ -1841,6 +1855,11 @@
           
           return `
             <div class="book-card-redesigned ${isCompleted ? 'completed' : ''}" style="--progress-percent: ${progressPercent}%">
+              <!-- Toggle Button -->
+              <button class="toggle-button" onclick="toggleBookCard('${book.id}')" id="toggle-icon-${book.id}">
+                ${isCollapsed ? 'Show' : 'Hide'}
+              </button>
+              
               <!-- Book Header -->
               <div class="book-header">
                 <div class="book-title-section">
@@ -1849,9 +1868,6 @@
                     ${isAudiobook ? 'Audiobook' : 'Physical Book'}
                   </span>
                 </div>
-                <button class="toggle-button" onclick="toggleBookCard('${book.id}')" id="toggle-icon-${book.id}">
-                  ${isCollapsed ? '▶' : '▼'}
-                </button>
               </div>
               
               <!-- Progress Section -->
@@ -1900,9 +1916,6 @@
               <div class="book-actions">
                 <button onclick="openProgressModal('${book.id}')" class="btn-primary-redesigned">
                   Log Progress
-                </button>
-                <button onclick="toggleBookCard('${book.id}')" class="btn-secondary-redesigned">
-                  ${isCollapsed ? 'View Details' : 'Hide Details'}
                 </button>
               </div>
               
@@ -2178,15 +2191,39 @@
         document.getElementById('progress-date').value = new Date().toISOString().split('T')[0];
         document.getElementById('progress-notes').value = '';
         
-        // Populate chapter dropdown
+        // Populate chapter dropdown and set defaults from last session
         const chapterSelect = document.getElementById('progress-chapter');
         chapterSelect.innerHTML = '<option value="">Select chapter...</option>';
+        
+        // Check if book has existing sessions
+        const hasExistingSessions = book.progressEntries && book.progressEntries.length > 0;
+        
+        // Get the most recent session for defaults
+        let lastChapter = null;
+        let lastEndPage = null;
+        if (hasExistingSessions) {
+          const recentSession = book.progressEntries
+            .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+          lastChapter = recentSession.chapter;
+          lastEndPage = recentSession.end_page;
+        }
+        
+        // Populate all chapters and set default selection
         for (let i = 1; i <= (book.total_chapters || 1); i++) {
-          chapterSelect.innerHTML += `<option value="${i}">Chapter ${i}</option>`;
+          const option = document.createElement('option');
+          option.value = i;
+          option.textContent = `Chapter ${i}`;
+          
+          // Default to last chapter (stay on same chapter), or chapter 1 if no sessions
+          const defaultChapter = lastChapter || 1;
+          if (i === defaultChapter) {
+            option.selected = true;
+          }
+          
+          chapterSelect.appendChild(option);
         }
         
         // Default tracking method based on book type and existing sessions
-        const hasExistingSessions = book.progressEntries && book.progressEntries.length > 0;
         let defaultToPageTracking = true; // Default for physical books
         
         if (hasExistingSessions) {
@@ -2214,9 +2251,17 @@
         document.getElementById('tracking-method-page').checked = defaultToPageTracking;
         document.getElementById('tracking-method-time').checked = !defaultToPageTracking;
         
-        // Clear form values
-        document.getElementById('progress-start-page').value = '';
-        document.getElementById('progress-end-page').value = '';
+        // Set default values based on last session
+        if (defaultToPageTracking && lastEndPage) {
+          // For page tracking, default start page to the last end page + 1
+          document.getElementById('progress-start-page').value = lastEndPage + 1;
+          document.getElementById('progress-end-page').value = '';
+        } else {
+          // Clear form values for new session
+          document.getElementById('progress-start-page').value = '';
+          document.getElementById('progress-end-page').value = '';
+        }
+        
         document.getElementById('progress-hours').value = '';
         document.getElementById('progress-minutes').value = '';
         document.getElementById('progress-seconds').value = '';

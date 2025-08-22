@@ -176,7 +176,8 @@
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 0.3rem;
+      margin-bottom: var(--space-4);
+      gap: var(--space-3);
     }
     
     .book-title-section {
@@ -201,32 +202,43 @@
       color: var(--text-secondary);
       background: var(--surface-secondary);
       padding: var(--space-1) var(--space-3);
-      border-radius: var(--radius-sm);
+      border-radius: var(--radius-full);
       font-weight: 500;
     }
     
     .toggle-button {
-      background: none;
-      border: none;
+      background: var(--surface-secondary);
+      border: 1px solid var(--border-color);
       color: var(--text-secondary);
-      font-size: 1.5rem;
+      font-size: 1.2rem;
       cursor: pointer;
       padding: var(--space-2);
-      border-radius: var(--radius-sm);
+      border-radius: var(--radius-md);
       transition: all 0.2s ease;
-      margin-left: var(--space-3);
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
     }
     
     .toggle-button:hover {
-      background: var(--surface-secondary);
-      color: var(--primary);
+      background: var(--primary);
+      color: var(--text-primary);
+      border-color: var(--primary);
+      transform: scale(1.05);
     }
     
     .progress-section {
       display: flex;
       align-items: center;
       gap: var(--space-4);
-      margin-bottom: var(--space-5);
+      margin-bottom: var(--space-4);
+      padding: var(--space-3);
+      background: rgba(0, 159, 183, 0.1);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(0, 159, 183, 0.2);
     }
     
     .progress-circle {
@@ -293,6 +305,7 @@
       background: linear-gradient(90deg, var(--primary), var(--primary-hover));
       border-radius: var(--radius-sm);
       transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+      min-width: 2px; /* DEBUG: ensure bar is visible even at low percentages */
     }
     
     .reading-pace {
@@ -311,11 +324,34 @@
     .book-stats-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: var(--space-4);
-      margin-bottom: var(--space-5);
-      padding: 0.25rem;
+      gap: var(--space-3);
+      margin-bottom: var(--space-4);
+      padding: var(--space-3);
       background: var(--surface-secondary);
       border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+    }
+    
+    .stat-item {
+      text-align: center;
+      padding: var(--space-2);
+    }
+    
+    .stat-value {
+      display: block;
+      font-size: var(--text-lg);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--space-1);
+    }
+    
+    .stat-label {
+      display: block;
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      font-weight: 500;
+      letter-spacing: 0.5px;
     }
     
     .stat-item {
@@ -490,6 +526,12 @@
     textarea, 
     select {
       font-size: 16px !important; /* Prevent zoom on iOS */
+    }
+    
+    /* Style date input calendar icon to be white */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      cursor: pointer;
     }
     
     /* Enhanced textarea styling */
@@ -840,37 +882,37 @@
   </header>
 
   <!-- Auth -->
-  <section id="auth-section" class="w-full main-container ios-section rounded-lg shadow-md p-5 mb-6 hidden" style="background-color: #272727; border: 1px solid #696773;">
-    <div class="flex gap-2 mb-4">
-      <button id="magic-tab" class="flex-1 px-3 py-2 text-sm rounded-md transition-colors" style="background-color: #009fb7; color: #eff1f3;">Magic Link</button>
-      <button id="password-tab" class="flex-1 px-3 py-2 text-sm rounded-md transition-colors" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;">Password</button>
+  <section id="auth-section" class="w-full main-container ios-section rounded-lg shadow-md p-6 mb-6 hidden" style="background-color: #272727; border: 1px solid #696773;">
+    <div class="flex gap-2 mb-6 mt-4">
+      <button id="magic-tab" class="flex-1 px-4 py-3 text-sm rounded-md transition-colors" style="background-color: #009fb7; color: #eff1f3;">Magic Link</button>
+      <button id="password-tab" class="flex-1 px-4 py-3 text-sm rounded-md transition-colors" style="background-color: rgba(105, 103, 115, 0.2); color: #696773;">Password</button>
     </div>
 
     <!-- Magic Link Auth -->
     <div id="magic-auth" class="auth-method">
-      <h2 class="text-xl font-bold mb-3" style="color: #eff1f3;">Sign in with Magic Link</h2>
-      <form id="magic-form" class="flex gap-2 mb-3">
-        <input id="magic-email" type="email" placeholder="you@example.com" class="flex-1 px-3 py-2 border rounded-md touch-target" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
-        <button class="btn-mobile rounded-md" style="background-color: #009fb7; color: #eff1f3;">Send magic link</button>
+      <h2 class="text-xl font-bold mb-4" style="color: #eff1f3;">Sign in with Magic Link</h2>
+      <form id="magic-form" class="mb-4">
+        <div class="space-y-3">
+          <input id="magic-email" type="email" placeholder="you@example.com" class="w-full px-4 py-3 border rounded-md touch-target" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
+          <button class="w-full btn-mobile rounded-md py-3" style="background-color: #009fb7; color: #eff1f3;">Send Magic Link</button>
+        </div>
       </form>
     </div>
 
     <!-- Password Auth -->
     <div id="password-auth" class="auth-method hidden">
-      <h2 class="text-xl font-bold mb-3" style="color: #eff1f3;">Sign in with Password</h2>
-      <form id="password-form" class="space-y-3 mb-3">
-        <input id="password-email" type="email" placeholder="you@example.com" class="w-full px-3 py-2 border rounded-md touch-target" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
-        <input id="password-password" type="password" placeholder="Your password" class="w-full px-3 py-2 border rounded-md touch-target" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
-        <div class="flex gap-2">
-          <button type="submit" class="flex-1 btn-mobile rounded-md" style="background-color: #009fb7; color: #eff1f3;">Sign In</button>
-          <button type="button" id="signup-btn" class="flex-1 btn-mobile rounded-md" style="background-color: #696773; color: #eff1f3;">Sign Up</button>
+      <h2 class="text-xl font-bold mb-4" style="color: #eff1f3;">Sign in with Password</h2>
+      <form id="password-form" class="space-y-4 mb-4">
+        <input id="password-email" type="email" placeholder="you@example.com" class="w-full px-4 py-3 border rounded-md touch-target" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
+        <input id="password-password" type="password" placeholder="Your password" class="w-full px-4 py-3 border rounded-md touch-target" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
+        <div class="flex gap-3">
+          <button type="submit" class="flex-1 btn-mobile rounded-md py-3" style="background-color: #009fb7; color: #eff1f3;">Sign In</button>
+          <button type="button" id="signup-btn" class="flex-1 btn-mobile rounded-md py-3" style="background-color: #696773; color: #eff1f3;">Sign Up</button>
         </div>
       </form>
-      <button id="forgot-password-btn" class="text-sm underline hover:opacity-80" style="color: #009fb7;">Forgot your password?</button>
-    </div>
-
-    <div class="mt-4 pt-3" style="border-top: 1px solid #696773;">
-      <button id="google-btn" class="w-full btn-mobile rounded-md" style="background-color: #696773; color: #eff1f3;">Continue with Google</button>
+      <div class="text-center">
+        <button id="forgot-password-btn" class="text-sm underline hover:opacity-80" style="color: #009fb7;">Forgot your password?</button>
+      </div>
     </div>
   </section>
 
@@ -917,17 +959,21 @@
             </label>
           </div>
         </div>
+        <!-- Always show chapters field for both types -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Total Chapters</label>
+          <input id="book-chapters" type="number" min="1" inputmode="numeric" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="Number of chapters" required />
+        </div>
+        
         <div id="physical-book-fields">
           <div class="mb-4">
-            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Total Pages</label>
-            <input id="book-pages" type="number" inputmode="numeric" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
+            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Total Pages (optional - for pacing calculations)</label>
+            <input id="book-pages" type="number" inputmode="numeric" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="Total pages in book" />
           </div>
         </div>
+        
         <div id="audiobook-fields" class="hidden">
-          <div class="mb-4">
-            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Total Chapters</label>
-            <input id="book-chapters" type="number" min="1" inputmode="numeric" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="Number of chapters" />
-          </div>
+          <!-- No additional fields needed for audiobooks -->
         </div>
         <div class="mb-4">
           <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Reading Days</label>
@@ -964,9 +1010,7 @@
         </div>
         <div class="mb-4">
           <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Target Finish Date</label>
-          <div class="flex justify-center">
-            <input id="book-target-date" type="date" class="px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773; max-width: 200px; width: 100%;" />
-          </div>
+          <input id="book-target-date" type="date" class="px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773; max-width: 200px;" />
         </div>
         <div class="flex gap-2 justify-end">
           <button type="button" id="cancel-book" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #696773; color: #eff1f3;">Cancel</button>
@@ -976,28 +1020,54 @@
     </div>
   </div>
 
-  <!-- Progress Log Modal -->
+  <!-- Progress/Session Modal (handles both logging and editing) -->
   <div id="progress-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center p-4 safe-area-container">
     <div class="rounded-lg p-6 modal-content-mobile" style="background-color: #272727; border: 1px solid #696773;">
-      <h2 class="text-xl font-bold mb-4" style="color: #eff1f3;">Log Reading Progress</h2>
+      <h2 id="progress-modal-title" class="text-xl font-bold mb-4" style="color: #eff1f3;">Log Reading Session</h2>
       <form id="progress-form">
+        <input type="hidden" id="progress-session-id" />
         <input type="hidden" id="progress-book-id" />
         <input type="hidden" id="progress-book-type" />
-        <div id="physical-progress-fields">
-          <div class="mb-4">
-            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Pages Read</label>
-            <input id="progress-pages" type="number" inputmode="numeric" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required />
+        
+        <!-- Chapter field - always shown and required -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Chapter</label>
+          <select id="progress-chapter" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required>
+            <option value="">Select chapter...</option>
+          </select>
+        </div>
+        
+        <!-- Progress Tracking Method Toggle -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Track Progress By</label>
+          <div class="flex gap-2">
+            <label class="flex items-center flex-1 p-2 border rounded-md cursor-pointer tracking-option" style="border-color: #696773;" id="page-tracking-option">
+              <input type="radio" name="tracking-method" value="page" id="tracking-method-page" class="mr-2" style="accent-color: #009fb7;" checked />
+              <span class="text-sm" style="color: #eff1f3;">📄 Pages</span>
+            </label>
+            <label class="flex items-center flex-1 p-2 border rounded-md cursor-pointer tracking-option" style="border-color: #696773;" id="time-tracking-option">
+              <input type="radio" name="tracking-method" value="time" id="tracking-method-time" class="mr-2" style="accent-color: #009fb7;" />
+              <span class="text-sm" style="color: #eff1f3;">⏱️ Time</span>
+            </label>
           </div>
         </div>
-        <div id="audiobook-progress-fields" class="hidden">
+        
+        <!-- Page Tracking Fields -->
+        <div id="page-tracking-fields">
           <div class="mb-4">
-            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Chapter</label>
-            <select id="progress-chapter" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" required>
-              <option value="">Select chapter...</option>
-            </select>
+            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Start Page (optional)</label>
+            <input id="progress-start-page" type="number" inputmode="numeric" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="Page where you started reading" />
           </div>
           <div class="mb-4">
-            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Time Listened (optional - empty fields = 00)</label>
+            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">End Page (optional)</label>
+            <input id="progress-end-page" type="number" inputmode="numeric" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="Page where you finished reading" />
+          </div>
+        </div>
+        
+        <!-- Time Tracking Fields -->
+        <div id="time-tracking-fields" class="hidden">
+          <div class="mb-4">
+            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Time Spent Reading (optional - empty fields = 00)</label>
             <div class="flex gap-2 items-center">
               <div class="flex-1">
                 <input id="progress-hours" type="number" min="0" max="23" inputmode="numeric" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" />
@@ -1016,11 +1086,10 @@
             </div>
           </div>
         </div>
+        
         <div class="mb-4">
           <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Date</label>
-          <div class="flex justify-center">
-            <input id="progress-date" type="date" class="px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773; max-width: 200px; width: 100%;" required />
-          </div>
+          <input id="progress-date" type="date" class="px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773; max-width: 200px;" required />
         </div>
         <div class="mb-4">
           <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Notes (optional)</label>
@@ -1028,73 +1097,7 @@
         </div>
         <div class="flex gap-2 justify-end">
           <button type="button" id="cancel-progress" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #696773; color: #eff1f3;">Cancel</button>
-          <button type="submit" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">Log Progress</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Edit Session Modal -->
-  <div id="edit-session-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center p-4 safe-area-container">
-    <div class="rounded-lg p-6 modal-content-mobile" style="background-color: #272727; border: 1px solid #696773;">
-      <h2 class="text-xl font-bold mb-4" style="color: #eff1f3;">Edit Session</h2>
-      <form id="edit-session-form">
-        <input type="hidden" id="edit-session-id" />
-        <input type="hidden" id="edit-session-book-id" />
-        <input type="hidden" id="edit-session-book-type" />
-        
-        <!-- Physical Book Fields -->
-        <div id="edit-physical-fields">
-          <div class="mb-4">
-            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Start Page</label>
-            <input id="edit-start-page" type="number" inputmode="numeric" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" />
-          </div>
-          <div class="mb-4">
-            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">End Page</label>
-            <input id="edit-end-page" type="number" inputmode="numeric" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" />
-          </div>
-        </div>
-        
-        <!-- Audiobook Fields -->
-        <div id="edit-audiobook-fields" class="hidden">
-          <div class="mb-4">
-            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Chapter</label>
-            <input id="edit-chapter" type="number" min="1" class="w-full px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773;" />
-          </div>
-          <div class="mb-4">
-            <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Time Listened (optional - empty fields = 00)</label>
-            <div class="flex gap-2 items-center">
-              <div class="flex-1">
-                <input id="edit-hours" type="number" min="0" max="23" inputmode="numeric" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" />
-                <label class="block text-xs text-center mt-1" style="color: #696773;">Hours</label>
-              </div>
-              <span style="color: #eff1f3; font-size: 1.2em;">:</span>
-              <div class="flex-1">
-                <input id="edit-minutes" type="number" min="0" max="59" inputmode="numeric" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" />
-                <label class="block text-xs text-center mt-1" style="color: #696773;">Minutes</label>
-              </div>
-              <span style="color: #eff1f3; font-size: 1.2em;">:</span>
-              <div class="flex-1">
-                <input id="edit-seconds" type="number" min="0" max="59" inputmode="numeric" class="w-full px-3 py-2 border rounded-md text-center" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="00" />
-                <label class="block text-xs text-center mt-1" style="color: #696773;">Seconds</label>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="mb-4">
-          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Date</label>
-          <div class="flex justify-center">
-            <input id="edit-session-date" type="date" class="px-3 py-2 border rounded-md" style="background-color: #272727; color: #eff1f3; border-color: #696773; max-width: 200px; width: 100%;" required />
-          </div>
-        </div>
-        <div class="mb-4">
-          <label class="block text-sm font-medium mb-2" style="color: #eff1f3;">Notes (optional)</label>
-          <textarea id="edit-session-notes" class="w-full px-3 py-2 border rounded-md touch-target" rows="5" style="background-color: #272727; color: #eff1f3; border-color: #696773;" placeholder="Update your thoughts about this reading session..."></textarea>
-        </div>
-        <div class="flex gap-2 justify-end">
-          <button type="button" id="cancel-edit-session" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #696773; color: #eff1f3;">Cancel</button>
-          <button type="submit" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">Update Session</button>
+          <button type="submit" id="submit-progress" class="px-4 py-2 rounded-md hover:opacity-80" style="background-color: #009fb7; color: #eff1f3;">Log Session</button>
         </div>
       </form>
     </div>
@@ -1246,7 +1249,6 @@
     const signupBtn = document.getElementById('signup-btn');
     const forgotPasswordBtn = document.getElementById('forgot-password-btn');
     const resetPasswordForm = document.getElementById('reset-password-form');
-    const googleBtn = document.getElementById('google-btn');
     const signoutBtn = document.getElementById('signout-btn');
     const magicTab = document.getElementById('magic-tab');
     const passwordTab = document.getElementById('password-tab');
@@ -1258,8 +1260,6 @@
     const bookForm = document.getElementById('book-form');
     const progressModal = document.getElementById('progress-modal');
     const progressForm = document.getElementById('progress-form');
-    const editSessionModal = document.getElementById('edit-session-modal');
-    const editSessionForm = document.getElementById('edit-session-form');
     const helpModal = document.getElementById('help-modal');
     const resetPasswordModal = document.getElementById('reset-password-modal');
 
@@ -1317,6 +1317,7 @@
 
       setupEventListeners();
       setupBookTypeToggle();
+      setupTrackingMethodToggle();
     });
 
     function setupBookTypeToggle() {
@@ -1328,21 +1329,47 @@
       const chaptersInput = document.getElementById('book-chapters');
 
       function toggleBookTypeFields() {
+        // Chapters is always required for both types
+        chaptersInput.required = true;
+        
         if (physicalOption.checked) {
           physicalFields.classList.remove('hidden');
           audiobookFields.classList.add('hidden');
-          pagesInput.required = true;
-          chaptersInput.required = false;
+          // Pages is optional for physical books (used for pace calculation only)
+          pagesInput.required = false;
         } else {
           physicalFields.classList.add('hidden');
           audiobookFields.classList.remove('hidden');
+          // Pages not needed for audiobooks
           pagesInput.required = false;
-          chaptersInput.required = true;
         }
       }
 
       physicalOption.addEventListener('change', toggleBookTypeFields);
       audiobookOption.addEventListener('change', toggleBookTypeFields);
+    }
+
+    function setupTrackingMethodToggle() {
+      const pageTrackingOption = document.getElementById('tracking-method-page');
+      const timeTrackingOption = document.getElementById('tracking-method-time');
+      const pageFields = document.getElementById('page-tracking-fields');
+      const timeFields = document.getElementById('time-tracking-fields');
+
+      function toggleTrackingFields() {
+        if (pageTrackingOption.checked) {
+          pageFields.classList.remove('hidden');
+          timeFields.classList.add('hidden');
+        } else {
+          pageFields.classList.add('hidden');
+          timeFields.classList.remove('hidden');
+        }
+      }
+
+      pageTrackingOption.addEventListener('change', toggleTrackingFields);
+      timeTrackingOption.addEventListener('change', toggleTrackingFields);
+      
+      // Initial setup
+      toggleTrackingFields();
     }
 
     function setupEventListeners() {
@@ -1352,7 +1379,6 @@
       signupBtn.addEventListener('click', handleSignUp);
       forgotPasswordBtn.addEventListener('click', () => showModal(resetPasswordModal));
       resetPasswordForm.addEventListener('submit', handlePasswordReset);
-      googleBtn.addEventListener('click', handleGoogleAuth);
       signoutBtn.addEventListener('click', handleSignOut);
 
       // Auth tab switching
@@ -1362,12 +1388,10 @@
       // Modal handlers
       bookForm.addEventListener('submit', handleBookSubmit);
       progressForm.addEventListener('submit', handleProgressSubmit);
-      editSessionForm.addEventListener('submit', handleEditSessionSubmit);
       
       // Modal close handlers
       document.getElementById('cancel-book').addEventListener('click', () => hideModal(bookModal));
       document.getElementById('cancel-progress').addEventListener('click', () => hideModal(progressModal));
-      document.getElementById('cancel-edit-session').addEventListener('click', () => hideModal(editSessionModal));
       
       // Close modals when clicking outside
       bookModal.addEventListener('click', (e) => {
@@ -1375,9 +1399,6 @@
       });
       progressModal.addEventListener('click', (e) => {
         if (e.target === progressModal) hideModal(progressModal);
-      });
-      editSessionModal.addEventListener('click', (e) => {
-        if (e.target === editSessionModal) hideModal(editSessionModal);
       });
       helpModal.addEventListener('click', (e) => {
         if (e.target === helpModal) hideModal(helpModal);
@@ -1516,17 +1537,6 @@
       }
     }
 
-    async function handleGoogleAuth() {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo }
-      });
-
-      if (error) {
-        alert('Error with Google auth: ' + error.message);
-      }
-    }
-
     async function handlePasswordSubmit(e) {
       try {
         e.preventDefault();
@@ -1630,14 +1640,28 @@
     }
 
     async function handleSignOut() {
-      await supabase.auth.signOut();
-      currentUser = null;
-      books = [];
-      collapsedBooks = new Set(); // Clear collapsed state on sign out
-      
-      showElement(authSection);
-      hideElement(userMenu);
-      hideElement(appMainContent);
+      try {
+        console.log('Sign out clicked');
+        const { error } = await supabase.auth.signOut();
+        
+        if (error) {
+          console.error('Sign out error:', error);
+          alert('Error signing out: ' + error.message);
+          return;
+        }
+        
+        console.log('Sign out successful');
+        currentUser = null;
+        books = [];
+        collapsedBooks = new Set(); // Clear collapsed state on sign out
+        
+        showElement(authSection);
+        hideElement(userMenu);
+        hideElement(appMainContent);
+      } catch (error) {
+        console.error('Error in handleSignOut:', error);
+        alert('An unexpected error occurred while signing out. Please refresh the page.');
+      }
     }
 
     async function loadBooks() {
@@ -1756,15 +1780,30 @@
           const isAudiobook = book.book_type === 'audiobook';
           let progress, progressPercent, isCompleted;
           
-          if (isAudiobook) {
+          // Calculate progress - prioritize pages if available, otherwise use chapters
+          if (book.total_pages && book.total_pages > 0) {
+            // Use page-based progress when total pages are available (for both physical books and audiobooks with page counts)
+            progress = book.currentPage / book.total_pages;
+            progressPercent = Math.round(progress * 100);
+            isCompleted = book.currentPage >= book.total_pages;
+          } else {
+            // Fallback to chapter-based progress when no page count is available
             progress = book.currentChapter / (book.total_chapters || 1);
             progressPercent = Math.round(progress * 100);
             isCompleted = book.currentChapter >= (book.total_chapters || 1);
-          } else {
-            progress = book.currentPage / (book.total_pages || 1);
-            progressPercent = Math.round(progress * 100);
-            isCompleted = book.currentPage >= (book.total_pages || 1);
           }
+          
+          console.log('Book progress debug:', {
+            title: book.title,
+            isAudiobook,
+            currentPage: book.currentPage,
+            totalPages: book.total_pages,
+            currentChapter: book.currentChapter,
+            totalChapters: book.total_chapters,
+            progress,
+            progressPercent,
+            usingPageProgress: book.total_pages && book.total_pages > 0
+          });
           
           // Calculate reading days and remaining days
           const readingDays = book.reading_days || [true,true,true,true,true,true,true];
@@ -1804,17 +1843,15 @@
             <div class="book-card-redesigned ${isCompleted ? 'completed' : ''}" style="--progress-percent: ${progressPercent}%">
               <!-- Book Header -->
               <div class="book-header">
-                <div class="w-full">
-                  <div class="flex justify-between items-start mb-3">
-                    <h3 class="book-title flex-1">${book.title}</h3>
-                    <button class="toggle-button" onclick="toggleBookCard('${book.id}')" id="toggle-icon-${book.id}">
-                      ${isCollapsed ? '▶' : '▼'}
-                    </button>
-                  </div>
+                <div class="book-title-section">
+                  <h3 class="book-title">${book.title}</h3>
                   <span class="book-type-badge">
                     ${isAudiobook ? 'Audiobook' : 'Physical Book'}
                   </span>
                 </div>
+                <button class="toggle-button" onclick="toggleBookCard('${book.id}')" id="toggle-icon-${book.id}">
+                  ${isCollapsed ? '▶' : '▼'}
+                </button>
               </div>
               
               <!-- Progress Section -->
@@ -1827,13 +1864,13 @@
                 
                 <div class="progress-details">
                   <div class="current-status">
-                    ${isAudiobook 
-                      ? `Chapter ${book.currentChapter} of ${book.total_chapters || 1}`
-                      : `Page ${book.currentPage} of ${book.total_pages || 1}`
+                    ${book.total_pages && book.total_pages > 0 
+                      ? `Page ${book.currentPage} of ${book.total_pages}`
+                      : `Chapter ${book.currentChapter} of ${book.total_chapters || 1}`
                     }
                   </div>
                   <div class="progress-bar-container">
-                    <div class="progress-bar" style="width: ${progressPercent}%"></div>
+                    <div class="progress-bar" style="width: ${progressPercent}%; background: #009fb7;"></div>
                   </div>
                   ${readingPace ? `<div class="reading-pace ${readingPace.type}">${readingPace.text}</div>` : ''}
                 </div>
@@ -1850,8 +1887,12 @@
                   <span class="stat-label">Target</span>
                 </div>
                 <div class="stat-item">
-                  <span class="stat-value">${isAudiobook ? (book.total_chapters || 1) - book.currentChapter : avgPagesPerDay}</span>
-                  <span class="stat-label">${isAudiobook ? 'Chapters Left' : 'Avg/Day'}</span>
+                  <span class="stat-value">${book.total_pages && book.total_pages > 0 
+                    ? book.total_pages - book.currentPage
+                    : (book.total_chapters || 1) - book.currentChapter}</span>
+                  <span class="stat-label">${book.total_pages && book.total_pages > 0 
+                    ? 'Pages Left' 
+                    : 'Chapters Left'}</span>
                 </div>
               </div>
               
@@ -1951,19 +1992,10 @@
       const targetDate = new Date(book.target_date);
       const isOverdue = today > targetDate;
       
-      if (book.book_type === 'audiobook') {
-        const remainingChapters = (book.total_chapters || 1) - book.currentChapter;
-        const chaptersPerDay = remainingReadingDays > 0 ? Math.ceil(remainingChapters / remainingReadingDays) : 0;
-        
-        if (isOverdue && remainingChapters > 0) {
-          return { text: `${Math.abs(remainingReadingDays)} days overdue`, type: 'behind' };
-        } else if (remainingChapters <= 0) {
-          return { text: 'Completed!', type: 'ahead' };
-        } else {
-          return { text: `${chaptersPerDay} chapters/day to finish on time`, type: 'on-track' };
-        }
-      } else {
-        const remainingPages = (book.total_pages || 1) - book.currentPage;
+      // Use pages for pace calculation when available, otherwise use chapters
+      if (book.total_pages && book.total_pages > 0) {
+        // Page-based pace calculation
+        const remainingPages = book.total_pages - (book.currentPage || 0);
         const pagesPerDay = remainingReadingDays > 0 ? Math.ceil(remainingPages / remainingReadingDays) : 0;
         
         if (isOverdue && remainingPages > 0) {
@@ -1973,7 +2005,19 @@
         } else if (pagesPerDay <= 20) {
           return { text: `${pagesPerDay} pages/day - right on track!`, type: 'ahead' };
         } else {
-          return { text: `${pagesPerDay} pages/day needed`, type: 'on-track' };
+          return { text: `${pagesPerDay} pages/day`, type: 'on-track' };
+        }
+      } else {
+        // Chapter-based pace calculation (fallback)
+        const remainingChapters = (book.total_chapters || 1) - book.currentChapter;
+        const chaptersPerDay = remainingReadingDays > 0 ? Math.ceil(remainingChapters / remainingReadingDays) : 0;
+        
+        if (isOverdue && remainingChapters > 0) {
+          return { text: `${Math.abs(remainingReadingDays)} days overdue`, type: 'behind' };
+        } else if (remainingChapters <= 0) {
+          return { text: 'Completed!', type: 'ahead' };
+        } else {
+          return { text: `${chaptersPerDay} chapters/day to finish on time`, type: 'on-track' };
         }
       }
     }
@@ -1988,12 +2032,33 @@
           <h4 class="text-sm font-medium mb-2" style="color: #eff1f3;">Recent Progress</h4>
           <div class="space-y-3">
             ${recent.map(session => {
-              let progressText;
-              if (isAudiobook) {
+              let progressText = '';
+              
+              // Always show chapter first (since all books use chapters as primary tracking)
+              const chapterText = session.chapter ? `Chapter ${session.chapter}` : 'Chapter ?';
+              
+              // Then show the tracking method details
+              let trackingText = '';
+              if (session.start_page !== null || session.end_page !== null) {
+                // Page tracking was used
+                if (session.start_page && session.end_page) {
+                  trackingText = `Pages ${session.start_page}-${session.end_page} (${session.pages_read || (session.end_page - session.start_page)} pages)`;
+                } else if (session.end_page) {
+                  trackingText = `Page ${session.end_page}`;
+                } else if (session.start_page) {
+                  trackingText = `Starting from page ${session.start_page}`;
+                }
+              } else if (session.minutes_listened) {
+                // Time tracking was used
                 const timeListened = formatSecondsToTime(session.minutes_listened);
-                progressText = `Chapter ${session.chapter} (${timeListened})`;
+                trackingText = `Time: ${timeListened}`;
+              }
+              
+              // Combine chapter and tracking info
+              if (trackingText) {
+                progressText = `${chapterText} • ${trackingText}`;
               } else {
-                progressText = `Pages ${session.start_page}-${session.end_page} (${session.pages_read} pages)`;
+                progressText = chapterText;
               }
               
               return `
@@ -2056,13 +2121,16 @@
         document.getElementById('book-title').value = book.title;
         document.getElementById('book-target-date').value = book.due_date || '';
         
+        // Chapters are always populated for both types
+        document.getElementById('book-chapters').value = book.total_chapters || '';
+        
         // Set book type and corresponding fields
         const bookType = book.book_type || 'physical';
         if (bookType === 'audiobook') {
           document.getElementById('book-type-audiobook').checked = true;
-          document.getElementById('book-chapters').value = book.total_chapters || '';
         } else {
           document.getElementById('book-type-physical').checked = true;
+          // Pages are optional for physical books
           document.getElementById('book-pages').value = book.total_pages || '';
         }
         
@@ -2098,58 +2166,65 @@
           return;
         }
         
+        // Set modal to new session mode
+        document.getElementById('progress-modal-title').textContent = 'Log Reading Session';
+        document.getElementById('submit-progress').textContent = 'Log Session';
+        
+        // Clear session ID (indicates new session)
+        document.getElementById('progress-session-id').value = '';
+        
         document.getElementById('progress-book-id').value = bookId;
         document.getElementById('progress-book-type').value = book.book_type || 'physical';
         document.getElementById('progress-date').value = new Date().toISOString().split('T')[0];
         document.getElementById('progress-notes').value = '';
         
-        const physicalFields = document.getElementById('physical-progress-fields');
-        const audiobookFields = document.getElementById('audiobook-progress-fields');
-        
-        // Get all form elements
-        const pagesInput = document.getElementById('progress-pages');
-        const chapterInput = document.getElementById('progress-chapter');
-        const hoursInput = document.getElementById('progress-hours');
-        const minutesInput = document.getElementById('progress-minutes');
-        const secondsInput = document.getElementById('progress-seconds');
-        
-        // Clear all required attributes first
-        pagesInput.required = false;
-        chapterInput.required = false;
-        hoursInput.required = false;
-        minutesInput.required = false;
-        secondsInput.required = false;
-        
-        if (book.book_type === 'audiobook') {
-          physicalFields.classList.add('hidden');
-          audiobookFields.classList.remove('hidden');
-          
-          // Populate chapter dropdown
-          const chapterSelect = document.getElementById('progress-chapter');
-          chapterSelect.innerHTML = '<option value="">Select chapter...</option>';
-          for (let i = 1; i <= (book.total_chapters || 1); i++) {
-            chapterSelect.innerHTML += `<option value="${i}">Chapter ${i}</option>`;
-          }
-          
-          hoursInput.value = '';
-          minutesInput.value = '';
-          secondsInput.value = '';
-          
-          // Set audiobook field requirements
-          chapterInput.required = true;
-          // Time fields are optional - they'll default to 0 if empty
-          hoursInput.required = false;
-          minutesInput.required = false;
-          secondsInput.required = false;
-        } else {
-          physicalFields.classList.remove('hidden');
-          audiobookFields.classList.add('hidden');
-          
-          pagesInput.value = (book.currentPage || 0) + 1;
-          
-          // Set physical book field requirements
-          pagesInput.required = true;
+        // Populate chapter dropdown
+        const chapterSelect = document.getElementById('progress-chapter');
+        chapterSelect.innerHTML = '<option value="">Select chapter...</option>';
+        for (let i = 1; i <= (book.total_chapters || 1); i++) {
+          chapterSelect.innerHTML += `<option value="${i}">Chapter ${i}</option>`;
         }
+        
+        // Default tracking method based on book type and existing sessions
+        const hasExistingSessions = book.progressEntries && book.progressEntries.length > 0;
+        let defaultToPageTracking = true; // Default for physical books
+        
+        if (hasExistingSessions) {
+          // Check the most recent session to determine preferred tracking method
+          const recentSession = book.progressEntries
+            .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+          
+          // Determine preference based on actual data in recent session
+          const hasPageData = (recentSession.start_page !== null || recentSession.end_page !== null);
+          const hasTimeData = (recentSession.minutes_listened !== null && recentSession.minutes_listened > 0);
+          
+          if (hasPageData) {
+            defaultToPageTracking = true;
+          } else if (hasTimeData) {
+            defaultToPageTracking = false;
+          } else {
+            // No clear preference from recent session, use book type default
+            defaultToPageTracking = book.book_type !== 'audiobook';
+          }
+        } else {
+          // For new books, default based on book type
+          defaultToPageTracking = book.book_type !== 'audiobook';
+        }
+        
+        document.getElementById('tracking-method-page').checked = defaultToPageTracking;
+        document.getElementById('tracking-method-time').checked = !defaultToPageTracking;
+        
+        // Clear form values
+        document.getElementById('progress-start-page').value = '';
+        document.getElementById('progress-end-page').value = '';
+        document.getElementById('progress-hours').value = '';
+        document.getElementById('progress-minutes').value = '';
+        document.getElementById('progress-seconds').value = '';
+        
+        // Trigger field toggle to show correct fields
+        const event = new Event('change');
+        const checkedRadio = document.querySelector('input[name="tracking-method"]:checked');
+        checkedRadio.dispatchEvent(event);
         
         showModal(progressModal);
       } catch (error) {
@@ -2168,6 +2243,7 @@
       );
       
       const bookType = document.querySelector('input[name="book-type"]:checked').value;
+      console.log('Selected book type:', bookType);
       
       const bookData = {
         title: document.getElementById('book-title').value,
@@ -2177,12 +2253,36 @@
         user_id: currentUser.id
       };
 
+      // Chapters are always required for both types (hybrid tracking system)
+      const totalChapters = parseInt(document.getElementById('book-chapters').value);
+      bookData.total_chapters = totalChapters;
+      
+      // Pages handling: optional for physical books (used for pacing), null for audiobooks
+      const pagesValue = document.getElementById('book-pages').value;
       if (bookType === 'physical') {
-        bookData.total_pages = parseInt(document.getElementById('book-pages').value);
-        bookData.total_chapters = null;
+        // Physical books can have pages for pacing calculations
+        bookData.total_pages = pagesValue ? parseInt(pagesValue) : null;
+        console.log('Physical book - total_pages:', bookData.total_pages, 'total_chapters:', bookData.total_chapters);
       } else {
-        bookData.total_chapters = parseInt(document.getElementById('book-chapters').value);
+        // Audiobooks don't use pages
         bookData.total_pages = null;
+        console.log('Audiobook - total_chapters:', bookData.total_chapters);
+      }
+
+      console.log('Book data being sent:', bookData);
+
+      // Validate constraint before sending to database
+      if (!bookData.total_chapters || bookData.total_chapters <= 0) {
+        alert('Error: All books must have a valid number of chapters');
+        return;
+      }
+      if (bookData.book_type === 'physical' && bookData.total_pages !== null && bookData.total_pages <= 0) {
+        alert('Error: If pages are specified for physical books, they must be a positive number');
+        return;
+      }
+      if (bookData.book_type === 'audiobook' && bookData.total_pages !== null) {
+        alert('Error: Audiobooks should not have pages specified');
+        return;
       }
 
       if (editingBookId) {
@@ -2214,18 +2314,46 @@
     async function handleProgressSubmit(e) {
       e.preventDefault();
       
+      const sessionId = document.getElementById('progress-session-id').value; // Empty for new session
       const bookId = document.getElementById('progress-book-id').value;
       const bookType = document.getElementById('progress-book-type').value;
       const currentBook = books.find(b => b.id === bookId);
       
+      // Chapter is always required for both types
+      const chapter = parseInt(document.getElementById('progress-chapter').value);
+      
       let sessionData = {
-        book_id: bookId,
         date: document.getElementById('progress-date').value,
-        notes: document.getElementById('progress-notes').value || null
+        notes: document.getElementById('progress-notes').value || null,
+        chapter: chapter
       };
-
-      if (bookType === 'audiobook') {
-        const chapter = parseInt(document.getElementById('progress-chapter').value);
+      
+      // If this is a new session, add the book_id
+      if (!sessionId) {
+        sessionData.book_id = bookId;
+      }
+      
+      // Get tracking method
+      const isPageTracking = document.getElementById('tracking-method-page').checked;
+      
+      if (isPageTracking) {
+        // Page tracking
+        const startPage = document.getElementById('progress-start-page').value;
+        const endPage = document.getElementById('progress-end-page').value;
+        
+        if (startPage && endPage) {
+          sessionData.start_page = parseInt(startPage);
+          sessionData.end_page = parseInt(endPage);
+          sessionData.pages_read = sessionData.end_page - sessionData.start_page;
+        } else {
+          sessionData.start_page = null;
+          sessionData.end_page = null;
+          sessionData.pages_read = null;
+        }
+        
+        sessionData.minutes_listened = null;
+      } else {
+        // Time tracking
         const hours = parseInt(document.getElementById('progress-hours').value) || 0;
         const minutes = parseInt(document.getElementById('progress-minutes').value) || 0;
         const seconds = parseInt(document.getElementById('progress-seconds').value) || 0;
@@ -2233,54 +2361,37 @@
         // Convert everything to total seconds for storage
         const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
         
-        sessionData.chapter = chapter;
-        sessionData.minutes_listened = totalSeconds; // Store as seconds, not minutes
+        sessionData.minutes_listened = totalSeconds;
         sessionData.start_page = null;
         sessionData.end_page = null;
         sessionData.pages_read = null;
-      } else {
-        const startPage = currentBook ? currentBook.current_page : 0;
-        const endPage = parseInt(document.getElementById('progress-pages').value);
-        
-        sessionData.start_page = startPage;
-        sessionData.end_page = endPage;
-        sessionData.pages_read = endPage - startPage;
-        sessionData.chapter = null;
-        sessionData.minutes_listened = null;
       }
 
-      const { error: sessionError } = await supabase
-        .from('sessions')
-        .insert([sessionData]);
+      let error;
+      if (sessionId) {
+        // Update existing session
+        const result = await supabase
+          .from('sessions')
+          .update(sessionData)
+          .eq('id', sessionId);
+        error = result.error;
+      } else {
+        // Create new session
+        const result = await supabase
+          .from('sessions')
+          .insert([sessionData]);
+        error = result.error;
+      }
         
-      if (sessionError) {
-        alert('Error logging progress: ' + sessionError.message);
+      if (error) {
+        const action = sessionId ? 'updating' : 'logging';
+        alert(`Error ${action} session: ` + error.message);
         return;
       }
 
-      // Update the book's current progress
-      if (bookType === 'audiobook') {
-        // For audiobooks, we could track the latest chapter reached
-        const { error: bookError } = await supabase
-          .from('books')
-          .update({ current_chapter: sessionData.chapter })
-          .eq('id', bookId);
-
-        if (bookError) {
-          console.error('Error updating audiobook progress:', bookError.message);
-        }
-      } else {
-        // For physical books, update current page
-        const { error: bookError } = await supabase
-          .from('books')
-          .update({ current_page: sessionData.end_page })
-          .eq('id', bookId);
-
-        if (bookError) {
-          alert('Error updating book progress: ' + bookError.message);
-          return;
-        }
-      }
+      // Update the book's progress based on the latest session
+      // We need to recalculate both current chapter and current page from all sessions
+      await recalculateBookProgress(bookId);
 
       hideModal(progressModal);
       await loadBooks();
@@ -2302,40 +2413,50 @@
       
       if (!session || !book) return;
       
-      const isAudiobook = book.book_type === 'audiobook';
+      // Set modal to editing mode
+      document.getElementById('progress-modal-title').textContent = 'Edit Reading Session';
+      document.getElementById('submit-progress').textContent = 'Update Session';
       
       // Set hidden fields
-      document.getElementById('edit-session-id').value = session.id;
-      document.getElementById('edit-session-book-id').value = book.id;
-      document.getElementById('edit-session-book-type').value = book.book_type || 'physical';
-      document.getElementById('edit-session-date').value = session.date;
-      document.getElementById('edit-session-notes').value = session.notes || '';
+      document.getElementById('progress-session-id').value = session.id;
+      document.getElementById('progress-book-id').value = book.id;
+      document.getElementById('progress-book-type').value = book.book_type || 'physical';
+      document.getElementById('progress-date').value = session.date;
+      document.getElementById('progress-notes').value = session.notes || '';
       
-      // Get field elements
-      const physicalFields = document.getElementById('edit-physical-fields');
-      const audiobookFields = document.getElementById('edit-audiobook-fields');
-      const startPageInput = document.getElementById('edit-start-page');
-      const endPageInput = document.getElementById('edit-end-page');
-      const chapterInput = document.getElementById('edit-chapter');
-      const hoursInput = document.getElementById('edit-hours');
-      const minutesInput = document.getElementById('edit-minutes');
-      const secondsInput = document.getElementById('edit-seconds');
+      // Populate chapter dropdown
+      const chapterSelect = document.getElementById('progress-chapter');
+      chapterSelect.innerHTML = '<option value="">Select chapter...</option>';
       
-      // Clear all required attributes first
-      startPageInput.required = false;
-      endPageInput.required = false;
-      chapterInput.required = false;
-      hoursInput.required = false;
-      minutesInput.required = false;
-      secondsInput.required = false;
+      // Add all chapters for the book
+      for (let i = 1; i <= (book.total_chapters || 1); i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = `Chapter ${i}`;
+        if (session.chapter && i === session.chapter) {
+          option.selected = true;
+        }
+        chapterSelect.appendChild(option);
+      }
       
-      // Show/hide appropriate fields and set requirements
-      if (isAudiobook) {
-        physicalFields.classList.add('hidden');
-        audiobookFields.classList.remove('hidden');
-        
-        // Populate audiobook fields
-        chapterInput.value = session.chapter || '';
+      // Set tracking method and populate fields based on session data
+      const pageTrackingRadio = document.getElementById('tracking-method-page');
+      const timeTrackingRadio = document.getElementById('tracking-method-time');
+      
+      // Determine tracking method based on existing data
+      const hasPageData = (session.start_page !== null || session.end_page !== null);
+      const hasTimeData = (session.minutes_listened !== null && session.minutes_listened > 0);
+      
+      if (hasPageData) {
+        // Session has page data, use page tracking
+        pageTrackingRadio.checked = true;
+        timeTrackingRadio.checked = false;
+        document.getElementById('progress-start-page').value = session.start_page || '';
+        document.getElementById('progress-end-page').value = session.end_page || '';
+      } else if (hasTimeData) {
+        // Session has time data, use time tracking  
+        timeTrackingRadio.checked = true;
+        pageTrackingRadio.checked = false;
         
         // Convert seconds back to hours, minutes, seconds
         const totalSeconds = session.minutes_listened || 0;
@@ -2343,98 +2464,21 @@
         const minutes = Math.floor((totalSeconds % 3600) / 60);
         const seconds = totalSeconds % 60;
         
-        hoursInput.value = hours.toString().padStart(2, '0');
-        minutesInput.value = minutes.toString().padStart(2, '0');
-        secondsInput.value = seconds.toString().padStart(2, '0');
-        
-        // Set audiobook field requirements
-        chapterInput.required = true;
-        // Time fields are optional - they'll default to 0 if empty
-        hoursInput.required = false;
-        minutesInput.required = false;
-        secondsInput.required = false;
+        document.getElementById('progress-hours').value = hours > 0 ? hours.toString().padStart(2, '0') : '';
+        document.getElementById('progress-minutes').value = minutes > 0 ? minutes.toString().padStart(2, '0') : '';
+        document.getElementById('progress-seconds').value = seconds > 0 ? seconds.toString().padStart(2, '0') : '';
       } else {
-        physicalFields.classList.remove('hidden');
-        audiobookFields.classList.add('hidden');
-        
-        // Populate physical book fields
-        startPageInput.value = session.start_page || '';
-        endPageInput.value = session.end_page || '';
-        
-        // Set physical book field requirements
-        startPageInput.required = true;
-        endPageInput.required = true;
+        // No tracking data, default based on book type
+        const defaultToPage = book.book_type !== 'audiobook';
+        pageTrackingRadio.checked = defaultToPage;
+        timeTrackingRadio.checked = !defaultToPage;
       }
       
-      showModal(editSessionModal);
-    }
-
-    async function handleEditSessionSubmit(e) {
-      e.preventDefault();
+      // Trigger the toggle to show correct fields
+      const event = new Event('change');
+      document.querySelector('input[name="tracking-method"]:checked').dispatchEvent(event);
       
-      const sessionId = document.getElementById('edit-session-id').value;
-      const bookId = document.getElementById('edit-session-book-id').value;
-      const bookType = document.getElementById('edit-session-book-type').value;
-      
-      let sessionData = {
-        date: document.getElementById('edit-session-date').value,
-        notes: document.getElementById('edit-session-notes').value || null
-      };
-
-      if (bookType === 'audiobook') {
-        const chapter = parseInt(document.getElementById('edit-chapter').value);
-        const hours = parseInt(document.getElementById('edit-hours').value) || 0;
-        const minutes = parseInt(document.getElementById('edit-minutes').value) || 0;
-        const seconds = parseInt(document.getElementById('edit-seconds').value) || 0;
-        
-        // Convert to total seconds
-        const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
-        
-        sessionData.chapter = chapter;
-        sessionData.minutes_listened = totalSeconds;
-        sessionData.start_page = null;
-        sessionData.end_page = null;
-        sessionData.pages_read = null;
-      } else {
-        const startPage = parseInt(document.getElementById('edit-start-page').value);
-        const endPage = parseInt(document.getElementById('edit-end-page').value);
-        
-        sessionData.start_page = startPage;
-        sessionData.end_page = endPage;
-        sessionData.pages_read = endPage - startPage;
-        sessionData.chapter = null;
-        sessionData.minutes_listened = null;
-      }
-
-      const { error: sessionError } = await supabase
-        .from('sessions')
-        .update(sessionData)
-        .eq('id', sessionId);
-        
-      if (sessionError) {
-        alert('Error updating session: ' + sessionError.message);
-        return;
-      }
-
-      // Recalculate the book's current progress
-      if (bookType === 'audiobook') {
-        // For audiobooks, update current chapter
-        const { error: bookError } = await supabase
-          .from('books')
-          .update({ current_chapter: sessionData.chapter })
-          .eq('id', bookId);
-
-        if (bookError) {
-          console.error('Error updating audiobook progress:', bookError.message);
-        }
-      } else {
-        // For physical books, recalculate from all sessions
-        await recalculateBookProgress(bookId);
-      }
-
-      hideModal(editSessionModal);
-      await loadBooks();
-      renderApp();
+      showModal(progressModal);
     }
 
     async function deleteSession(sessionId) {
@@ -2474,7 +2518,7 @@
       // Get all sessions for this book
       const { data: sessions, error } = await supabase
         .from('sessions')
-        .select('end_page')
+        .select('end_page, chapter')
         .eq('book_id', bookId)
         .order('date', { ascending: false });
 
@@ -2483,13 +2527,31 @@
         return;
       }
 
-      // Find the maximum end_page from all sessions
-      const currentPage = sessions.length > 0 ? Math.max(...sessions.map(s => s.end_page)) : 0;
+      if (sessions.length === 0) {
+        // No sessions, reset to 0
+        const { error: bookError } = await supabase
+          .from('books')
+          .update({ current_page: 0, current_chapter: 0 })
+          .eq('id', bookId);
 
-      // Update the book's current page
+        if (bookError) {
+          console.error('Error updating book progress:', bookError);
+        }
+        return;
+      }
+
+      // Find the maximum chapter and page from all sessions
+      const currentChapter = Math.max(...sessions.map(s => s.chapter || 0));
+      const sessionsWithPages = sessions.filter(s => s.end_page !== null);
+      const currentPage = sessionsWithPages.length > 0 ? Math.max(...sessionsWithPages.map(s => s.end_page)) : 0;
+
+      // Update the book's current chapter and page
       const { error: bookError } = await supabase
         .from('books')
-        .update({ current_page: currentPage })
+        .update({ 
+          current_chapter: currentChapter,
+          current_page: currentPage 
+        })
         .eq('id', bookId);
 
       if (bookError) {
@@ -2558,7 +2620,34 @@
             
           sortedSessions.forEach(session => {
             exportText += `${new Date(session.date).toLocaleDateString()}: `;
-            exportText += `Pages ${session.start_page}-${session.end_page} (${session.pages_read} pages)`;
+            
+            // Always show chapter first (since all books use chapters as primary tracking)
+            const chapterText = session.chapter ? `Chapter ${session.chapter}` : 'Chapter ?';
+            
+            // Then show the tracking method details
+            let trackingText = '';
+            if (session.start_page !== null || session.end_page !== null) {
+              // Page tracking was used
+              if (session.start_page && session.end_page) {
+                trackingText = `Pages ${session.start_page}-${session.end_page} (${session.pages_read || (session.end_page - session.start_page)} pages)`;
+              } else if (session.end_page) {
+                trackingText = `Page ${session.end_page}`;
+              } else if (session.start_page) {
+                trackingText = `Starting from page ${session.start_page}`;
+              }
+            } else if (session.minutes_listened) {
+              // Time tracking was used
+              const timeListened = formatSecondsToTime(session.minutes_listened);
+              trackingText = `Time: ${timeListened}`;
+            }
+            
+            // Combine chapter and tracking info
+            if (trackingText) {
+              exportText += `${chapterText} • ${trackingText}`;
+            } else {
+              exportText += chapterText;
+            }
+            
             if (session.notes) {
               exportText += `\n  Notes: ${session.notes}`;
             }
@@ -2566,9 +2655,19 @@
           });
           
           // Summary stats
-          const totalPagesRead = sortedSessions.reduce((sum, session) => sum + session.pages_read, 0);
-          const avgPagesPerSession = Math.round(totalPagesRead / sortedSessions.length);
-          exportText += `\nStats: ${sortedSessions.length} sessions, ${totalPagesRead} total pages, ${avgPagesPerSession} avg pages/session\n`;
+          const totalPagesRead = sortedSessions.reduce((sum, session) => sum + (session.pages_read || 0), 0);
+          const totalTimeListened = sortedSessions.reduce((sum, session) => sum + (session.minutes_listened || 0), 0);
+          exportText += `\nStats: ${sortedSessions.length} sessions`;
+          if (totalPagesRead > 0) {
+            const avgPagesPerSession = Math.round(totalPagesRead / sortedSessions.length);
+            exportText += `, ${totalPagesRead} total pages, ${avgPagesPerSession} avg pages/session`;
+          }
+          if (totalTimeListened > 0) {
+            const totalTime = formatSecondsToTime(totalTimeListened);
+            const avgTimePerSession = formatSecondsToTime(Math.round(totalTimeListened / sortedSessions.length));
+            exportText += `, ${totalTime} total time, ${avgTimePerSession} avg time/session`;
+          }
+          exportText += `\n`;
         } else {
           exportText += `No reading sessions recorded.\n`;
         }
@@ -2691,11 +2790,31 @@
           sortedSessions.forEach(session => {
             exportText += `${new Date(session.date).toLocaleDateString()}: `;
             
-            if (isAudiobook) {
+            // Always show chapter first (since all books use chapters as primary tracking)
+            const chapterText = session.chapter ? `Chapter ${session.chapter}` : 'Chapter ?';
+            
+            // Then show the tracking method details
+            let trackingText = '';
+            if (session.start_page !== null || session.end_page !== null) {
+              // Page tracking was used
+              if (session.start_page && session.end_page) {
+                trackingText = `Pages ${session.start_page}-${session.end_page} (${session.pages_read || (session.end_page - session.start_page)} pages)`;
+              } else if (session.end_page) {
+                trackingText = `Page ${session.end_page}`;
+              } else if (session.start_page) {
+                trackingText = `Starting from page ${session.start_page}`;
+              }
+            } else if (session.minutes_listened) {
+              // Time tracking was used
               const timeListened = formatSecondsToTime(session.minutes_listened);
-              exportText += `Chapter ${session.chapter} (${timeListened})`;
+              trackingText = `Time: ${timeListened}`;
+            }
+            
+            // Combine chapter and tracking info
+            if (trackingText) {
+              exportText += `${chapterText} • ${trackingText}`;
             } else {
-              exportText += `Pages ${session.start_page}-${session.end_page} (${session.pages_read} pages)`;
+              exportText += chapterText;
             }
             
             if (session.notes) {
@@ -2748,7 +2867,9 @@
     }
 
     function showModal(modal) {
-      modal.classList.remove('hidden');
+      if (modal && modal.classList) {
+        modal.classList.remove('hidden');
+      }
     }
 
     function hideModal(modal) {
@@ -2757,7 +2878,9 @@
           console.error('Modal element not found');
           return;
         }
-        modal.classList.add('hidden');
+        if (modal.classList) {
+          modal.classList.add('hidden');
+        }
       } catch (error) {
         console.error('Error hiding modal:', error);
       }
@@ -2777,8 +2900,10 @@
       // Show/hide appropriate fields
       document.getElementById('physical-book-fields').classList.remove('hidden');
       document.getElementById('audiobook-fields').classList.add('hidden');
-      document.getElementById('book-pages').required = true;
-      document.getElementById('book-chapters').required = false;
+      
+      // Chapters are always required, pages optional
+      document.getElementById('book-chapters').required = true;
+      document.getElementById('book-pages').required = false;
       
       // Reset reading days to all checked
       const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -2791,6 +2916,19 @@
       showElement(authSection);
       hideElement(userMenu);
       hideElement(appMainContent);
+    }
+
+    // Utility functions for element visibility
+    function showElement(element) {
+      if (element) {
+        element.style.display = 'block';
+      }
+    }
+
+    function hideElement(element) {
+      if (element) {
+        element.style.display = 'none';
+      }
     }
   </script>
 </body>

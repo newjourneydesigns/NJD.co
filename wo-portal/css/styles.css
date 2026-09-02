@@ -40,15 +40,24 @@
 }
 
 :root {
-  /* Pigments. What the colour *is*. */
+  /* Pigments. What the colour *is*.
+
+     Walter Ochenski LLC: the New Journey orange, a deep smoky gray for the
+     ink, a deep smoky blue as the second accent, white panels on a light
+     gray canvas. The charcoal tokens are kept as aliases of the smoke so
+     every rule written against them re-themes without being touched. */
   --color-orange:        #FF5100;
-  --color-orange-deep:   #CC4100;
-  --color-orange-deeper: #B83A00;
+  --color-orange-deep:   #CC4100;   /* 4.86:1 on white */
+  --color-orange-deeper: #B83A00;   /* 5.76:1 on white */
   --color-orange-tint:   #FFF3EC;
-  --color-charcoal:      #222222;
-  --color-charcoal-2:    #2E2E2E;
+  --color-smoke:         #2A2E33;   /* deep dark smoky gray — 13.7:1 on white */
+  --color-smoke-2:       #363B41;   /* 11.3:1 */
+  --color-slate:         #2E4A5E;   /* deep smoky blue — 9.3:1 on white */
+  --color-slate-tint:    #E8EEF3;
+  --color-charcoal:      var(--color-smoke);
+  --color-charcoal-2:    var(--color-smoke-2);
   --color-gray:          #595959;
-  --color-line:          #E7E7E7;
+  --color-line:          #E2E5E9;   /* a cooler hairline, to sit with the slate */
   --color-white:         #FFFFFF;
 
   /* Jobs. What the colour is *for*.
@@ -136,8 +145,8 @@
      a thing is, and this interface has exactly two answers to that. Declared
      here rather than in portal.css so the marketing pages — which never load
      portal.css — can compose from them too. */
-  --shadow-panel: 0 1px 3px rgba(34, 34, 34, .06);
-  --shadow-lift:  0 6px 20px rgba(34, 34, 34, .12);
+  --shadow-panel: 0 1px 3px rgba(42, 46, 51, .06);
+  --shadow-lift:  0 6px 20px rgba(42, 46, 51, .12);
 
   --container: 72rem;
   --container-narrow: 42rem;

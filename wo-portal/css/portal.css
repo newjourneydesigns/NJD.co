@@ -1,5 +1,5 @@
 /* ==========================================================================
-   New Journey Designs — portal.css
+   Walter Ochenski LLC — portal.css
 
    Loaded after styles.css and composes from the same design tokens, so the
    portal reads as part of the brand rather than a separate tool. Nothing here
@@ -7,14 +7,18 @@
    ========================================================================== */
 
 :root {
-  --color-canvas:   #FAFAF9;
+  /* Light gray canvas, white panels. #F7F8FA is the darkest cool gray on
+     which --color-orange-deep text still clears AA (4.57:1); one step darker
+     and a link on the canvas fails. tools/ui/contrast.mjs has the arithmetic. */
+  --color-canvas:   #F7F8FA;
   --color-panel:    #FFFFFF;
   --color-ink-soft: #6B6B6B;
 
   --status-green:   #1E7A4B;
   --status-green-bg:#E9F5EE;
-  --status-blue:    #2A5FA8;
-  --status-blue-bg: #EAF1FB;
+  /* The smoky blue does the "informational" job everywhere a status is blue. */
+  --status-blue:    var(--color-slate);
+  --status-blue-bg: var(--color-slate-tint);
   --status-amber:   #8A5A00;
   --status-amber-bg:#FDF3E0;
   --status-red:     #A32A17;
@@ -67,7 +71,7 @@
   font-weight: var(--weight-strong);
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: var(--color-orange-deep);
+  color: var(--color-slate);
 }
 
 /* Search
@@ -2460,7 +2464,7 @@ a.pill {
    block is honest about that rather than relying on a wrap. */
 .form-group__note {
   display: block;
-  font-weight: var(--weight-normal);
+  font-weight: var(--weight-body);
   font-size: var(--text-sm);
   color: var(--color-ink-soft);
   min-width: 0;
@@ -3259,7 +3263,7 @@ a.record-row__name:focus-visible {
   padding: 0 var(--space-3);
   border: 0;
   background: none;
-  color: var(--color-rust, #B5451B);
+  color: var(--color-orange-deeper);
   font: inherit;
   font-size: var(--text-base);
   font-weight: var(--weight-emphasis);
@@ -3269,7 +3273,7 @@ a.record-row__name:focus-visible {
 .password-field__toggle:hover { text-decoration: underline; }
 
 .password-field__toggle:focus-visible {
-  outline: 2px solid var(--color-rust, #B5451B);
+  outline: 2px solid var(--color-orange-deeper);
   outline-offset: -2px;
   border-radius: var(--radius-sm);
 }

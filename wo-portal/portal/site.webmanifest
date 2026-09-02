@@ -1,7 +1,7 @@
 {
-  "name": "New Journey Designs — Client Portal",
-  "short_name": "New Journey",
-  "description": "Your projects with New Journey Designs: waypoints, documents and messages.",
+  "name": "Walter Ochenski LLC — Portal",
+  "short_name": "WO Portal",
+  "description": "Clients, invoices and expenses for Walter Ochenski LLC.",
   "start_url": "/portal/",
   "scope": "/portal/",
   "display": "standalone",
@@ -9,19 +9,19 @@
   "theme_color": "#FF5100",
   "icons": [
     {
-      "src": "/assets/img/app-icon-192.png",
+      "src": "/assets/img/wo-app-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/assets/img/app-icon-512.png",
+      "src": "/assets/img/wo-app-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/assets/img/app-icon-maskable-512.png",
+      "src": "/assets/img/wo-app-icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

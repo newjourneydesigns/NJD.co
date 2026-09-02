@@ -469,7 +469,7 @@ alter table seeds_applied enable row level security;
 -- ---------------------------------------------------------------------------
 
 create or replace function set_updated_at() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = public as $$
 begin
   new.updated_at := now();
   return new;
@@ -1182,10 +1182,13 @@ revoke all on function refresh_invoice_payment(uuid) from public, anon, authenti
 revoke all on function payments_sync()            from public, anon, authenticated;
 revoke all on function guard_payment_invoice()    from public, anon, authenticated;
 
--- Policies call these as the querying role, so `authenticated` needs EXECUTE.
+-- Policies call these two as the querying role, so `authenticated` needs
+-- EXECUTE on them. Each answers only about the caller's own row, so exposing
+-- them over /rest/v1/rpc reveals nothing the caller could not already read.
+-- current_role_name() is deliberately NOT granted: it is only ever called from
+-- inside these two, where the privilege check is made as the owner.
 grant execute on function is_admin()          to authenticated;
 grant execute on function is_owner()          to authenticated;
-grant execute on function current_role_name() to authenticated;
 
 -- The invoice writers run as the caller, so the staff-only policies on
 -- invoices and its lines are what actually decides. A 'none' account calling

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="Walter Ochenski LLC">
+  <!-- The WO mark: a W growing out of an O. One stroke weight throughout,
+       rounded like the NJD monogram it sits beside. Orange on transparent. -->
+  <g fill="none" stroke="#2A2E33" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="50" cy="50" r="38"/>
+    <polyline points="23,31 36,69 50,41 64,69 77,31" stroke-width="9"/>
+  </g>
+</svg>

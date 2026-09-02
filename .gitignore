@@ -1,3 +1,9 @@
 .DS_Store
 .DS_Store
 **/.DS_Store
+
+# wo-portal: local Netlify runs and secrets — never commit these.
+.env
+.env.*
+.netlify/
+node_modules/

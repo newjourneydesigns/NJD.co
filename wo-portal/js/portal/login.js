@@ -1,36 +1,28 @@
 // ---------------------------------------------------------------------------
-// Sign in — email and password.
+// Sign in — username and password.
 //
-// This was magic-link only, and the links worked. They were just too much to
-// ask of a client who wants to glance at their project: find the email, open
-// the right one, click it in the browser you were already using, and do it all
-// again next week. A password is one thing to remember, and it is the thing
-// everyone already expects a login to be.
-//
-// The trade is that somebody has to hand out and reset passwords, and that is
-// us: there is no self-serve reset here on purpose. Staff set a new one in a
-// couple of clicks — Admin → People for staff, the client page's People panel
-// for client users — and a signed-in person can change their own from the
-// header. Anyone locked out mails the studio, which is the footer link.
+// There is no self-serve reset here on purpose, and no email behind the form
+// at all: the owner hands out usernames and passwords from Admin → People, a
+// signed-in person can change their own password from the header, and anyone
+// locked out calls the business — that is the footer line. Supabase still
+// thinks in email addresses, so the username is mapped to a synthetic one
+// (usernameToEmail in client.js) just before the sign-in call. Nothing on this
+// page ever shows that address.
 // ---------------------------------------------------------------------------
 
 import {
   supabase, isConfigured, sdkMissing, getSession, safeNext, errorMessage,
-  rememberedChoice, setRememberMe,
+  rememberedChoice, setRememberMe, usernameToEmail,
 } from './client.js';
+import { LAST_USERNAME_KEY, BUSINESS_PHONE } from './config.js';
 import { renderSetupNotice, renderSdkMissing } from './shell.js';
 import { el, mount, clear, byId, toast } from './ui.js';
 
 const SUBMIT_LABEL = 'Sign in';
 
-// Prefilling the email is a convenience the session store cannot provide: the
-// address lives here, the session in whichever store "Remember me" chose.
-// Same split as njdboards.
-const LAST_EMAIL_KEY = 'njd-portal-last-email';
-
 const panel = byId('login-panel');
 const form = byId('login-form');
-const emailInput = byId('login-email');
+const usernameInput = byId('login-username');
 const passwordInput = byId('login-password');
 const rememberInput = byId('login-remember');
 const revealBtn = byId('login-reveal');
@@ -73,14 +65,14 @@ function showNotice(message, kind) {
 function friendlyError(error) {
   const raw = (error && (error.message || error.error_description)) || '';
 
-  // Supabase answers a wrong password and an address with no account with the
+  // Supabase answers a wrong password and a username with no account with the
   // same "Invalid login credentials", and that is the right behaviour — telling
-  // a stranger which emails have accounts is free reconnaissance. Keep it.
+  // a stranger which usernames exist is free reconnaissance. Keep it.
   if (/invalid login credentials|invalid credentials/i.test(raw)) {
-    return 'That email and password do not match. Check both, or email us for a reset.';
+    return `Check your username and password, or call ${BUSINESS_PHONE}.`;
   }
   if (/email not confirmed/i.test(raw)) {
-    return 'That account is not active yet. Email us and we will sort it out.';
+    return `That sign-in is not active yet. Call ${BUSINESS_PHONE} and we will sort it out.`;
   }
   if (/rate limit|too many/i.test(raw)) {
     return 'Too many attempts — wait a minute and try again.';
@@ -93,39 +85,40 @@ function resetButton() {
   submitBtn.textContent = SUBMIT_LABEL;
 }
 
-/** Keep — or forget — the address for next time, by the same choice that
+/** Keep — or forget — the username for next time, by the same choice that
  *  places the session. Storage can be blocked; the sign-in already worked, so
- *  failing to remember the email is not worth an error on screen. */
-function rememberEmail(email) {
+ *  failing to remember the name is not worth an error on screen. What is kept
+ *  is the handle as typed, never the synthetic address behind it. */
+function rememberUsername(username) {
   try {
     if (!rememberInput || rememberInput.checked) {
-      window.localStorage.setItem(LAST_EMAIL_KEY, email);
+      window.localStorage.setItem(LAST_USERNAME_KEY, username);
     } else {
-      window.localStorage.removeItem(LAST_EMAIL_KEY);
+      window.localStorage.removeItem(LAST_USERNAME_KEY);
     }
   } catch (err) { /* private-mode lockdown — nothing to do */ }
 }
 
-/** Restore the previous visit's choices: the box as it was left, the email
+/** Restore the previous visit's choices: the box as it was left, the username
  *  already typed. The password is the one thing this page should ever ask a
  *  returning person for. */
 function restoreRemembered() {
   if (rememberInput) rememberInput.checked = rememberedChoice();
   try {
-    const last = window.localStorage.getItem(LAST_EMAIL_KEY);
-    if (last && !emailInput.value) emailInput.value = last;
+    const last = window.localStorage.getItem(LAST_USERNAME_KEY);
+    if (last && !usernameInput.value) usernameInput.value = last;
   } catch (err) { /* storage blocked — the form is simply blank */ }
 }
 
 async function onSubmit(event) {
   event.preventDefault();
 
-  const email = emailInput.value.trim();
+  const username = usernameInput.value.trim();
   const password = passwordInput.value;
 
-  if (!email) {
-    showNotice('Enter the email address we have on file for you.', 'error');
-    emailInput.focus();
+  if (!username) {
+    showNotice('Enter your username.', 'error');
+    usernameInput.focus();
     return;
   }
   if (!password) {
@@ -143,9 +136,12 @@ async function onSubmit(event) {
   setRememberMe(!rememberInput || rememberInput.checked);
 
   try {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: usernameToEmail(username),
+      password,
+    });
     if (error) throw error;
-    rememberEmail(email);
+    rememberUsername(username);
     // onAuthStateChange fires SIGNED_IN and redirects; this is the fallback for
     // the case where the listener has already been torn down.
     goToPortal();
@@ -156,8 +152,8 @@ async function onSubmit(event) {
     toast(message, 'error');
     showNotice(message, 'error');
     resetButton();
-    // Clear only the password. Making them retype the email too is the kind of
-    // small rudeness that makes a login feel hostile.
+    // Clear only the password. Making them retype the username too is the kind
+    // of small rudeness that makes a login feel hostile.
     passwordInput.value = '';
     passwordInput.focus();
   }

@@ -1,14 +1,21 @@
 // ---------------------------------------------------------------------------
-// Supabase client + session helpers
+// Supabase client + session helpers — Walter Ochenski LLC portal
+//
+// Everything that talks to Supabase starts here: the one client, the session
+// storage it uses, the signed-in person's profile, and the two role questions
+// every page asks (is this staff? is this the owner?). Nothing in this file
+// renders anything.
 // ---------------------------------------------------------------------------
 
 import {
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
+  USERNAME_DOMAIN,
+  REMEMBER_KEY,
   isConfigured,
 } from './config.js';
 
-export { isConfigured };
+export { isConfigured, REMEMBER_KEY };
 
 // The vendored SDK is a classic <script> that sets window.supabase, placed
 // before this module on every portal page. Both are deferred and run in
@@ -22,13 +29,11 @@ export const sdkMissing = isConfigured && !(sdk && sdk.createClient);
 
 // "Remember me" — the login page writes this flag before signing in, and the
 // storage adapter below routes the session token by it: localStorage keeps a
-// person signed in across browser restarts (the default, and what every
-// session before the flag existed already did), sessionStorage forgets when
-// the browser closes. The flag itself always lives in localStorage; it is a
-// preference, not a credential. Same design as njdboards/lib/supabase.ts,
-// which had it first.
-export const REMEMBER_KEY = 'njd-portal-remember';
-
+// person signed in across browser restarts (the default), sessionStorage
+// forgets when the browser closes. The flag itself always lives in
+// localStorage; it is a preference, not a credential. The key is named in
+// config.js so a browser that also holds an NJD portal session never mixes
+// the two.
 function sessionStore() {
   try {
     return window.localStorage.getItem(REMEMBER_KEY) === '0'
@@ -41,8 +46,7 @@ function sessionStore() {
   }
 }
 
-/** Whether this browser chose to stay signed in. Absent reads as yes — that
- *  is what the portal always did before the choice existed. */
+/** Whether this browser chose to stay signed in. Absent reads as yes. */
 export function rememberedChoice() {
   try {
     return window.localStorage.getItem(REMEMBER_KEY) !== '0';
@@ -73,11 +77,10 @@ if (isConfigured && !sdkMissing) {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      // Sign-in is email and password, so nothing currently arrives as a
-      // callback in the URL. Both settings stay on because they cost nothing
-      // and are what any emailed link — a future password reset, or OAuth —
-      // would need to complete. Turning them off would make that a debugging
-      // session rather than a config change.
+      // Sign-in is username and password and the system sends no email, so
+      // nothing ever arrives as a callback in the URL. Left on because it
+      // costs nothing; turning it off would make any future link-based flow
+      // a debugging session rather than a config change.
       detectSessionInUrl: true,
       flowType: 'pkce',
       storage: {
@@ -116,8 +119,12 @@ export async function getSession() {
 }
 
 /**
- * The signed-in user's profile row: { id, email, full_name, role, client_id }.
+ * The signed-in user's profile row: { id, email, full_name, role, phone }.
  * Returns null when signed out. Cached for the life of the page.
+ *
+ * The select names only columns that exist in supabase/schema.sql. A select
+ * naming a missing column is a PostgREST 400, and because every page starts
+ * here that would blank the whole portal.
  */
 export async function getProfile() {
   if (cachedProfile) return cachedProfile;
@@ -128,21 +135,21 @@ export async function getProfile() {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, full_name, role, client_id, email_mentions')
+    .select('id, email, full_name, role, phone')
     .eq('id', session.user.id)
     .maybeSingle();
 
   if (error) throw error;
 
-  // The signup trigger normally creates this row; fall back to a minimal
-  // client-shaped profile so a trigger hiccup shows the no-access screen
-  // rather than a stack trace.
+  // The signup trigger normally creates this row; fall back to a profile with
+  // no role so a trigger hiccup shows the no-access screen rather than a
+  // stack trace.
   cachedProfile = data || {
     id: session.user.id,
     email: session.user.email,
     full_name: '',
-    role: 'client',
-    client_id: null,
+    role: 'none',
+    phone: null,
   };
 
   return cachedProfile;
@@ -151,30 +158,45 @@ export async function getProfile() {
 export async function signOut() {
   if (supabase) await supabase.auth.signOut();
   cachedProfile = null;
-  // An installed app's icon badge outlives the session that set it; a count
-  // belonging to nobody signed in is just wrong on the home screen.
-  if (typeof navigator.clearAppBadge === 'function') {
-    const call = navigator.clearAppBadge();
-    if (call && call.catch) call.catch(() => {});
-  }
   window.location.replace('/portal/');
 }
 
 /** Only ever redirect within the portal — never to an attacker-supplied host.
- *  The default is home: staff land on Focus — the day first, the business
- *  chase-downs under it — and Focus itself bounces a client on to their
- *  projects, so one address serves both roles. (The Dashboard held this job
- *  until 2026-08-23; it keeps the full picture, one nav tap away.) */
+ *  The default is the Dashboard: the figures first, everything else one menu
+ *  tap away. */
 export function safeNext(value) {
-  if (typeof value !== 'string') return '/portal/focus/';
+  if (typeof value !== 'string') return '/portal/dashboard/';
   if (!value.startsWith('/portal/') || value.startsWith('//')) {
-    return '/portal/focus/';
+    return '/portal/dashboard/';
   }
   return value;
 }
 
+/** Staff: the owner or the bookkeeper. Everything but accounts and business
+ *  settings. Matches is_admin() in the schema, which is what the policies ask. */
 export function isAdmin(profile) {
-  return Boolean(profile && profile.role === 'admin');
+  return Boolean(profile && (profile.role === 'owner' || profile.role === 'staff'));
+}
+
+/** The owner alone: sign-ins and the business details. */
+export function isOwner(profile) {
+  return Boolean(profile && profile.role === 'owner');
+}
+
+/**
+ * What the login box holds, as the address Supabase knows the account by.
+ *
+ * Supabase identifies accounts by email, so a bare username is an email in
+ * disguise: `walter` signs in as walter@wo-portal.invalid. The domain is
+ * reserved by RFC 2606, never resolves, and nothing is ever mailed to it. A
+ * value typed with an @ in it is somebody's real address and passes through.
+ * Lower-cased and trimmed either way, because GoTrue compares addresses
+ * case-insensitively and a phone keyboard capitalises the first letter.
+ */
+export function usernameToEmail(handle) {
+  const value = String(handle == null ? '' : handle).trim().toLowerCase();
+  if (!value) return '';
+  return value.includes('@') ? value : `${value}@${USERNAME_DOMAIN}`;
 }
 
 // The shapes Postgres and PostgREST use when they are talking to a developer
@@ -197,18 +219,20 @@ const DATABASE_SHAPED = new RegExp([
  *
  *  First, it is applied twice on most paths: a caller does
  *  `throw new Error(errorMessage(err))` and something above it catches and
- *  calls `errorMessage` again on the Error it just made. There are 72 of those.
- *  So an already-human message has to survive a second pass untouched — which
- *  rules out "return the fallback for anything unrecognised", because roughly
- *  forty hand-written validation lines ("The stop time has to be after the
- *  start time.") come through here and would all collapse into
- *  "Something went wrong."
+ *  calls `errorMessage` again on the Error it just made. So an already-human
+ *  message has to survive a second pass untouched — which rules out "return
+ *  the fallback for anything unrecognised", because every hand-written
+ *  validation line ("That is not a number of days.") comes through here and
+ *  would collapse into "Something went wrong."
  *
  *  Second, the raw string is the only other thing on offer, and unmapped raw
- *  strings are Postgres talking: constraint names in front of a client. So the
+ *  strings are Postgres talking: constraint names in front of a person. So the
  *  rule is neither "always raw" nor "never raw" — it is: recognise the database
  *  errors that actually occur, translate those, and pass anything through only
- *  when it does not look like the database wrote it.
+ *  when it does not look like the database wrote it. A `raise exception` from
+ *  one of the schema's own triggers ("This invoice has been issued. Void it
+ *  and raise a new one instead of editing it.") is written for a person and
+ *  passes through on purpose.
  */
 export function errorMessage(error, fallback = 'Something went wrong.') {
   if (!error) return fallback;
@@ -217,14 +241,14 @@ export function errorMessage(error, fallback = 'Something went wrong.') {
   // SQLSTATE first: it is exact where a message match is a guess. PostgREST
   // puts the five-character class in `code`.
   switch (error.code) {
-    case '23505': return 'Something with those details is already on file.';
+    case '23505': return 'Something with those details already exists.';
     case '23503': return 'Something else still refers to this. Remove that first.';
     case '23502': return 'A required field was left empty.';
     case '23514': return 'Those details are not a combination we can save.';
     case '22001': return 'That is longer than the field allows.';
     case '22P02': return 'One of those values is not the right kind of value.';
     case '42501': return 'You do not have permission to do that.';
-    case 'PGRST116': return 'That record is no longer there. Reload and try again.';
+    case 'PGRST116': return 'That record was not found. Reload and try again.';
     default: break;
   }
 
@@ -236,18 +260,6 @@ export function errorMessage(error, fallback = 'Something went wrong.') {
   }
   if (/Failed to fetch|NetworkError/i.test(raw)) {
     return 'Could not reach the server. Check your connection and try again.';
-  }
-  // sows.client_id is the one `on delete restrict` in the schema, deliberately:
-  // a client with a scope of work on file is not a record anyone should be
-  // able to delete sideways. Postgres says so in constraint names; say it in
-  // English instead.
-  if (/sows_client_id_fkey/i.test(raw)) {
-    return 'This client has scopes of work on file, and those are kept as '
-         + 'business records. Delete or void them first.';
-  }
-  if (/sow_credits_pkey/i.test(raw)) {
-    return 'The one-page credit for this client has already been used. '
-         + 'Reload the list to see where.';
   }
 
   // Unmapped and database-shaped: keep it out of the interface, but do not

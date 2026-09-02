@@ -3,51 +3,48 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Client Portal — New Journey Designs</title>
+  <title>Sign in — Walter Ochenski LLC</title>
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#FF5100">
-  <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="/assets/img/app-icon-192.png">
+  <link rel="icon" type="image/svg+xml" href="/assets/img/wo-mark.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/wo-favicon-32.png">
   <!-- Home-screen icons are full-bleed and opaque on purpose: the platform masks
        them itself, so a transparent margin lands as a black frame around the art.
        Regenerate with tools/icons/generate.py. -->
-  <link rel="apple-touch-icon" href="/assets/img/app-icon-180.png">
+  <link rel="apple-touch-icon" href="/assets/img/wo-app-icon-180.png">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="New Journey">
-  <!-- The portal's own manifest, not the site's. iOS installs whatever URL is
-       on screen, so Add to Home Screen from here always landed on the portal —
-       but Android installs the manifest's start_url, and the root manifest says
-       "/", which opened the marketing homepage instead. Every portal page links
-       this one; scope keeps the installed window on /portal/ and hands the
-       "back to newjourneydesigns.com" link to the browser, which is right. -->
+  <meta name="apple-mobile-web-app-title" content="WO Portal">
+  <!-- iOS installs whatever URL is on screen, Android installs the manifest's
+       start_url; both land on /portal/ here, and scope keeps the installed
+       window inside the portal. -->
   <link rel="manifest" href="/portal/site.webmanifest">
   <!-- Self-hosted Inter. Preloaded because the @font-face lives inside
        styles.css, so the browser cannot discover the font until that
        stylesheet has parsed. -->
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/inter-latin.woff2" crossorigin>
-  <link rel="stylesheet" href="/css/styles.css?v=26">
-  <link rel="stylesheet" href="/css/portal.css?v=53">
-  <link rel="stylesheet" href="/css/print.css?v=5">
+  <link rel="stylesheet" href="/css/styles.css?v=1">
+  <link rel="stylesheet" href="/css/portal.css?v=1">
+  <link rel="stylesheet" href="/css/print.css?v=1">
 </head>
 <body class="login">
   <main class="login" id="main">
     <div class="login__panel" id="login-panel">
-      <img src="/assets/img/njd-mark-orange-96.png" alt="New Journey Designs" width="48" height="48">
-      <h1>Client Portal</h1>
-      <p>Your waypoints, files and messages — all in one place.</p>
+      <img src="/assets/img/wo-mark-orange-96.png" alt="Walter Ochenski LLC" width="48" height="48">
+      <h1>Portal</h1>
+      <p>Clients, invoices and expenses for Walter Ochenski LLC.</p>
 
       <!-- autocapitalize/autocorrect/spellcheck are off on both fields on
            purpose. A phone keyboard capitalising the first letter of a
-           case-sensitive password produces "that email and password do not
-           match" with nothing on screen to explain it, and the person retypes
-           the same wrong thing until they give up. -->
+           username or a case-sensitive password produces "check your username
+           and password" with nothing on screen to explain it, and the person
+           retypes the same wrong thing until they give up. -->
       <form id="login-form">
         <div class="form-field">
-          <label for="login-email">Email address</label>
-          <input type="email" id="login-email" name="email" autocomplete="username" inputmode="email"
+          <label for="login-username">Username</label>
+          <input type="text" id="login-username" name="username" autocomplete="username"
                  autocapitalize="none" autocorrect="off" spellcheck="false"
-                 placeholder="you@yourcompany.com" required>
+                 required>
         </div>
         <div class="form-field">
           <label for="login-password">Password</label>
@@ -67,7 +64,7 @@
              shared machine, and it holds only until the browser closes.
              The shape is load-bearing: .form-field is what carries the 16px
              input floor, and the wrapping .check label is what the 44px tap
-             floor is measured on — the person modal's Clients boxes, exactly. -->
+             floor is measured on. -->
         <div class="form-field">
           <label class="check" for="login-remember">
             <input type="checkbox" id="login-remember" checked>
@@ -79,17 +76,10 @@
 
       <div id="login-status" aria-live="polite"></div>
 
-      <!-- The address gets its own line rather than sitting mid-sentence.
-           .login__foot is overflow-wrap: anywhere — which it needs to be, since
-           a long address must not push the panel sideways — and in a sentence
-           that meant it broke as "newjourneydesigns.co / m" on a 320px phone,
-           which reads as a broken page on the first screen a client ever sees.
-           On its own line it fits at every width and never breaks. -->
-      <p class="login__foot">Forgotten your password? Email us and we will set you a new one.</p>
-      <p class="login__foot">
-        <a href="mailto:info@newjourneydesigns.com?subject=Portal%20password%20reset">info@newjourneydesigns.com</a>
-      </p>
-      <p class="login__foot"><a href="/">Back to newjourneydesigns.com</a></p>
+      <!-- No reset link and no address: the system sends no email. A lost
+           password is a phone call, and the owner sets a new one from
+           Admin → People. -->
+      <p class="login__foot">Forgotten your password? Call (972) 467-5988.</p>
     </div>
   </main>
 
@@ -101,6 +91,6 @@
        already defined window.supabase by the time the module below runs.
        See js/vendor/README.md. -->
   <script src="/js/vendor/supabase-2.111.0.js"></script>
-  <script type="module" src="/js/portal/login.js?v=7"></script>
+  <script type="module" src="/js/portal/login.js?v=1"></script>
 </body>
 </html>

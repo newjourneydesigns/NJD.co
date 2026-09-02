@@ -1,0 +1,5355 @@
+/* ==========================================================================
+   New Journey Designs — portal.css
+
+   Loaded after styles.css and composes from the same design tokens, so the
+   portal reads as part of the brand rather than a separate tool. Nothing here
+   affects the marketing pages.
+   ========================================================================== */
+
+:root {
+  --color-canvas:   #FAFAF9;
+  --color-panel:    #FFFFFF;
+  --color-ink-soft: #6B6B6B;
+
+  --status-green:   #1E7A4B;
+  --status-green-bg:#E9F5EE;
+  --status-blue:    #2A5FA8;
+  --status-blue-bg: #EAF1FB;
+  --status-amber:   #8A5A00;
+  --status-amber-bg:#FDF3E0;
+  --status-red:     #A32A17;
+  --status-red-bg:  #FCEDEA;
+  --status-violet:  #6941C6;
+  --status-gray-bg: #F1F1F0;
+}
+
+/* --shadow-panel and --shadow-lift used to be declared here. They moved to
+   styles.css :root, where the rest of the tokens live, because the marketing
+   pages never load this file and had grown four one-off shadows of their own
+   for want of them. */
+
+.portal { background: var(--color-canvas); min-height: 100vh; }
+
+/* Header
+   ========================================================================== */
+
+.portal-header {
+  background: var(--color-white);
+  border-bottom: 1px solid var(--color-line);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.portal-header__inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 4rem;
+  padding-block: var(--space-2);
+  /* The menu panel hangs off this box. */
+  position: relative;
+}
+
+.portal-header__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-decoration: none;
+  color: var(--color-charcoal);
+  font-weight: var(--weight-strong);
+}
+
+.portal-header__brand img { width: 34px; height: 34px; }
+
+.portal-header__label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--color-orange-deep);
+}
+
+/* Search
+   --------------------------------------------------------------------------
+   The one box that finds anything, in the header of every portal page so that
+   signing in puts it at the top of the first screen you see. It takes the slack
+   in the bar (flex: 1) up to a sensible width — a search field the width of a
+   desktop monitor is a text editor.
+
+   The results hang off .portal-header__inner the same way the menu panel does,
+   and are aligned to the field rather than to the bar so the eye stays where it
+   was typing. */
+
+.portal-search {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 30rem;
+}
+
+.portal-search__field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.portal-search__icon {
+  position: absolute;
+  left: .75rem;
+  display: block;
+  color: var(--color-ink-soft);
+  pointer-events: none;
+}
+
+.portal-search__input {
+  width: 100%;
+  min-width: 0;
+  height: 2.5rem;
+  padding: 0 .75rem 0 2.25rem;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  color: var(--color-charcoal);
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-full);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.portal-search__input::placeholder { color: var(--color-ink-soft); }
+
+.portal-search__input:focus {
+  outline: 2px solid var(--color-orange);
+  outline-offset: 1px;
+  background: var(--color-white);
+}
+
+/* Safari draws its own clear button inside a type=search field, which lands on
+   top of the rounded edge. The Escape key clears it everywhere. */
+.portal-search__input::-webkit-search-decoration,
+.portal-search__input::-webkit-search-cancel-button { -webkit-appearance: none; }
+
+.portal-search__panel {
+  position: absolute;
+  top: calc(100% + .5rem);
+  left: 0;
+  right: 0;
+  z-index: 3;
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lift);
+  padding: var(--space-2);
+  max-height: min(28rem, calc(100vh - 6rem));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.portal-search__group {
+  margin: var(--space-2) 0 var(--space-1);
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.portal-search__group:first-child { margin-top: 0; }
+
+/* A hit is a link, so ⌘-click and middle-click behave. The pointer and the
+   arrow keys drive the same .is-active state, so the row Enter opens is always
+   the row that looks chosen. */
+.portal-search__hit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius);
+  color: var(--color-charcoal);
+  text-decoration: none;
+}
+
+.portal-search__hit.is-active,
+.portal-search__hit:hover { background: var(--color-canvas); }
+
+.portal-search__hit-main { min-width: 0; flex: 1; }
+
+.portal-search__hit-title {
+  display: block;
+  font-weight: var(--weight-emphasis);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portal-search__hit-sub {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portal-search__hit-meta {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--color-ink-soft);
+  background: var(--status-gray-bg);
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-2);
+  white-space: nowrap;
+}
+
+/* <mark> is the honest element for "this is why you are seeing this row", but
+   its default is a yellow highlighter. */
+.portal-search__mark {
+  background: none;
+  color: var(--color-orange-deep);
+  font-weight: var(--weight-strong);
+}
+
+.portal-search__note {
+  margin: 0;
+  padding: var(--space-2) var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+.portal-search__note--error { color: var(--status-red); }
+
+/* The menu
+   --------------------------------------------------------------------------
+   Every destination lives behind the one hamburger button, at every width.
+   Six inline items wrapped the sticky header to three rows on a phone; one
+   button keeps the bar one row everywhere, and means there is exactly one
+   navigation to learn. A dropdown rather than a takeover: Escape and the
+   scrim both close it, and the page underneath stays a page. */
+
+.portal-menu__button {
+  margin-left: auto;
+  /* Above the scrim, so the button that opened the menu stays visible and
+     pressing it again closes — the standard toggle expectation. */
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* 5px, not a space token: it is half of the 7px translateY that turns these
+     three bars into an X. Same pairing as .nav-toggle in styles.css. */
+  gap: 5px;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.portal-menu__button:hover,
+.portal-menu__button.is-open { background: var(--color-canvas); }
+
+.portal-menu__bar {
+  width: 1.25rem;
+  height: 2px;
+  border-radius: var(--radius-full);
+  background: var(--color-charcoal);
+  transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+
+.portal-menu__button.is-open .portal-menu__bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.portal-menu__button.is-open .portal-menu__bar:nth-child(2) { opacity: 0; }
+.portal-menu__button.is-open .portal-menu__bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-menu__bar { transition: none; }
+}
+
+.portal-menu__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: rgba(34, 34, 34, .35);
+}
+
+.portal-menu__panel {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: var(--space-4);
+  z-index: 2;
+  min-width: 16rem;
+  max-height: calc(100vh - 5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lift);
+  padding: var(--space-2);
+  display: grid;
+}
+
+/* Reference information, one tap away instead of in every sticky header. */
+.portal-menu__who {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  border-bottom: 1px solid var(--color-line);
+  overflow-wrap: anywhere;
+}
+
+/* Segments (js/portal/shell.js draws them): each run of destinations is a
+   group with a small header, a hairline between groups, and the account card
+   at the foot on the canvas tint so it reads as a different kind of thing.
+   Headers render for staff only — the client menu is three items. */
+.portal-menu__group { display: grid; }
+
+.portal-menu__group + .portal-menu__group {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-line);
+}
+
+.portal-menu__label {
+  margin: 0;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.portal-menu__group--foot {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--space-1);
+}
+
+/* The card's own border is the divider — the hairline the sibling rule adds
+   would double it, and the card's padding should stay even all round. */
+.portal-menu__group + .portal-menu__group--foot {
+  border-top: 1px solid var(--color-line);
+  padding-top: var(--space-1);
+}
+
+/* Canvas is the item hover colour everywhere else; on the canvas card the
+   hover needs its own shade to exist at all. */
+.portal-menu__group--foot .portal-menu__item:hover { background: rgba(34, 34, 34, .06); }
+
+/* The leaves-the-portal mark on an item (Boards). Muted: it is a hint, not a
+   second label. A text-node space would vanish in the flex row, so the gap is
+   a margin. */
+.portal-menu__ext { margin-left: var(--space-2); color: var(--color-ink-soft); }
+.portal-menu__item:hover .portal-menu__ext { color: inherit; }
+
+/* One rule for links and buttons both, so Profile and Sign out read exactly
+   like the destinations above them. 44px tall everywhere — a menu is the one
+   place generous targets cost nothing on desktop. */
+.portal-menu__item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  font-weight: var(--weight-emphasis);
+  color: var(--color-charcoal);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.portal-menu__item:hover { background: var(--color-canvas); color: var(--color-orange-deep); }
+
+.portal-menu__item[aria-current="page"] {
+  background: var(--color-orange-tint);
+  color: var(--color-orange-deep);
+}
+
+/* Muted, not alarmed — it sits inside the account card now, so the card is
+   the separation and the colour is the only distinction it needs. */
+.portal-menu__item--signout { color: var(--color-gray); }
+
+.portal-main { padding-block: var(--space-5) var(--space-7); }
+
+/* Page furniture
+   ========================================================================== */
+
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.page-head h1 { margin: 0; font-size: var(--text-2xl); line-height: 1.2; }
+.page-head p { margin: var(--space-1) 0 0; color: var(--color-ink-soft); }
+/* align-items, or the row's default stretch inflates the short items — the
+   project head's status pill was drawn at button height, its label sitting
+   high in a tall capsule instead of centred in a small one. */
+.page-head__actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+
+.breadcrumb {
+  font-size: var(--text-base);
+  margin: 0 0 var(--space-2);
+}
+
+.breadcrumb a { color: var(--color-orange-deep); font-weight: var(--weight-emphasis); text-decoration: none; }
+.breadcrumb a:hover { text-decoration: underline; }
+
+/* The client's name under a project title. Reads like the breadcrumb above it
+   because it does the same job — the route back to the record this page hangs
+   off — and .page-head p would otherwise grey it out into looking like prose. */
+.page-head__client { color: var(--color-orange-deep); font-weight: var(--weight-emphasis); text-decoration: none; }
+.page-head__client:hover { text-decoration: underline; }
+
+/* The journey — the four-phase indicator under a project's name.
+   Discovery · Chart · Trek · Journey, drawn as numbered trail markers with
+   dotted legs between them: ground travelled in the brand orange, the road
+   ahead in line-grey. Staff steps are buttons; a client gets the same bar as
+   plain spans (phase.js decides). Understated on purpose — no panel, no
+   heading, the labels are the explanation. */
+
+.journey {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-4);
+  /* Wide screens: the legs stretch, and a bar the width of the page reads as
+     a loading bar rather than four stops. Capped instead. */
+  max-width: 34rem;
+}
+
+.journey__step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+  /* The 44px floor, met by the step's whole column rather than its 24px
+     marker — same idea as the checkbox measuring by its label. Spans wear it
+     too, so the staff and client renders of the bar are the same height. */
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--color-ink-soft);
+  text-align: center;
+}
+
+button.journey__step { cursor: pointer; }
+
+button.journey__step:focus-visible {
+  outline: 2px solid var(--color-orange);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.journey__marker {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-line);
+  background: var(--color-panel);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  line-height: 1;
+  color: var(--color-ink-soft);
+  transition: border-color var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
+}
+
+.journey__label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-emphasis);
+  letter-spacing: .02em;
+  line-height: 1;
+}
+
+/* Ground travelled: tinted markers. The stop we are at: a filled marker —
+   white numeral, so it takes --color-action, the token whose whole job is
+   carrying white text (styles.css) — with a tint halo saying "you are here"
+   without introducing a second colour. */
+.journey__step--past .journey__marker {
+  border-color: var(--color-orange);
+  background: var(--color-orange-tint);
+  color: var(--color-orange-deep);
+}
+
+.journey__step--current .journey__marker {
+  border-color: var(--color-action);
+  background: var(--color-action);
+  color: var(--color-white);
+  box-shadow: 0 0 0 4px var(--color-orange-tint);
+}
+
+.journey__step--current { color: var(--color-orange-deep); }
+.journey__step--current .journey__label { font-weight: var(--weight-strong); }
+
+/* The road ahead lights up under a staff pointer — enough affordance that
+   the stops read as settable without dressing them up as buttons. */
+button.journey__step:hover .journey__marker {
+  border-color: var(--color-orange);
+  color: var(--color-orange-deep);
+}
+
+/* The dotted legs — the "···" between the numbers. margin-top centres the
+   line on the 1.5rem markers: a clearance measured from a sibling, not
+   rhythm, so it stays literal (see the spacing note in styles.css). */
+.journey__leg {
+  flex: 1;
+  min-width: var(--space-2);
+  border-top: 2px dotted var(--color-line);
+  margin-top: calc(.75rem - 1px);
+}
+
+.journey__leg--travelled { border-top-color: var(--color-orange); }
+
+.panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+  padding: var(--space-4);
+}
+
+.panel + .panel { margin-top: var(--space-4); }
+
+.panel__head {
+  display: flex;
+  /* Wraps: "Waypoints" plus "Start from a journey" and "Add waypoint" do not
+     share 240px, and a flex row without wrap pushes the buttons off the panel
+     rather than under the title. */
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.panel__head h2 { margin: 0; font-size: var(--text-lg); }
+.panel__head .page-head__actions { margin-left: auto; }
+
+/* A panel that carries a filter alongside its one action — Admin → People.
+   The box takes the room between the heading and the button, and drops to its
+   own full-width line before it gets too narrow to type a name into. */
+.panel__tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.panel-search {
+  /* 1rem, like every other portal input: iOS zooms the page on focus for
+     anything smaller, and never zooms back out. */
+  font: inherit;
+  font-size: var(--text-md);
+  padding: var(--space-2) var(--space-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  flex: 1;
+  min-width: 11rem;
+  max-width: 26rem;
+}
+
+.panel-search:focus-visible { outline: 2px solid var(--color-orange); outline-offset: 1px; }
+
+/* Sub-headings inside a panel must sit below the panel's own title, so they get
+   an explicit size — a bare h3 would otherwise render larger than .panel__head h2.
+   The modal needs the same rule spelled out separately: modalShell appends its
+   dialog to <body>, so a dialog is never inside a .panel and the descendant
+   selector would not reach it. Without this, a sub-heading in a long form falls
+   through to the global h3 size and competes with the dialog's own title. */
+.panel h3,
+.modal__body h3 {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+}
+
+.modal__body h3:first-child { margin-top: 0; }
+
+/* A run of fields revealed as one unit inside a modal. .modal__body spaces only
+   its own direct children, so a nested group has to space itself — and it needs
+   a class rather than a style attribute, because style-src carries no
+   'unsafe-inline'. */
+.field-group { display: grid; gap: var(--space-3); }
+
+.tag-row { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+
+.empty {
+  color: var(--color-ink-soft);
+  text-align: center;
+  padding: var(--space-5) var(--space-3);
+  font-size: var(--text-base);
+}
+
+.notice {
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  font-size: var(--text-base);
+  margin-bottom: var(--space-4);
+}
+
+.notice--info  { background: var(--status-blue-bg);  color: var(--status-blue); }
+.notice--warn  { background: var(--status-amber-bg); color: var(--status-amber); }
+.notice--error { background: var(--status-red-bg);   color: var(--status-red); }
+.notice--ok    { background: var(--status-green-bg); color: var(--status-green); }
+.notice a { color: inherit; font-weight: var(--weight-strong); }
+
+/* Buttons — extends .btn from styles.css
+   ========================================================================== */
+
+/* Icon, space, title — on every portal button, from CSS rather than from a
+   typed space. The builders append an <svg> and then ' Label', and whether
+   that space survived was a lottery: .btn--small is inline-flex always, and
+   the coarse-pointer block below makes EVERY .btn inline-flex on a phone —
+   and flex layout drops a leading space from the label's text node. So the
+   same button read "⊘Done" on a phone and "⊘ Done" on a desktop. One rule
+   ends it: portal buttons are flex with a real gap, everywhere, and a
+   text-only button has a single flex item and never notices. Scoped to
+   body.portal so the marketing pages' buttons keep their inline-block
+   rendering untouched. */
+.portal .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.portal .btn svg { flex: none; }
+
+.btn--tiny { font-size: var(--text-base); padding: var(--space-2) var(--space-3); border-radius: var(--radius); }
+
+.btn--ghost {
+  background: var(--color-white);
+  color: var(--color-charcoal);
+  border: 1px solid var(--color-line);
+  font-weight: var(--weight-emphasis);
+}
+
+.btn--ghost:hover { background: var(--color-canvas); color: var(--color-orange-deep); }
+
+.btn--danger { background: var(--status-red); }
+.btn--danger:hover { background: #86220f; }
+
+/* .btn[disabled] moved to styles.css, where the rest of the button lives. It
+   was opacity .55, which composited to 2.01:1 and faded the label along with
+   the fill; it is now an explicit flat surface at 5.66:1. One treatment for
+   every variant — a disabled ghost and a disabled danger read as the same
+   inert chip, which is the point. */
+
+.btn-row { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+
+/* Destructive actions, given their own weight
+   --------------------------------------------------------------------------
+   The modal footer has said for a while that the dangerous control does not
+   belong shoulder to shoulder with Save: `.modal__foot .btn--danger` pushes it
+   to the far edge. A table row never got the same courtesy, so Void — which
+   takes a scope of work off a client's screen — sat in the same grey as
+   Duplicate.
+
+   .btn-row--split marks a row carrying a .btn-row__end group, and the group is
+   divided off with a rule and a wider gap than the row's own. The buttons in it
+   wear .btn--danger, which already existed.
+
+   The divider does the footer's job by a different mechanic, deliberately. A
+   modal footer is a bounded box with slack, so an auto margin lands the button
+   at a visible edge. A table cell is not: `.table` is width: 100% and the last
+   column absorbs the leftover, so `margin-left: auto` threw Void to the far
+   side of a stretched cell where the panel clipped it. Measured at 1280px, and
+   the reason this is a border and not a margin.
+
+   Kept as one block rather than filed beside each family — portal.css is being
+   worked on elsewhere at the same time, and one contiguous hunk is one merge. */
+
+.btn-row--split > .btn-row__end {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-left: var(--space-1);
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--color-line);
+}
+
+@media (max-width: 39.999rem) {
+  /* Stacked cards. The row wraps here, so a rule down the left of a group that
+     has dropped onto its own line divides nothing and just reads as a stray
+     mark. Colour carries the distinction at this width, the same way
+     .modal__foot gives up its auto margin rather than keep half an idiom. */
+  .btn-row--split > .btn-row__end {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+/* The inbox's actions are not .btn — they are small bordered text (see
+   .inbox__action, far below) — so the destructive one needs its tone spelled
+   out. "Delete for good" on an archived notification is instant and has
+   nothing behind it to undo with: toast() carries a message and no action, so
+   the row cannot offer one. It must at least not look like the Restore button
+   sitting beside it.
+
+   Both selectors double the class on purpose. This block sits above
+   `.inbox__action` and `.inbox__action:hover` so it can travel with the rule
+   above rather than as a second hunk, and equal specificity would hand the
+   later rule the win. Doubling outranks it instead of relying on order. */
+.inbox__action.inbox__action--danger {
+  color: var(--status-red);
+  border-color: var(--status-red-bg);
+}
+
+.inbox__action.inbox__action--danger:hover {
+  color: var(--color-white);
+  background: var(--status-red);
+  border-color: var(--status-red);
+}
+
+/* Pills
+   ========================================================================== */
+
+.pill {
+  display: inline-block;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--status-gray-bg);
+  color: var(--color-gray);
+  white-space: nowrap;
+  /* A pill is a status word, and a status word should never be the reason a
+     phone scrolls sideways. */
+  max-width: 100%;
+  /* A pill lands in flex rows beside taller things — buttons, selects — and
+     the default stretch turns it into a tall capsule with the label pinned
+     to its top. Centring itself keeps the text centred whatever row it is
+     dropped into; align-self is inert outside flex and grid, so pills in
+     running text and table cells are untouched. */
+  align-self: center;
+}
+
+/* A pill carrying a sentence rather than a status word — the ledger's "Missing
+   where it was, the business purpose, and who was there". Nowrap made that one
+   line 451px wide on a 390px phone and took the whole Expenses page sideways
+   with it. It also loses the uppercase: shouting a whole sentence is a
+   different tone from labelling something ARCHIVED. */
+.pill--wrap {
+  white-space: normal;
+  text-transform: none;
+  letter-spacing: 0;
+  text-align: left;
+}
+
+/* A pill that is also the way in — the Portal user badge opens that person's
+   account. It keeps the pill's shape and colour and gains a pointer and a
+   focus ring, so it reads as a label until you go near it. */
+.pill--button {
+  font-family: inherit;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.pill--button:hover { border-color: currentColor; }
+.pill--button:focus-visible { outline: 2px solid var(--color-orange); outline-offset: 1px; }
+
+.pill--green { background: var(--status-green-bg); color: var(--status-green); }
+.pill--blue  { background: var(--status-blue-bg);  color: var(--status-blue); }
+.pill--amber { background: var(--status-amber-bg); color: var(--status-amber); }
+.pill--red   { background: var(--status-red-bg);   color: var(--status-red); }
+
+/* Progress
+   ========================================================================== */
+
+.progress { display: grid; gap: var(--space-1); }
+
+.progress__track {
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-line);
+  overflow: hidden;
+}
+
+.progress__bar {
+  height: 100%;
+  background: var(--color-orange);
+  border-radius: var(--radius-full);
+  transition: width var(--dur-slow) var(--ease);
+}
+
+.progress__label {
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  font-weight: var(--weight-emphasis);
+}
+
+/* Project cards
+   ========================================================================== */
+
+.project-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 44rem) {
+  .project-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 68rem) {
+  .project-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.project-card {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+  padding: var(--space-4);
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+
+.project-card:hover { box-shadow: var(--shadow-lift); transform: translateY(-2px); }
+.project-card__client { font-size: var(--text-sm); color: var(--color-ink-soft); font-weight: var(--weight-emphasis); }
+.project-card__name { margin: 0; font-size: var(--text-lg); line-height: 1.3; }
+.project-card__summary {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--color-gray);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.project-card__foot { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+
+.attention {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  color: var(--color-orange-deep);
+}
+
+/* Sideways scroll needs a visible edge
+   --------------------------------------------------------------------------
+   .section-nav scrolls horizontally on a narrow screen and hides its
+   scrollbar outright. A section you cannot see and have no reason to look for
+   is a section that does not exist — measured at 320px, the client record's
+   bar is 510px of links inside 238px, so three of its five sections were
+   undiscoverable and nothing on screen said so.
+
+   The affordance is a fade to the bar's own background at whichever edge has
+   content past it. It is drawn by two sticky pseudo-elements rather than by a
+   mask on the bar itself, and that is not a stylistic choice: both bars are
+   `position: sticky` and depend on an opaque background to hide the page
+   scrolling underneath them, so a mask would punch a transparent strip in
+   exactly the thing that makes them readable.
+
+   The negative margins are load-bearing. A flex container's `gap` applies to
+   pseudo-element items too, so each one otherwise adds its own width *plus* a
+   gap to the scroll width — enough to turn a bar that just fits into one that
+   scrolls, which is the hint manufacturing the problem it reports. Cancelling
+   width + gap leaves the layout byte-identical to before.
+
+   scroll-fade.js turns each edge on only when there is content past it and off
+   at the end of the travel. With JavaScript half-loaded both stay off and the
+   bars behave exactly as they did. */
+.scroll-fade::before,
+.scroll-fade::after {
+  content: '';
+  flex: none;
+  position: sticky;
+  align-self: stretch;
+  width: var(--space-5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.scroll-fade::before {
+  left: 0;
+  margin-right: calc(-1 * (var(--space-5) + var(--space-1)));
+  background: linear-gradient(to right, var(--color-canvas), transparent);
+}
+
+.scroll-fade::after {
+  right: 0;
+  margin-left: calc(-1 * (var(--space-5) + var(--space-1)));
+  background: linear-gradient(to left, var(--color-canvas), transparent);
+}
+
+.scroll-fade.is-fade-start::before,
+.scroll-fade.is-fade-end::after { opacity: 1; }
+
+/* Section nav — the "on this page" bar (section-nav.js), used by the client
+   record, Admin and the project page.
+
+   It replaced the project page's .tabs bar on 2026-08-14, after that bar's
+   labels collided into each other at five tabs. Measured at 390px: the bar's
+   scrollWidth stayed equal to its own width (342px) while four of the five
+   labels needed more room than their boxes had, so the text simply overlapped
+   and nothing scrolled.
+
+   The cause was NOT the tab markup. It was the tap-target block at the foot of
+   this file: `.tab` was listed there, so under `pointer: coarse` every tab got
+   `display: inline-flex` — and a flex item that is itself a flex container
+   stops holding its min-content width, so the labels shrank below their own
+   text instead of pushing the bar wide enough to scroll.
+
+   That is why THIS bar's links are not in that block, and must not be added to
+   it. Left alone they hold their width, the bar overflows honestly — 540px
+   inside 342px on the project page — and scrolls, with .scroll-fade above to
+   say so. They clear WCAG 2.2 SC 2.5.8's 24px floor for a text link at 37px
+   tall; the 44px floor is for controls, and tools/ui/gate.mjs judges them
+   against the right one. Adding them to the block to "fix" a floor they
+   already meet is how this bug comes back. */
+.section-nav {
+  position: sticky;
+  top: var(--portal-header-h, 4rem);
+  z-index: 30;
+  display: flex;
+  gap: var(--space-1);
+  overflow-x: auto;
+  background: var(--color-canvas);
+  border-bottom: 1px solid var(--color-line);
+  margin-bottom: var(--space-4);
+}
+
+.section-nav__link {
+  border-bottom: 3px solid transparent;
+  font-size: var(--text-base);
+  font-weight: var(--weight-strong);
+  color: var(--color-gray);
+  padding: var(--space-2) var(--space-3);
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.section-nav__link:hover { color: var(--color-charcoal); }
+
+.section-nav__link.is-on {
+  color: var(--color-charcoal);
+  border-bottom-color: var(--color-orange);
+}
+
+/* Waypoint timeline
+   ========================================================================== */
+
+.timeline { display: grid; gap: var(--space-2); }
+
+/* Two parts, one shape — shared with `.task` further down, because a waypoint
+   and a task are the same object on screen:
+
+     [grip] [dot] Title          ← one flex row, everything centred on it
+     Body, the card's full width
+
+   The head is flex and not grid cells, and that is the correction to a first
+   attempt: as grid items the controls and the title were each aligned inside
+   the track independently (`align-self` apiece), which centred them against
+   the *row* rather than against each other and left the title 8px below the
+   dot. Flex centres them against one another, which is the thing that has to
+   be true, and it holds whether the title runs to one line or three.
+
+   The body being its own block under the head is what gives the words the
+   whole card. Beside the controls it was 264px of text next to 78px of
+   nothing running the full height of the description at 390px. */
+.waypoint {
+  padding: var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-panel);
+}
+
+.waypoint__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.waypoint__body { margin-top: var(--space-2); }
+
+/* The grip sits in the head row rather than in the lane .is-reorderable
+   reserves down the side. In flow it cannot shift the text as it fades in,
+   which is the one thing that lane existed to prevent — so the padding goes
+   back to the text, which on a phone is 48px it badly needed. The other four
+   row types that share .is-reorderable keep the lane and are untouched. */
+.waypoint.is-reorderable { padding-inline-start: var(--space-3); }
+
+.waypoint__head .reorder-handle {
+  position: static;
+  flex: none;
+  /* Always legible: it no longer moves anything by being visible, and a
+     control revealed only on hover is a control a touch screen never has. */
+  opacity: 1;
+}
+
+.waypoint__dot {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-line);
+  display: grid;
+  place-items: center;
+  font-size: var(--text-xs);
+  color: var(--color-white);
+  flex: none;
+}
+
+.waypoint--complete .waypoint__dot { background: var(--status-green); border-color: var(--status-green); }
+.waypoint--in_progress .waypoint__dot { border-color: var(--color-orange); border-width: 4px; }
+.waypoint--blocked .waypoint__dot { background: var(--status-red); border-color: var(--status-red); }
+
+/* Scoped through the head, and it has to be: `.panel h3` a few hundred lines
+   up sets `margin: var(--space-4) 0 var(--space-2)` on every h3 inside a
+   panel, and its specificity (0,1,1) beats a lone class (0,1,0). Those 24px
+   above and 8px below are what pushed the title 8px past the dot it is
+   supposed to line up with — the margin box centred, so the text did not. */
+.waypoint__head .waypoint__title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+}
+.waypoint__desc { margin: var(--space-1) 0 0; font-size: var(--text-base); color: var(--color-gray); }
+.waypoint__meta { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; margin-top: var(--space-3); }
+.waypoint--complete .waypoint__title { color: var(--color-gray); }
+
+/* The client page's Paperwork panel reuses these rows, and brings one state a
+   project waypoint has no use for: a document deliberately set aside. It reads
+   as a decision rather than an omission — dashed rather than empty, struck
+   through rather than merely grey — because "we agreed they don't need an NDA"
+   and "nobody has done the NDA" must not look the same on a scan. */
+.waypoint--not_needed .waypoint__dot { border-style: dashed; }
+.waypoint--not_needed .waypoint__title {
+  color: var(--color-ink-soft);
+  text-decoration: line-through;
+}
+
+/* Kanban board
+   ========================================================================== */
+
+.board {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+@media (min-width: 60rem) {
+  .board { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.column {
+  background: var(--status-gray-bg);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2);
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+
+.column--needs_review { background: var(--color-orange-tint); border-color: rgba(255, 81, 0, .25); }
+
+.column__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+}
+
+.column__title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--color-gray);
+}
+
+.column--needs_review .column__title { color: var(--color-orange-deep); }
+
+.column__count {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  color: var(--color-ink-soft);
+  background: var(--color-white);
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-2);
+}
+
+.column__add { margin-left: auto; }
+
+.column__list {
+  display: grid;
+  gap: var(--space-2);
+  min-height: 3rem;
+  border-radius: var(--radius);
+  padding: var(--space-1);
+}
+
+.column__list.is-drop-target {
+  outline: 2px dashed var(--color-orange);
+  outline-offset: 0;
+  background: rgba(255, 81, 0, .06);
+}
+
+.column__empty {
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  text-align: center;
+  padding: var(--space-3) var(--space-2);
+}
+
+.kcard {
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  box-shadow: var(--shadow-panel);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.kcard.is-draggable { cursor: grab; }
+.kcard.is-dragging { opacity: .45; }
+.kcard--internal { border-left: 3px solid var(--color-charcoal); background: #FCFCFB; }
+
+.kcard__title { margin: 0; font-size: var(--text-base); font-weight: var(--weight-strong); line-height: 1.35; }
+
+.kcard__body {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--color-gray);
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* Chips are separate facts — a priority, a due date, a count. At --space-1
+   they read as one run-on token; distinct elements sit a full --space-2
+   apart, here and in every strip of chips or small controls below. */
+.kcard__meta { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+
+.tag {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  color: var(--color-gray);
+  background: var(--status-gray-bg);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+}
+
+.tag--due { background: var(--status-blue-bg); color: var(--status-blue); }
+.tag--overdue { background: var(--status-red-bg); color: var(--status-red); }
+.tag--internal { background: var(--color-charcoal); color: var(--color-white); }
+
+/* Billable time against a waypoint, on the timeline. Tabular so a column of
+   them lines up, and the brand's colour because it is the figure on the row
+   that costs money. Staff only — a client never renders it. */
+.tag--time {
+  background: var(--color-orange-tint);
+  color: var(--color-orange-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+.kcard__actions { display: flex; gap: var(--space-2); }
+
+/* The card face
+   --------------------------------------------------------------------------
+   Everything below is triage information: what you need to decide whether to
+   open a card, and nothing more. The detail dialog is one click away. */
+
+.kcard__top { display: flex; gap: var(--space-2); align-items: flex-start; }
+.kcard__top .kcard__title { flex: 1; margin: 0; }
+
+.avatar {
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--color-charcoal);
+  color: var(--color-white);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: .02em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The only tag carrying an icon, so the flex layout is scoped to it rather
+   than applied to every .tag — most of them are one word and changing them all
+   to inline-flex would shift baselines on every card in the product. */
+.tag--checklist {
+  background: var(--status-gray-bg);
+  color: var(--color-gray);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.tag--priority-urgent { background: var(--status-red-bg);   color: var(--status-red); }
+.tag--priority-high   { background: var(--status-amber-bg); color: var(--status-amber); }
+.tag--priority-low    { background: var(--status-gray-bg);  color: var(--color-ink-soft); }
+
+/* An archived card is still readable — it is a record, not a tombstone — but it
+   should never compete with live work for attention. */
+.kcard--archived { opacity: .6; }
+
+/* Labels
+   --------------------------------------------------------------------------
+   A chip is a button in the card dialog (press to attach) and a static marker
+   everywhere else, so the "on" state carries the colour and the off state is a
+   quiet outline. */
+
+.chip {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-line);
+  background: transparent;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+
+button.chip:hover { border-color: var(--color-gray); }
+
+.chip.is-on { border-color: transparent; }
+.chip--gray.is-on   { background: var(--status-gray-bg);  color: var(--color-gray); }
+.chip--green.is-on  { background: var(--status-green-bg); color: var(--status-green); }
+.chip--amber.is-on  { background: var(--status-amber-bg); color: var(--status-amber); }
+.chip--red.is-on    { background: var(--status-red-bg);   color: var(--status-red); }
+.chip--blue.is-on   { background: var(--status-blue-bg);  color: var(--status-blue); }
+.chip--purple.is-on { background: #F1ECFA;                color: #5B3FA8; }
+
+/* Board filters
+   --------------------------------------------------------------------------
+   One row above the columns. It wraps rather than scrolls, because a filter
+   you cannot see is a filter you forget is on — and a board showing four of
+   forty cards with no visible reason is the worst version of this screen. */
+
+.board-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.board-filters:empty { margin-bottom: 0; }
+
+.board-filters__search { min-width: 12rem; flex: 1 1 12rem; }
+.board-filters select { width: auto; }
+
+/* These controls are built bare (no .form-field around them), so without
+   their own dress they render at the UA default — about 13px in the system
+   font, which both looks broken next to everything else and, being under
+   16px, makes iOS zoom the page when one is focused and leave it zoomed. */
+.board-filters input,
+.board-filters select {
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  color: var(--color-charcoal);
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-2);
+}
+.board-filters__count { margin-left: var(--space-1); }
+.board-filters__actions { margin-left: auto; }
+
+/* Card detail
+   --------------------------------------------------------------------------
+   Wider than a form dialog because it holds three lists as well as the fields.
+   Still capped: a full-width modal on a large screen makes every line too long
+   to read comfortably. */
+
+.modal__dialog--wide { width: min(48rem, 100%); }
+
+.card-detail__grid { display: grid; gap: var(--space-3); }
+
+@media (min-width: 40rem) {
+  .card-detail__grid { grid-template-columns: 1fr 1fr; }
+  /* Title and details want the full width; the rest pair up. */
+  .card-detail__grid > .form-field:nth-child(1),
+  .card-detail__grid > .form-field:nth-child(2) { grid-column: 1 / -1; }
+}
+
+.form-field--check { display: flex; gap: var(--space-2); align-items: center; }
+.form-field--check input { width: auto; }
+.form-field--check label { margin: 0; }
+
+/* Editing an agreement
+   --------------------------------------------------------------------------
+   One <details> per section of the contract, closed unless it holds an edit.
+   The summary is the tap target, so it carries the 44px floor itself rather
+   than relying on the text inside it to reach that height. */
+
+.agreement-section {
+  border-top: 1px solid var(--color-line);
+  margin-top: var(--space-3);
+}
+
+/* list-item, NOT flex — see .form-group's summary, which learned this the
+   same way. This rule said display: flex for as long as the agreement editor
+   has existed, and the comment below it has been wrong for exactly that long:
+   a flex <summary> renders no ::marker in Chromium, so these sections have
+   never had the triangle the next comment claims for them. Caught by drawing
+   both rules side by side in a browser. */
+.agreement-section > summary {
+  display: list-item;
+  list-style-position: inside;
+  min-height: 44px;
+  padding: var(--space-2) 0;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+/* The count pill sat beside the title on a flex `gap`, which list-item does
+   not have; the spans are appended with no whitespace between them, so
+   without this they touch. A hidden pill is display:none, so it brings no
+   stray margin with it. */
+.agreement-section > summary > span + span { margin-left: var(--space-2); }
+
+/* The marker stays — it is the only affordance saying the row opens, and a
+   custom triangle here would be a third icon set. */
+.agreement-section > summary::marker { color: var(--color-orange); }
+
+.agreement-edit { margin-top: var(--space-3); }
+
+.agreement-edit label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* A changed passage is marked down the edge rather than by colouring the text:
+   the text is contract wording and has to read exactly as it will print. */
+.agreement-edit--changed textarea {
+  border-left: 3px solid var(--color-orange);
+}
+
+.card-detail__section {
+  border-top: 1px solid var(--color-line);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+}
+
+.card-detail__section-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.card-detail__section-head h3 { margin: 0; font-size: var(--text-md); }
+.card-detail__section-head > :last-child { margin-left: auto; }
+/* A section with no action renders its h3 as the only — and therefore last —
+   child, and the rule above would fling the heading to the right edge. */
+.card-detail__section-head > h3:last-child { margin-left: 0; }
+
+.card-detail__labels { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* Checklist */
+
+.checklist { display: grid; gap: var(--space-1); margin-bottom: var(--space-2); }
+
+.checklist__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+}
+
+.checklist__item input[type="checkbox"] { width: auto; flex: none; }
+.checklist__title { flex: 1; margin: 0; font-size: var(--text-base); cursor: pointer; }
+.checklist__item.is-done .checklist__title { text-decoration: line-through; color: var(--color-ink-soft); }
+
+/* Comments */
+
+.comments { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
+
+.comment__meta { margin: 0 0 var(--space-1); font-size: var(--text-sm); color: var(--color-ink-soft); }
+.comment__body { margin: 0; white-space: pre-wrap; font-size: var(--text-base); }
+
+.mention {
+  background: var(--color-orange-tint);
+  color: var(--color-orange-deep);
+  font-weight: var(--weight-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-1);
+}
+
+.composer { position: relative; display: grid; gap: var(--space-2); justify-items: start; }
+
+/* Dressed here as well as via .form-field, because the card dialog's comment
+   box is a direct child of .composer with no .form-field around it — bare, it
+   rendered in the UA's ~13px monospace and made iOS zoom on focus. These are
+   the same values .form-field inputs get, so the two composers match. */
+.composer textarea {
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  color: var(--color-charcoal);
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+/* justify-items: start is there to stop the buttons stretching across the
+   panel, but it collapses a labelled box down to its own intrinsic width too.
+   The writing box wants every inch it can get — a note typed into a 20-column
+   sliver is a note nobody finishes. */
+.composer > .form-field { justify-self: stretch; }
+
+/* The @-picker floats over whatever is under the box rather than pushing the
+   dialog around as somebody types. */
+.mention-picker {
+  position: absolute;
+  z-index: 2;
+  top: 100%;
+  left: 0;
+  min-width: 14rem;
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lift);
+  overflow: hidden;
+}
+
+.mention-picker__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-2) var(--space-2);
+  border: 0;
+  background: transparent;
+  font-size: var(--text-base);
+  cursor: pointer;
+}
+
+.mention-picker__item:hover,
+.mention-picker__item.is-on { background: var(--color-orange-tint); }
+
+/* The message composer sits at the foot of the page, so its picker opens
+   upward, over the thread, instead of past the bottom of the viewport. */
+.mention-picker--up { top: auto; bottom: 100%; }
+
+/* 1rem, not 13px: this box is focused programmatically, and a sub-16px focus
+   is an automatic, unprompted zoom on iOS. */
+.copy-fallback { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-md); }
+
+/* Agenda rows — the Dashboard's Boards panel
+   --------------------------------------------------------------------------
+   A row here is a card seen from outside its board, so it names its board
+   underneath (the thing a title alone does not tell you). */
+
+.card-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.agenda { display: grid; }
+
+.agenda__row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-line);
+}
+
+.agenda__row:first-child { border-top: 0; }
+
+.agenda__body { flex: 1; min-width: 0; }
+
+.agenda__title {
+  display: block;
+  font-weight: var(--weight-strong);
+  color: var(--color-charcoal);
+  text-decoration: none;
+}
+
+.agenda__title:hover { color: var(--color-orange-deep); text-decoration: underline; }
+
+.agenda__where {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+/* Inside a row the title and its board name are one unit; the chips and the
+   verbs are each their own. A full --space-3 pause above each keeps the three
+   from reading as a single dense block — the buttons used to sit flush
+   against the chips. */
+.agenda__row .kcard__meta { margin-top: var(--space-3); }
+.agenda__row .btn-row { margin-top: var(--space-3); }
+
+/* The board's own focus marker — read-only there; the star is pressed from the
+   card dialog. */
+.kcard__focus { flex: none; color: var(--color-orange); font-size: var(--text-base); line-height: 1; }
+
+/* Board actions (labels and rules) */
+
+.settings-list { display: grid; gap: var(--space-2); }
+
+.settings-row {
+  display: flex;
+  /* Wraps, so a long rule description drops the buttons to their own line
+     instead of pushing them out of the dialog. */
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+}
+
+.settings-row__text { flex: 1 1 12rem; min-width: 0; font-size: var(--text-base); }
+.settings-row__actions { display: flex; gap: var(--space-2); margin-left: auto; }
+/* A disabled rule stays listed and stays readable — you turn one off to see
+   what happens without it, and it has to be easy to turn back on. */
+.settings-row.is-off { opacity: .55; }
+
+/* Important links
+   ========================================================================== */
+
+/* The panel sits between the progress panel and the tab bar, which are not its
+   siblings, so `.panel + .panel` never fires — space it itself. */
+.link-panel { margin-block: var(--space-4); }
+
+.link-list { display: grid; gap: var(--space-2); }
+
+.link-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-panel);
+}
+
+@media (min-width: 46rem) {
+  .link-row { grid-template-columns: 1fr auto; align-items: center; }
+}
+
+.link-row__main {
+  display: grid;
+  gap: var(--space-1);
+  color: inherit;
+  text-decoration: none;
+}
+
+.link-row__title { font-size: var(--text-md); font-weight: var(--weight-strong); }
+.link-row__desc { font-size: var(--text-base); color: var(--color-gray); }
+
+/* The host is the trust signal — where this link is about to send you. */
+.link-row__host { font-size: var(--text-sm); color: var(--color-ink-soft); word-break: break-all; }
+
+.link-row__main:hover .link-row__title,
+.link-row__main:focus-visible .link-row__title {
+  color: var(--color-orange-deep);
+  text-decoration: underline;
+}
+
+/* Quick links (Admin) — the studio's own shortcuts, drawn as buttons.
+
+   A grid rather than the stacked .link-row treatment used for a project's
+   important links: these are short labels somebody clicks on the way past, so
+   several fit across a line and the panel stays a bar rather than becoming a
+   page of its own. auto-fill with a minimum means one link is not stretched
+   across the whole panel and twelve wrap instead of shrinking. */
+.quick-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: var(--space-2);
+}
+
+.quick-link {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-panel);
+}
+
+/* The button fills its card, so the target is the whole width rather than the
+   length of the words in it. */
+.quick-link__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  text-align: center;
+}
+
+.quick-link__desc { margin: 0; font-size: var(--text-base); color: var(--color-gray); }
+
+/* The host is the trust signal — where this link is about to send you. */
+.quick-link__host {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  word-break: break-all;
+}
+
+/* Your team — same furniture as the links panel above it. */
+
+.team-panel { margin-block: var(--space-4); }
+
+.team-list { display: grid; gap: var(--space-2); }
+
+.team-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-panel);
+}
+
+@media (min-width: 46rem) {
+  .team-row { grid-template-columns: 1fr auto; align-items: center; }
+}
+
+.team-row__main { display: grid; gap: var(--space-1); }
+
+.team-row__name { font-size: var(--text-md); font-weight: var(--weight-strong); }
+.team-row__role { font-size: var(--text-base); color: var(--color-gray); }
+
+/* Every detail is an action — mailto:, tel:, sms: — labelled with itself.
+   Inline-flex keeps the icon on the first line of a wrapped address, and the
+   min-height is the 44px tap floor: these exist to be pressed from a phone. */
+.team-row__contact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-3);
+  margin-top: var(--space-1);
+}
+
+.team-row__action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  font-size: var(--text-base);
+  font-weight: var(--weight-emphasis);
+  color: var(--color-ink-soft);
+  word-break: break-all;
+}
+
+.team-row__action svg { flex: none; }
+
+.team-row__action:hover,
+.team-row__action:focus-visible { color: var(--color-orange-deep); }
+
+/* The buttons keep their icon beside the label rather than stretched apart —
+   .btn is inline-flex on some rows and a plain block on others. */
+.team-row__buttons .btn { display: inline-flex; align-items: center; gap: var(--space-2); }
+
+/* Documents
+   ========================================================================== */
+
+.doc-list { display: grid; gap: var(--space-2); }
+
+.doc-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-panel);
+}
+
+@media (min-width: 46rem) {
+  .doc-row { grid-template-columns: 1fr auto; align-items: center; }
+}
+
+.doc-row__name { margin: 0; font-size: var(--text-md); font-weight: var(--weight-strong); word-break: break-word; overflow-wrap: anywhere; }
+.doc-row__meta { margin: var(--space-1) 0 0; font-size: var(--text-sm); color: var(--color-ink-soft); }
+.doc-row__meta > * + *::before { content: " · "; }
+.doc-row--awaiting { border-color: rgba(255, 81, 0, .4); background: var(--color-orange-tint); }
+
+/* The Google Drive bar at the top of the Documents tab (drive-link.js). Only
+   the gap against the upload box below it — the buttons inside are ordinary
+   .btn-row furniture, and inside a panel head the class is not applied. */
+.drive-bar { margin-bottom: var(--space-3); }
+
+.upload {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px dashed var(--color-line);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-4);
+}
+
+@media (min-width: 52rem) {
+  .upload { grid-template-columns: 2fr 1fr auto; align-items: end; }
+
+  /* The client record's filing uploader carries one field more than the
+     project tab's — the attach-to picker — so it needs its own template, or
+     the fourth cell wraps onto a lonely second row. */
+  .upload--filing { grid-template-columns: 2fr 1.4fr 1fr auto; }
+
+  /* The uploaders' fine print. A hint inside one column makes that cell
+     taller than its neighbours, and the bottom-aligned row then hoists that
+     column's control above the rest — the misaligned Attach-to select of
+     old. So the columns hold a label and a control each, and everything the
+     form wants to say rides here: its last child, spanning the row. */
+  .upload__note { grid-column: 1 / -1; }
+}
+
+/* On the client record, a project-attached row's pill links through to that
+   project's Documents tab. It should read as a pill first and a link second —
+   the underline arrives on hover, where the affordance is actually needed. */
+a.pill { text-decoration: none; }
+a.pill:hover, a.pill:focus-visible { text-decoration: underline; }
+
+/* A linked pill carries a project name — free text — and .pill's nowrap on
+   free text inside a grid row is how the client record once measured 616px
+   wide on a 390px phone. Links wrap; status pills (a fixed vocabulary) keep
+   the nowrap. The underline is always on for links: on touch there is no
+   hover to reveal it, and nothing else distinguishes the pill that navigates
+   from the pill that just labels. */
+a.pill {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+  text-decoration: underline;
+}
+
+/* The staff-only client documents panel on the project's Documents tab sits
+   below the project's own list, which carries no bottom margin of its own. */
+.doc-client-panel { margin-top: var(--space-4); }
+
+/* Message thread
+   ========================================================================== */
+
+.thread {
+  display: grid;
+  gap: var(--space-3);
+  max-height: 30rem;
+  overflow-y: auto;
+  /* A flick that hits the top or bottom of the thread must not start
+     scrolling the page underneath it. */
+  overscroll-behavior: contain;
+  padding-right: var(--space-1);
+}
+
+.msg {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--status-gray-bg);
+  max-width: 46rem;
+}
+
+.msg--mine { background: var(--color-orange-tint); justify-self: end; }
+.msg--internal { background: var(--color-charcoal); color: rgba(255, 255, 255, .9); justify-self: end; }
+.msg--internal .msg__who { color: rgba(255, 255, 255, .7); }
+
+.msg__who { font-size: var(--text-sm); font-weight: var(--weight-strong); color: var(--color-ink-soft); }
+.msg__body { margin: 0; white-space: pre-wrap; font-size: var(--text-base); }
+
+/* Written on a board card and shared into this thread. Under the words rather
+   than over them: it is provenance, not a heading, and the message is what
+   somebody came here to read. Only staff ever see it — board_cards is behind
+   is_admin(), so a client's embed comes back null and this never renders. */
+.msg__origin {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  color: var(--color-gray);
+}
+
+.msg--internal .msg__origin { color: rgba(255, 255, 255, .65); }
+
+.composer { display: grid; gap: var(--space-2); margin-top: var(--space-4); }
+.composer textarea { min-height: 5rem; }
+.composer__foot { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+
+/* An internal note goes charcoal, matching how one renders in the thread.
+   Sending to the wrong audience is irreversible, so the box itself has to look
+   different — a ticked checkbox alone is too easy to miss. */
+.composer--internal textarea {
+  background: var(--color-charcoal);
+  color: var(--color-white);
+  border-color: var(--color-charcoal);
+}
+
+.composer--internal textarea::placeholder { color: rgba(255, 255, 255, .65); }
+
+/* AI rewrite
+   --------------------------------------------------------------------------
+   The staff-only suggestion flow (js/portal/ai-rewrite.js): a ghost button on
+   any textarea, and a panel of three tones directly under the box it
+   rewrites. It lives inside dialogs and composers alike, so it stretches to
+   whatever width its host gives it. */
+
+.ai-rewrite__host { margin-top: var(--space-2); }
+
+/* .btn is inline-block; this one carries an icon beside its caption. */
+.ai-rewrite__button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.ai-rewrite__button svg { flex: none; }
+
+.ai-rewrite {
+  justify-self: stretch;
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+}
+
+.ai-rewrite__status { margin: 0; }
+
+.ai-rewrite__tones { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+/* The chosen tone wears the orange "this one is yours" tint — the same cue
+   as .msg--mine and your own reaction chip. */
+.ai-rewrite__tone[aria-pressed='true'] {
+  background: var(--color-orange-tint);
+  color: var(--color-orange-deep);
+  box-shadow: inset 0 0 0 1px var(--color-orange);
+}
+
+/* pre-wrap: a rewrite keeps its paragraph breaks. anywhere: a pasted URL must
+   fold rather than push the panel sideways (the 320px rule). */
+.ai-rewrite__text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--text-base);
+}
+
+.ai-rewrite__foot { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-base);
+  font-weight: var(--weight-emphasis);
+  color: var(--color-gray);
+}
+
+/* font-size matters on a box with no text in it for one reason: a bare
+   checkbox inherits nothing here — .check is a <label>, not a .form-field —
+   and lands on the UA's 13.33px, which is the only form control in the portal
+   under the 16px floor. iOS does not zoom on a checkbox, so nothing was
+   visibly wrong; it was still the one control that failed a rule every other
+   one keeps. --text-md, because that is what .form-field's own controls take.
+   Surfaced by the form-groups fixture in tools/ui/gate.mjs. */
+.check input {
+  width: 1.0625rem;
+  height: 1.0625rem;
+  font-size: var(--text-md);
+  accent-color: var(--color-orange);
+}
+
+/* A stack of .check rows — the person form's Clients boxes. Grid keeps the
+   rhythm; each label stretches the row's width, so the whole line is the tap
+   target just as it is on the checklist. */
+.check-group { display: grid; gap: var(--space-1); }
+
+/* Reactions
+   --------------------------------------------------------------------------
+   Chips under a message. Your own wears the orange tint the rest of the portal
+   uses for "this one is yours" — the same cue as .msg--mine, which is why a
+   reaction on your own message needs no second treatment.
+
+   The emoji are content, not icons (see js/portal/emoji.js): the Lucide-only
+   rule governs UI glyphs, and the button that opens the picker is one. */
+
+.reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-full);
+  background: var(--color-white);
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.reaction:hover { border-color: var(--color-orange); }
+.reaction[disabled] { cursor: default; }
+.reaction[disabled]:hover { border-color: var(--color-line); }
+
+.reaction.is-mine {
+  background: var(--color-orange-tint);
+  border-color: var(--color-orange);
+}
+
+.reaction__emoji { font-size: var(--text-base); line-height: 1; }
+.reaction__count { font-size: var(--text-xs); font-weight: var(--weight-strong); color: var(--color-ink-soft); }
+.reaction.is-mine .reaction__count { color: var(--color-orange-deep); }
+
+.reaction--add { color: var(--color-ink-soft); padding: var(--space-1) var(--space-2); }
+.reaction--add:hover { color: var(--color-orange-deep); }
+
+/* An internal note is charcoal, and a white chip on charcoal reads as a hole
+   punched in it. The chips go translucent-light instead, so they still look
+   like part of the note. */
+.msg--internal .reaction {
+  background: rgba(255, 255, 255, .12);
+  border-color: rgba(255, 255, 255, .28);
+}
+
+.msg--internal .reaction__count { color: rgba(255, 255, 255, .8); }
+.msg--internal .reaction--add { color: rgba(255, 255, 255, .8); }
+
+.msg--internal .reaction.is-mine {
+  background: rgba(255, 81, 0, .35);
+  border-color: var(--color-orange);
+}
+
+.msg--internal .reaction.is-mine .reaction__count { color: var(--color-white); }
+
+/* Emoji picker
+   --------------------------------------------------------------------------
+   Fixed to the viewport and mounted on <body>, not nested in the chip row it
+   belongs to: a thread is an `overflow-y: auto` box and would slice the picker
+   off at its own bottom edge. reactions.js sets top/left against the button
+   that opened it, so there is deliberately no positioning here beyond the
+   fixing itself. */
+
+/* 55: above the sticky header (40) and everything on the page, below .modal
+   (60) and the toasts (70). It never opens inside a modal, and if one is ever
+   opened over it the modal has to win. */
+.emoji-picker {
+  position: fixed;
+  z-index: 55;
+  top: 0;
+  left: 0;
+  width: min(20rem, calc(100vw - 3rem));
+  padding: var(--space-2);
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lift);
+}
+
+/* 1rem, not smaller: this box is focused the moment the picker opens, and a
+   sub-16px focus is an automatic, unprompted zoom on iOS. */
+.emoji-picker__search {
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  color: var(--color-charcoal);
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-2);
+}
+
+.emoji-picker__results {
+  max-height: 15rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-top: var(--space-2);
+}
+
+.emoji-picker__cat {
+  margin: var(--space-2) 0 var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.emoji-picker__results > div:first-child .emoji-picker__cat { margin-top: 0; }
+
+.emoji-grid { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+
+.emoji-grid__btn {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  font-size: var(--text-lg);
+  line-height: 1;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  cursor: pointer;
+}
+
+.emoji-grid__btn:hover { background: var(--color-orange-tint); }
+
+/* A waypoint's own conversation
+   --------------------------------------------------------------------------
+   Collapsed until asked for: twelve open threads down a project page is not a
+   timeline any more. */
+
+.waypoint__discuss { display: inline-flex; align-items: center; gap: var(--space-2); }
+.waypoint__discuss svg { flex: none; }
+
+.waypoint__thread {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-line);
+}
+
+/* Shorter than the project thread and it starts at the bottom: this one is
+   read newest-first, and it is sitting inside a row somebody is scanning. */
+.thread--waypoint { max-height: 22rem; }
+
+/* The composer inside a waypoint row has the timeline's own gap above it
+   already; another 32px would push the send button off a phone screen. */
+.waypoint__thread .composer { margin-top: var(--space-3); }
+.waypoint__thread .composer textarea { min-height: 3.5rem; }
+
+/* Comments board
+   --------------------------------------------------------------------------
+   The project's noticeboard (comments.js): cards newest-first under a
+   composer, each with a byline, the words, and a like chip. Deliberately not
+   .msg — a comment is not a chat bubble, has no internal variant, and never
+   sits against an edge to say whose it is. */
+
+.comments { display: grid; gap: var(--space-3); margin-top: var(--space-4); }
+
+.comment {
+  padding: var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-panel);
+}
+
+.comment__who {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  color: var(--color-ink-soft);
+}
+
+.comment__body {
+  margin: var(--space-1) 0 0;
+  white-space: pre-wrap;
+  font-size: var(--text-base);
+}
+
+.comment__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* The like chip is a ghost button so it inherits the coarse-pointer 44px
+   floor with everything else; aria-pressed is the state, and the heart fills
+   when the like is yours — the shape never moves. */
+.like { display: inline-flex; align-items: center; gap: var(--space-1); }
+.like__count { font-size: var(--text-sm); font-weight: var(--weight-strong); }
+
+.like[aria-pressed="true"] {
+  background: var(--color-orange-tint);
+  border-color: var(--color-orange);
+  color: var(--color-orange-deep);
+}
+.like[aria-pressed="true"] svg { fill: currentColor; }
+
+/* Customer tasks
+   --------------------------------------------------------------------------
+   The to-do list (tasks.js). The rows are the waypoint rows' cousins — same
+   card, same meta line of tags — but the leading column is a working
+   checkbox, not a status dot, so it is sized as a control from the start
+   rather than only under a coarse pointer. */
+
+.tasks { display: grid; gap: var(--space-3); }
+
+/* The waypoint's shape, with a checkbox for its control — see `.waypoint`,
+   including why the head is a flex row and not grid cells. */
+.task {
+  padding: var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-panel);
+}
+
+.task__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.task__body { margin-top: var(--space-2); }
+
+.task__check {
+  flex: none;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+.task__check:hover { color: var(--color-orange-deep); }
+.task--done .task__check { color: var(--status-green); }
+
+/* Scoped through the head for the same reason `.waypoint__head` is — see the
+   note there: `.panel h3` outranks a lone class and would put 24px above the
+   title inside a flex row that is trying to centre it. */
+.task__head .task__title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+}
+.task--done .task__title { color: var(--color-gray); text-decoration: line-through; }
+
+.task__desc { margin: var(--space-1) 0 0; font-size: var(--text-base); color: var(--color-gray); }
+
+.task__meta {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+}
+
+.task__thread {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-line);
+}
+.task__thread .composer { margin-top: var(--space-3); }
+.task__thread .composer textarea { min-height: 3.5rem; }
+
+.tasks__done-head {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  color: var(--color-ink-soft);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+/* Journey picker
+   ========================================================================== */
+
+/* A long journey scrolls inside the modal rather than pushing the count and
+   the Add button off the bottom of the screen. */
+.picker-list {
+  max-height: 20rem;
+  overflow-y: auto;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+}
+
+.picker-row {
+  display: grid;
+  gap: var(--space-1);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.picker-row:last-child { padding-bottom: 0; border-bottom: 0; }
+.picker-row .check { font-weight: var(--weight-strong); color: var(--color-charcoal); align-items: start; }
+.picker-row .tag { justify-self: start; }
+
+.picker-row__desc {
+  margin: 0 0 0 var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+/* Filter bar
+   ========================================================================== */
+
+/* The search-and-narrow row above a table: Admin → Form Entries uses all of it.
+   Flex rather than a grid of equal tracks, because the last cell is a checkbox
+   and a button rather than a field — in a track it would be squeezed to the
+   same width as a date input and wrap mid-label. Here the four fields share the
+   space (11rem each is what a date input needs before its own picker button
+   starts crowding the digits) and the toggle takes what it takes, dropping to
+   its own line when there is no room. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: end;
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.filters .form-field { flex: 1 1 11rem; min-width: 0; }
+
+.filters .form-field label { font-size: var(--text-sm); color: var(--color-ink-soft); }
+
+.filters input,
+.filters select {
+  font-family: var(--font-sans);
+  /* 16px, not 15: anything under 1rem makes iOS zoom the page when the field
+     is focused, and it stays zoomed after. The row wraps, so the extra pixel
+     costs nothing. */
+  font-size: var(--text-md);
+  color: var(--color-charcoal);
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  /* Matches the height a bare date input takes, so the row does not step up and
+     down across the four controls. */
+  padding: var(--space-2) var(--space-2);
+  width: 100%;
+  min-width: 0;
+}
+
+/* The toggle and Clear ride along at the end of the row, bottom-aligned with
+   the inputs rather than with their labels. */
+.filters__end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 0 0 auto;
+  padding-bottom: var(--space-1);
+}
+
+.filters__end .check { white-space: nowrap; }
+
+/* Data table
+   ========================================================================== */
+
+.table-scroll { overflow-x: auto; }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-base);
+  min-width: 34rem;
+}
+
+/* These tables carry more columns than the rest of the portal's — the
+   ledger's date-accounts-amount-receipts spread, the invoice and SOW lists'
+   dates and money beside a strip of row actions — so they are given room to
+   scroll rather than squeezed into the same width as a two-column list.
+   Declared here, before the narrow-screens block, so the stacked-card
+   layout's min-width reset wins the cascade the same way it does for .table. */
+.table--wide { min-width: 54rem; }
+
+.table th,
+.table td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-line);
+  vertical-align: middle;
+}
+
+.table th {
+  font-size: var(--text-xs);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.table tr:last-child td { border-bottom: 0; }
+/* 1rem for the same reason as .filters: a 14px select zooms iOS on focus. */
+.table select { font-family: var(--font-sans); font-size: var(--text-md); padding: var(--space-2); border: 1px solid var(--color-line); border-radius: var(--radius-sm); }
+
+/* A button that reads as a link — a name that opens an editor rather than
+   navigating. font: inherit so it sits in a table row as its text. */
+.link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: var(--weight-emphasis);
+  color: var(--color-orange-deep);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  text-align: left;
+}
+.link-button:hover { color: var(--color-orange); }
+
+/* People (Admin). Row controls moved into the person editor, so a row is just
+   text; slightly smaller type and padding keep the whole staff list on one
+   screen, and the email/joined cells refuse the mid-word wrapping that
+   .table td's overflow-wrap would otherwise allow. */
+.table--people { font-size: var(--text-base); min-width: 30rem; }
+.table--people th,
+.table--people td { padding: var(--space-2); }
+
+/* Modal
+   ========================================================================== */
+
+.modal[hidden] { display: none; }
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: var(--space-3);
+  background: rgba(34, 34, 34, .5);
+  overflow-y: auto;
+}
+
+.modal__dialog {
+  background: var(--color-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lift);
+  width: min(34rem, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+.modal__head { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); }
+.modal__head h2 { margin: 0; font-size: var(--text-lg); }
+
+.modal__close {
+  margin-left: auto;
+  background: none;
+  border: 0;
+  font-size: var(--text-xl);
+  line-height: 1;
+  color: var(--color-gray);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+}
+
+.modal__close:hover { color: var(--color-charcoal); }
+.modal__body { display: grid; gap: var(--space-3); }
+.modal__foot { display: flex; gap: var(--space-2); margin-top: var(--space-4); flex-wrap: wrap; }
+.modal__foot .btn--danger { margin-left: auto; }
+
+/* An input with a helper button riding beside it — formModal's field.action
+   (Generate on a password box). The wrapper takes the input's grid slot in
+   .form-field; min-width: 0 lets the input shrink instead of the row. */
+.form-field__with-action { display: flex; gap: var(--space-2); align-items: center; }
+.form-field__with-action input { flex: 1; min-width: 0; }
+
+/* An ✕ inside the right edge, for a field that arrives already filled in —
+   formModal's field.clearable. Overlaid rather than placed beside the input,
+   because this is not a second control the eye should count: it belongs to the
+   value, and it disappears when there is no value.
+
+   The input keeps its own full width and gains padding so a long reading never
+   runs under the button. */
+.form-field__clearable { position: relative; display: flex; }
+.form-field__clearable input { padding-right: 2.9rem; }
+
+/* 44px square, the same floor every other control in the portal keeps, and it
+   has to earn it here rather than inherit it — the glyph inside is 16px. */
+.form-field__clear {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+
+.form-field__clear:hover { color: var(--color-charcoal); }
+
+/* A collapsible section of a form — formModal's `groups`. The point is a long
+   form that reads short: an expense still collects everything the IRS asks
+   for, but a domain renewal does not scroll past "Who you were with" to reach
+   Record it.
+
+   The summary is the tap target and carries the 44px floor itself, the same
+   way .agreement-section's does and for the same reason — the text inside it
+   is one line and would not reach it alone. The marker stays: it is the only
+   thing saying the row opens, and drawing our own triangle here would be a
+   second icon set. */
+.form-group {
+  border-top: 1px solid var(--color-line);
+  padding-top: var(--space-1);
+}
+
+/* list-item, NOT flex, and that is the whole of it: a flex <summary> renders
+   no ::marker in Chromium, and the marker is the only thing on the row saying
+   it opens. Drawn in a browser to be sure — flex gave two section headings
+   that looked like inert labels. `inside` keeps the triangle in the content
+   box rather than in a margin the dialog does not have. */
+.form-group > summary {
+  display: list-item;
+  list-style-position: inside;
+  min-height: 44px;
+  padding: var(--space-2) 0;
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.form-group > summary::marker { color: var(--color-orange); }
+
+/* The changing half of the summary — what is waiting inside, said while the
+   section is still shut. Its own line: at 320px a category name plus "needs
+   where it was, the business purpose, who was there" never shares one, and
+   block is honest about that rather than relying on a wrap. */
+.form-group__note {
+  display: block;
+  font-weight: var(--weight-normal);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  min-width: 0;
+}
+
+.form-group__note:empty { display: none; }
+
+/* .modal__body is the grid that spaces the ungrouped fields; a section's
+   fields need the same gap inside their own box. */
+.form-group__fields {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-1) 0 var(--space-3);
+}
+
+/* Toast
+   ========================================================================== */
+
+.toast-stack {
+  position: fixed;
+  bottom: var(--space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 70;
+  display: grid;
+  gap: var(--space-2);
+  width: min(28rem, calc(100vw - 2rem));
+}
+
+.toast {
+  background: var(--color-charcoal);
+  color: var(--color-white);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  font-size: var(--text-base);
+  box-shadow: var(--shadow-lift);
+}
+
+.toast--error { background: var(--status-red); }
+.toast--ok { background: var(--status-green); }
+
+/* Login
+   ========================================================================== */
+
+.login {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: var(--color-canvas);
+}
+
+/* A grid item defaults to min-width:auto, which refuses to shrink below its
+   content. The longest unbreakable thing in the panel is the support address in
+   the footer, so at 320px the panel forced itself ~50px wider than the screen
+   and the whole sign-in page scrolled sideways. min-width:0 lets it shrink;
+   the wrap rule below gives the address permission to break rather than just
+   overflow its parent instead. */
+.login > * { min-width: 0; }
+
+.login__foot { overflow-wrap: anywhere; }
+
+.login__panel {
+  width: min(26rem, 100%);
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.login__panel img { width: 3rem; justify-self: center; }
+.login__panel h1 { margin: 0; font-size: var(--text-xl); }
+.login__panel p { margin: 0; color: var(--color-gray); font-size: var(--text-base); }
+.login__panel form { display: grid; gap: var(--space-3); text-align: left; }
+.login__panel .btn { width: 100%; }
+.login__foot { font-size: var(--text-sm); color: var(--color-ink-soft); }
+.login__foot a { color: var(--color-orange-deep); font-weight: var(--weight-emphasis); }
+
+/* Loading
+   ========================================================================== */
+
+.skeleton {
+  color: var(--color-ink-soft);
+  font-size: var(--text-base);
+  padding: var(--space-4);
+  text-align: center;
+}
+
+[hidden] { display: none !important; }
+
+/* The print-only project document (js/portal/export.js). Stated here as well as
+   in print.css so it cannot land on screen if that file fails to load; print.css
+   is linked after this one and reveals it inside @media print. */
+.print-doc { display: none; }
+
+/* Client detail (js/portal/client-detail.js) and the contact action sheet
+   (js/portal/contact-actions.js)
+   ==========================================================================
+
+   This page is read on a phone between jobs, so everything here stacks by
+   default and only spreads out when there is room. Nothing needs horizontal
+   scrolling, and anything you tap is at least 44px tall.
+   ========================================================================== */
+
+/* Details — a label/value list rather than a table, so it reflows to one column
+   without a scrollbar. The label column is fixed at a width that fits the
+   longest of them ("Industry") so the values line up. */
+.detail-list { display: grid; gap: var(--space-3); margin: 0; }
+
+.detail-row { display: grid; gap: var(--space-1); }
+
+@media (min-width: 34rem) {
+  .detail-row {
+    grid-template-columns: 7rem 1fr;
+    gap: var(--space-3);
+    align-items: baseline;
+  }
+}
+
+.detail-row__label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.detail-row__value { margin: 0; font-size: var(--text-base); }
+
+/* A long address or URL wraps instead of widening the page. */
+.detail-block { display: grid; gap: var(--space-1); }
+.detail-row__link { color: var(--color-orange-deep); font-weight: var(--weight-emphasis); word-break: break-all; }
+
+/* A value you act on: a full-height tap target that still reads as the number
+   or address it carries, rather than as a button labelled "Call". */
+.tap-action {
+  justify-self: start;
+  font-size: var(--text-base);
+  font-weight: var(--weight-emphasis);
+  padding: var(--space-2) var(--space-3);
+  min-height: 2.75rem;
+  border-radius: var(--radius);
+  text-align: left;
+  word-break: break-all;
+}
+
+/* Tap targets stacked one per line in a table cell — the clients list's
+   contact column, an email above a phone number. The grid is what lets each
+   button's own `justify-self: start` shrink it to its label. */
+.contact-stack { display: grid; gap: var(--space-1); }
+
+/* Projects and contacts — one stacked card per record. Same shape as .link-row
+   and .doc-row, but always single-column: every row here carries a progress bar
+   or a row of tap targets, and neither survives being squeezed into a side
+   column on a narrow screen. */
+.record-list { display: grid; gap: var(--space-2); }
+
+.record-row {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-panel);
+}
+
+.record-row__name {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+  color: inherit;
+  text-decoration: none;
+  word-break: break-word;
+}
+
+a.record-row__name:hover,
+a.record-row__name:focus-visible {
+  color: var(--color-orange-deep);
+  text-decoration: underline;
+}
+
+.record-row__desc { margin: 0; font-size: var(--text-base); color: var(--color-gray); }
+
+/* Notes — the communication log. */
+.note-feed { display: grid; gap: var(--space-2); margin-top: var(--space-4); }
+
+.note {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--status-gray-bg);
+}
+
+.note__meta { margin: 0; font-size: var(--text-sm); color: var(--color-ink-soft); }
+
+/* pre-wrap, so a note typed as three short lines is read back as three short
+   lines. */
+.note__body { margin: 0; font-size: var(--text-base); white-space: pre-wrap; }
+
+.note__edited { font-style: italic; }
+
+/* The call / text / email sheet. Full-width choices stacked in tap order, big
+   enough to hit without aiming. */
+.action-sheet { display: grid; gap: var(--space-2); }
+
+.action-sheet__choice {
+  width: 100%;
+  font-size: var(--text-md);
+  padding: var(--space-3);
+  min-height: 3rem;
+  text-align: center;
+  word-break: break-word;
+}
+
+/* Phone
+   ==========================================================================
+
+   Everything above this line was written min-width-first and never given a
+   phone to look at: there was not a single max-width query in the file, so at
+   375px the portal rendered its desktop layout and asked you to pinch. This
+   section is the other half — the rules that only make sense when the screen is
+   small or the pointer is a thumb.
+
+   Two separate axes, deliberately not merged:
+
+   - `pointer: coarse` governs tap targets. A 28px button is fine with a mouse
+     and unusable with a finger, and that has nothing to do with how wide the
+     screen is — a tablet in landscape needs the big targets too, and a narrow
+     desktop window does not.
+   - `max-width: 39.999rem` governs layout. 40rem/640px is below the file's
+     lowest existing breakpoint (44rem, where .project-grid goes two-up), so
+     these rules and those never both apply.
+   ========================================================================== */
+
+/* Tap targets
+   --------------------------------------------------------------------------
+   Careful what goes in this block. `display: inline-flex` makes each listed
+   element a flex container, and one that is *also* a flex item stops holding
+   its min-content width — inside a horizontal scroller that means the labels
+   shrink and collide instead of the bar overflowing and scrolling. `.tab` was
+   listed here and that is exactly what happened to it (see .section-nav
+   above). Anything that lives in a scrolling row wants the floor met some
+   other way, or not at all.
+
+   .btn--tiny computes to about 28px — 14px text, 7px of padding either side,
+   line-height 1 inherited from .btn — and it is the workhorse of the whole
+   portal: Sign out, Edit client, every waypoint Edit / Move up / Move down,
+   every board column's Add, Revoke invite, Copy sign-in link. 44px is the
+   floor Apple and WCAG 2.5.5 both land on.
+
+   min-height plus centring rather than more padding, so the labels stay where
+   they are and only the box around them grows — inflating the padding would
+   reflow every toolbar in the product. */
+
+@media (pointer: coarse) {
+  .btn,
+  .modal__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
+  /* .tap-action carries a full email address and breaks it mid-token to fit;
+     as a flex container that text stops wrapping and the address sets the
+     button's width — 429px on a 390px screen. It already meets the 44px
+     floor through its own min-height, so it keeps its block rendering. */
+  .tap-action { display: inline-block; }
+
+  /* The logo is the header's home link. */
+  .portal-header__brand { min-height: 2.75rem; }
+
+  /* .btn is inline-block by default and a few of them are stretched by their
+     container (.login__panel .btn, .action-sheet__choice). inline-flex keeps
+     honouring that; it just centres the label inside whatever box results. */
+  .btn-row .btn,
+  .kcard__actions .btn,
+  .waypoint__meta .btn,
+  .task__meta .btn,
+  .comment__foot .btn,
+  .page-head__actions .btn {
+    flex: none;
+    /* flex: none is flex: 0 0 auto — the button is sized by its own text and
+       cannot shrink. That is what keeps a tap target from being squeezed under
+       44px, and it is fine right up until a label is long, at which point the
+       button is simply wider than the screen and runs off it. That happened to
+       the e-signature consent button, whose label is a full sentence. Capping
+       the width costs the short buttons nothing (they are already narrower
+       than the row) and turns the long ones into wrapped blocks instead of
+       overflow. The rule below still exists for labels that must also be
+       allowed to squeeze rather than only to wrap. */
+    max-width: 100%;
+  }
+
+  /* Except the ones whose label is data: an email address at flex: none is
+     an unshrinkable 429px button. These wrap their own text, so let the row
+     squeeze them. */
+  .btn-row .tap-action {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  /* The role picker in the People table and any <select> that lands in a data
+     cell: 31px of Chrome default chrome is a coin toss to hit. */
+  .table select {
+    min-height: 2.75rem;
+    padding-inline: var(--space-2);
+  }
+
+  /* A checkbox cannot usefully be drawn at 44px — it would dwarf its own
+     label — so the *label* becomes the target instead. Every .check in the
+     portal is a <label for>, so the whole row already toggles the box; this
+     only gives that row the height to be hit reliably. The box itself goes
+     from 17px to 22px, which is as large as a checkbox reads before it starts
+     looking like a button. */
+  .check {
+    min-height: 2.75rem;
+    padding-block: var(--space-1);
+  }
+
+  .check input {
+    width: 1.375rem;
+    height: 1.375rem;
+    flex: none;
+  }
+
+  /* The journey picker stacks a description under each checkbox, so its rows
+     align to the top and must not be centred by the rule above. */
+  .picker-row .check { align-items: flex-start; }
+
+  /* Links that are the main route somewhere but are not buttons: breadcrumbs,
+     the client's name in the Clients table, a SOW's or project's name on a
+     record card, a linked pill. Same 44px floor as the buttons, met with flex
+     centring so the text stays where it was. */
+  .breadcrumb a,
+  .page-head__client,
+  a.record-row__name,
+  a.pill,
+  .table td > a,
+  .table td .link-button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  /* The agenda row's title link — the row's only control, so it gets the
+     whole thumb. */
+  .agenda__title { padding-block: var(--space-2); }
+
+  /* Label chips are buttons in the card dialog — press to attach — and were
+     ~21px. Only button chips grow; the read-only spans on card faces keep
+     their size. */
+  button.chip {
+    min-height: 2.75rem;
+    padding-inline: var(--space-3);
+    font-size: var(--text-sm);
+  }
+
+  .mention-picker__item {
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+  }
+
+  /* The checklist's checkbox and the card dialog's visibility checkbox are
+     bare inputs, not .check labels, so they need the same 22px box and a row
+     tall enough to hit. The title label beside the box is tappable too. */
+  .checklist__item input[type="checkbox"],
+  .form-field--check input {
+    width: 1.375rem;
+    height: 1.375rem;
+    flex: none;
+  }
+
+  .checklist__title {
+    display: flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .form-field--check { min-height: 2.75rem; }
+
+  /* Filter-bar and cost-row controls: tall enough to hit without aiming. */
+  .filters input,
+  .filters select,
+  .board-filters input,
+  .board-filters select,
+  .cost-row input[type="text"] {
+    min-height: 2.75rem;
+  }
+
+  /* Rule rows in the Board actions dialog — their buttons are outside every
+     container the flex: none list above names. */
+  .settings-row__actions .btn { flex: none; }
+
+  /* "⌘ / Ctrl + Enter sends" is advice for a keyboard nobody here has. */
+  .composer__hint { display: none; }
+}
+
+/* The modal footer
+   --------------------------------------------------------------------------
+   .modal__dialog is `max-height: 90vh; overflow-y: auto`, and the client form
+   is sixteen fields — roughly 1500px of content in a 600px window. Save was
+   three screens down with nothing on screen to suggest it existed. Sticking
+   the footer to the bottom of the dialog puts it back in front of the person
+   filling the form in.
+
+   The negative margins pull it out to the dialog's padding edges so it reads
+   as a bar rather than a floating row, and the negative `bottom` cancels the
+   dialog's own bottom padding: sticky resolves its offset against the scroll
+   container's content box, so `bottom: 0` would park the bar one padding's
+   width up the dialog and leave a strip of form scrolling past underneath it.
+   margin-bottom matches, so it lands in exactly the same place once you do
+   scroll to the end — no jump at the end of the scroll.
+
+   The page behind still has to be stopped from scroll-chaining on iOS; that is
+   the body scroll lock in modalShell (js/portal/ui.js), not something CSS can
+   do from here. */
+
+.modal__foot {
+  position: sticky;
+  bottom: calc(var(--space-4) * -1);
+  z-index: 1;
+  margin: var(--space-4) calc(var(--space-4) * -1) calc(var(--space-4) * -1);
+  padding: var(--space-3) var(--space-4);
+  /* Opaque: the form scrolls underneath it. */
+  background: var(--color-white);
+  border-top: 1px solid var(--color-line);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+/* Long unbroken tokens
+   --------------------------------------------------------------------------
+   None of these had a break rule, and every one of them is either free text a
+   client typed or a URL we generated. One long token sets the element's
+   min-content width, which widens the grid track it sits in, which widens the
+   panel, which scrolls the whole page sideways. The Admin page shipped with a
+   full portal URL inside a .notice, so this was not hypothetical.
+
+   `anywhere` rather than `break-word` on purpose: only `anywhere` shrinks the
+   min-content contribution, and it is the min-content contribution — not the
+   rendered line — that is doing the damage to the grid tracks.
+
+   The list below is every element that renders text a person typed — client
+   names, emails, filenames, card titles, notes, comments — or that a helper
+   interpolates such text into (toasts, hints, table cells, dialog titles).
+   The proof this list has to be long: a lead's email once made the Admin page
+   698px wide on a 390px phone, and a linked pill holding a project name made
+   the client record 616px. Anything new that prints free text belongs here.
+
+   Note what is deliberately *not* here: `overflow-x: hidden` on body. That
+   hides the symptom, loses whatever ran off the edge, and silently breaks
+   `position: sticky` on the header. */
+
+.link-row__title,
+.link-row__desc,
+.kcard__title,
+.waypoint__title,
+.waypoint__desc,
+.msg__body,
+.msg__who,
+.msg__origin,
+.notice,
+.empty,
+.toast,
+.progress__label,
+.comment__body,
+.checklist__title,
+.agenda__title,
+.agenda__where,
+.verse__credit,
+.project-card__name,
+.project-card__summary,
+.project-card__client,
+.detail-row__value,
+.detail-block,
+.note__body,
+.record-row__name,
+.record-row__desc,
+.send-field__value,
+.send-field__why,
+.send-check__label,
+.send-check__why,
+.sow-cell__name,
+.sow-cell__desc,
+.settings-row__text,
+.fee-discount__why,
+.picker-row .check,
+.picker-row__desc,
+.table td,
+.doc-row__meta,
+.page-head h1,
+.page-head p,
+.breadcrumb,
+.modal__head h2 {
+  overflow-wrap: anywhere;
+}
+
+/* One exception. In a real grid of columns — 40rem up, where .table is still
+   a table — `anywhere` backfires: it offers the layout engine a break between
+   every two letters, so a squeezed column's minimum is one glyph and a prose
+   cell renders as confetti ("De / pos / it") while its rigid neighbours stand
+   whole. break-word keeps the rescue for a genuinely unbreakable token — it
+   still splits at the cell edge — but sizes columns by words, so prose wraps
+   at spaces. The stacked-card layout below 40rem keeps `anywhere`: there a
+   cell spans the card, and a long email must break to hold the 390px line. */
+@media (min-width: 40rem) {
+  .table td { overflow-wrap: break-word; }
+}
+
+/* Narrow screens
+   ========================================================================== */
+
+@media (max-width: 39.999rem) {
+
+  /* Header
+     ------------------------------------------------------------------------
+     .portal-header is sticky, so whatever it costs it costs on every screen
+     of every page. With the nav behind the menu button the bar is one row at
+     any width; it just tightens up here. */
+
+  .portal-header__inner {
+    gap: var(--space-2);
+    min-height: 3.25rem;
+    padding-block: var(--space-1);
+  }
+
+  /* "Client Portal" is two words and would wrap into two lines next to a
+     34px logo, which would set the height of the whole bar. */
+  .portal-header__label { white-space: nowrap; }
+
+  /* And where there is a search field to share the bar with, the words go
+     entirely: the logo already says whose portal this is, and they were costing
+     the field a third of its room on a 375px screen. Scoped with :has() so the
+     sign-in, setup and error screens — which have no search — keep the label.
+     A browser without :has() simply keeps it everywhere, which is the old
+     layout rather than a broken one. */
+  .portal-header__inner:has(.portal-search) .portal-header__label { display: none; }
+
+  /* The results break out of the field and span the bar, so a hit's client and
+     project still fit on one line. .portal-search goes static for it: the panel
+     then measures against .portal-header__inner, which is the positioned
+     ancestor, exactly as the menu panel does. The magnifier stays put because
+     it hangs off .portal-search__field instead. */
+  .portal-search { position: static; max-width: none; }
+
+  .portal-search__panel {
+    left: var(--space-2);
+    right: var(--space-2);
+    top: calc(100% + 2px);
+  }
+
+  /* The menu panel goes edge to edge, minus a sliver, so its six rows read
+     as a sheet rather than a cramped card hanging off one corner. */
+  .portal-menu__panel {
+    left: var(--space-2);
+    right: var(--space-2);
+    min-width: 0;
+  }
+
+  /* Dead space
+     ------------------------------------------------------------------------
+     padding-block ended on --space-7: 96px of nothing under the last panel,
+     which on a 667px screen is most of a scroll. */
+  .portal-main { padding-block: var(--space-4) var(--space-5); }
+
+  .page-head h1 { font-size: var(--text-xl); }
+
+  /* A panel's own padding is 24px a side on top of the container's 24px, so a
+     375px screen was left with 277px of content. */
+  .panel { padding: var(--space-3); }
+
+  /* Tables become cards
+     ------------------------------------------------------------------------
+     .table carries `min-width: 34rem` (544px) inside a 277px panel, so it was
+     not a table at all — it was a horizontal scroller whose actions column sat
+     permanently off the right edge. The People table is 806px wide; nobody
+     found the Save on it.
+
+     Each row becomes a bordered block and each cell becomes a labelled line,
+     with the column name pulled from `data-label` — set by table() in
+     js/portal/ui.js, which is the one place that knows both the headings and
+     the cells, and the one every staff list builds its table through. The
+     label is styled exactly like the <th> it replaces, so the two layouts read
+     as the same table.
+
+     A cell with no data-label (the actions column, whose heading is an empty
+     string) renders as a bare line with just its buttons, which is what you
+     want — and a cell that never gets the attribute at all degrades to the
+     same thing rather than breaking. */
+
+  .table-scroll { overflow-x: visible; }
+
+  .table {
+    display: block;
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* Spelled out as well as .table: the floor is a table-layout idea, and a
+     stacked card has no columns to protect — without this a wide table hands
+     a phone an 864px card. */
+  .table--wide { min-width: 0; }
+
+  .table thead { display: none; }
+  /* minmax(0, …), not bare 1fr: a bare <select> sizes itself to its longest
+     option — a client's full business name — and 1fr's auto minimum would let
+     that set the track. Floored at zero, the cards hold the panel's width and
+     the select clips its display text instead, which is what a select does
+     natively everywhere else. */
+  .table tbody { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+
+  .table tr {
+    display: block;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius);
+    padding: var(--space-3);
+    background: var(--color-panel);
+  }
+
+  .table td {
+    display: grid;
+    gap: var(--space-1);
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .table td + td { margin-top: var(--space-2); }
+
+  .table td[data-label]::before {
+    content: attr(data-label);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-strong);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--color-ink-soft);
+  }
+
+  /* An empty heading must not reserve a blank line above the buttons. */
+  .table td[data-label=""]::before { content: none; }
+
+  /* Cells that hold controls rather than text lay their contents out in a row
+     instead of a column, so a pair of buttons sits side by side. */
+  .table td > .btn-row { margin-top: var(--space-1); }
+  /* min-width: 0 as well as the cap — the td is a grid, and a grid item's
+     automatic minimum is its intrinsic width, which for a select is its
+     longest option. The cap only wins once the floor is released. */
+  .table td > select { justify-self: start; max-width: 100%; min-width: 0; }
+
+  /* A pill is a grid item here, and a grid item stretches: a one-word status
+     was painting as a full-width grey bar with the word at its left edge.
+     Same idiom as the select above and .picker-row .tag. */
+  .table td > .pill { justify-self: start; }
+
+  /* Modal
+     ------------------------------------------------------------------------
+     Reclaim the overlay padding — at this width the dialog wants the screen —
+     and let it grow taller, since the sticky footer now guarantees Save is on
+     screen however long the form is. */
+
+  .modal { padding: var(--space-2); }
+
+  .modal__dialog {
+    max-height: calc(100vh - var(--space-3));
+    padding: var(--space-3);
+  }
+
+  .modal__foot {
+    bottom: calc(var(--space-3) * -1);
+    margin: var(--space-3) calc(var(--space-3) * -1) calc(var(--space-3) * -1);
+    padding: var(--space-3);
+  }
+
+  /* The destructive action is pushed to the right on wide screens, where there
+     is room for it to sit apart from Save. Stacked, `margin-left: auto` just
+     leaves a confusing gap, so give it a line of its own. */
+  .modal__foot .btn--danger { margin-left: 0; width: 100%; }
+
+  /* Section nav
+     ------------------------------------------------------------------------
+     Five sections do not fit in 327px — the project page's bar is 524px of
+     links — so it scrolls. Give it momentum and a little end padding so the
+     last link is not flush against the edge. The scrollbar goes because
+     .scroll-fade is the affordance instead (see its note above); these two
+     rules and that fade are one design, so neither belongs without the
+     other. Inherited from the .tabs bar this replaced. */
+  .section-nav {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-right: var(--space-3);
+  }
+
+  .section-nav::-webkit-scrollbar { display: none; }
+
+  /* Board columns stack at this width, so a full-height column of empty space
+     per status is four screens of nothing. */
+  .column__list { min-height: 0; }
+
+  /* A 480px inner scroller inside a ~600px viewport is a scroll trap: the
+     flick fights the page for the gesture. Let the page be the scroller —
+     the composer sits right below the thread anyway. Same reasoning for the
+     journey picker's list inside its dialog. */
+  .thread {
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0;
+  }
+
+  .picker-list {
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  /* Floated over a dialog that scrolls, the @-picker can land under the
+     sticky footer or off-screen behind the keyboard. In the flow, it simply
+     pushes the Comment button down while it is open. */
+  .mention-picker {
+    position: static;
+    min-width: 0;
+    box-shadow: none;
+  }
+
+  /* "Include archived (n)" has to be allowed to wrap on a 240px line. */
+  .filters__end { padding-bottom: 0; flex-wrap: wrap; }
+  .filters__end .check { white-space: normal; }
+
+  /* Stacked, the audience toggle belongs above the button that commits it —
+     a thumb heading for Send should pass the checkbox, not discover it
+     afterwards. */
+  .composer__foot .check { order: -1; }
+}
+
+/* Password handoff
+   ==========================================================================
+   The one-time panel shown after an account is created or a password reset.
+   Supabase stores only a hash, so this is genuinely the last time the password
+   is readable — the layout exists to make copying it the obvious next action
+   rather than something to come back to. */
+
+.password-handoff {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: var(--space-2) 0;
+}
+
+/* Monospace so an l and a 1 are told apart at a glance, and because this gets
+   read down a phone as often as it gets copied. */
+.password-handoff__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: var(--text-md);
+  letter-spacing: 0.02em;
+}
+
+/* The copy button must not shrink away from its label when the password is
+   long — the input takes the squeeze instead. */
+.password-handoff .btn { flex: 0 0 auto; }
+
+@media (max-width: 40rem) {
+  /* Side by side, a 19-character password leaves the input too narrow to read.
+     Stack, and let the button span the width like every other phone control. */
+  .password-handoff { flex-direction: column; align-items: stretch; }
+  .password-handoff .btn { width: 100%; }
+}
+
+/* Password field with a reveal toggle
+   ==========================================================================
+   The toggle sits inside the input's box rather than beside it, so the field
+   keeps its full width and the layout does not shift when the label changes
+   between "Show" and "Hide". */
+
+.password-field { position: relative; }
+
+/* Room for the toggle so a long password never runs underneath it. */
+.password-field input { width: 100%; padding-right: 4.75rem; }
+
+.password-field__toggle {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  /* A 44px-wide target that looks like a small word. Padding does the work so
+     the hit area is the whole height of the field, not the height of the text —
+     this is the control most likely to be tapped with a thumb, in a hurry, by
+     someone who has already failed to sign in once. */
+  min-width: 4.5rem;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 0;
+  background: none;
+  color: var(--color-rust, #B5451B);
+  font: inherit;
+  font-size: var(--text-base);
+  font-weight: var(--weight-emphasis);
+  cursor: pointer;
+}
+
+.password-field__toggle:hover { text-decoration: underline; }
+
+.password-field__toggle:focus-visible {
+  outline: 2px solid var(--color-rust, #B5451B);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Scope of work builder
+   ==========================================================================
+   Two screens: the list (which reuses .table and .filters wholesale) and the
+   form. Everything here is the form's own vocabulary — the repeatable row
+   cards, the fee block, and the pre-export checklist.
+
+   The form is desktop-first and says so in the brief: it is filled in on a
+   laptop straight after a call. It still has to collapse cleanly, because the
+   list and a finished PDF do get read on a phone. */
+
+/* A repeatable row — a deliverable, a milestone. Bordered rather than plain so
+   it reads as one thing you can move or delete, which is what the buttons at
+   the foot of it do. */
+.row-list { display: grid; gap: var(--space-3); }
+
+.row-card {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  background: var(--color-white);
+}
+
+.row-card__grid { display: grid; gap: var(--space-3); }
+
+@media (min-width: 46rem) {
+  /* Name takes the room; category, rounds and fee are all short. */
+  .row-card__grid {
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    align-items: end;
+  }
+  .row-card__grid--pair { grid-template-columns: 2fr 1fr; }
+}
+
+.form-grid { display: grid; gap: var(--space-3); }
+
+@media (min-width: 46rem) {
+  .form-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* Third-party costs: a checkbox and the estimate it enables, per line. */
+.cost-list { display: grid; gap: var(--space-2); }
+
+.cost-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+}
+
+.cost-row .check { flex: 1 1 14rem; margin: 0; }
+
+/* Built bare (no .form-field), so dressed here — otherwise these seven
+   estimate boxes render at the UA's ~13px and zoom iOS on focus. */
+.cost-row input[type="text"] {
+  flex: 1 1 12rem;
+  width: auto;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  color: var(--color-charcoal);
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-2);
+}
+
+.cost-row input[disabled] { opacity: .5; }
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+/* Three of the out-of-scope chips are whole sentences, and .btn's
+   line-height: 1 sets wrapped lines solid against each other. Give a chip
+   that wraps readable leading and a left edge. */
+.chip-row .btn {
+  line-height: 1.35;
+  text-align: left;
+}
+
+/* The fee block
+   --------------------------------------------------------------------------
+   Read-only on purpose — there is no input in here, because the whole point is
+   that a total is never typed. It is styled as a statement rather than as a
+   form so that reads as deliberate rather than as fields somebody disabled. */
+
+.fee-block {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  background: var(--color-white);
+}
+
+.fee-line {
+  display: flex;
+  /* The value is nowrap by design; wrapping the row is what gives it room on
+     a 320px screen when a label runs long. */
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.fee-line:last-child { border-bottom: 0; }
+.fee-line__label { color: var(--color-gray); }
+
+.fee-line__value {
+  font-weight: var(--weight-strong);
+  /* Tabular figures so the column of numbers actually lines up. */
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.fee-line--total { border-top: 2px solid var(--color-line); }
+.fee-line--total .fee-line__label,
+.fee-line--split .fee-line__label { color: var(--color-charcoal); font-weight: var(--weight-strong); }
+.fee-line--split .fee-line__value { color: var(--color-orange-deep); }
+.fee-line--muted .fee-line__value { font-weight: var(--weight-emphasis); color: var(--color-gray); }
+
+/* A discount is never a bare number: the reason travels with it, on screen and
+   on paper alike. */
+.fee-discount { border-bottom: 1px solid var(--color-line); padding-bottom: var(--space-2); }
+.fee-discount .fee-line { border-bottom: 0; padding-bottom: 0; }
+
+.fee-discount__why {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+/* A rule that did not fire, said out loud. A discount silently not applied is
+   indistinguishable from one the software does not have. */
+.fee-dormant {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+/* Pre-export checks */
+.problem-list { margin: var(--space-2) 0 0; padding-left: var(--space-4); }
+.problem-list__item { margin-bottom: var(--space-1); }
+.problem-list__item.is-warning { color: var(--color-ink-soft); }
+
+/* The autosave line, beside the heading. Deliberately quiet: it is reassurance,
+   not an announcement, and it only earns colour when something is wrong. */
+.save-state { font-weight: var(--weight-emphasis); }
+.save-state--ok { color: var(--status-green); }
+.save-state--error { color: var(--status-red); }
+
+/* An exported SOW, or an issued invoice. The panel explains why nothing on the
+   page can be typed in, which is worth more than a page full of greyed-out
+   fields with no reason. */
+.panel--frozen { border-left: 4px solid var(--color-orange); }
+
+/* Invoice lines
+   --------------------------------------------------------------------------
+   The invoice form reuses the row cards, the fee block and the checklist
+   wholesale — it is the same kind of screen. These two are the only things it
+   needs that the SOW form did not.
+
+   The amount on a line is derived from quantity and rate, so it is a statement
+   rather than an input, and it has to sit level with the three boxes beside it
+   without pretending to be a fourth. */
+/* Matches `.form-field label` in styles.css, because it stands in for one:
+   there is no control here for a <label> to point at. */
+.form-field__label {
+  font-weight: var(--weight-emphasis);
+  font-size: var(--text-base);
+}
+
+.row-card__amount {
+  margin: 0;
+  padding: var(--space-2) 0;
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.table tr.is-archived { opacity: .6; }
+
+/* Used by both screens for the second line inside a table cell. */
+.sow-cell__name { display: block; font-weight: var(--weight-emphasis); }
+
+.sow-cell__desc {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+/* The drift badge on the Packages panel: what the website says, when it is not
+   what the database says. Advisory — the studio may hold a price deliberately —
+   so it sits under the number rather than replacing it. */
+.drift { margin-top: var(--space-1); }
+
+/* Ledger
+   ==========================================================================
+   The books. Most of this screen reuses the panel, table and form vocabulary
+   above; what is here is the handful of shapes bookkeeping needs and nothing
+   else did — a row of headline figures, a report laid out as sections with
+   subtotals, and a journal entry shown whole. */
+
+/* Numbers line up in a column or they cannot be compared, and a figure with a
+   different width per digit cannot line up. Applied to every money cell — the
+   ledger's, the invoice list's, the SOW list's — rather than to .table
+   generally, because the rest of the portal's tables are prose. nowrap is
+   part of it: "$7,500.00" must never come out as "$7,500." over "00". */
+.is-numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  /* The stacked-card layout puts the label on the left, so the number has to
+     come back to the right edge rather than sitting under it. */
+  .table td.is-numeric { text-align: right; }
+}
+
+/* The four figures at the top of the ledger. Auto-fit rather than a fixed
+   count, so it is four across on a desktop, two on a tablet and one on a phone
+   without a breakpoint for each. */
+.figure-row {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  margin-bottom: var(--space-4);
+}
+
+/* Six figures land balanced or not at all: two across on a phone, three
+   across on a tablet, the whole rank of six when the room exists. The
+   auto-fit row above wraps by fit alone, and six tiles at an iPad's width
+   land five-and-one — a figure alone on its own row reads as a mistake,
+   not a layout. Counted columns can never orphan one. */
+.figure-row--six { grid-template-columns: repeat(2, 1fr); }
+
+@media (min-width: 46rem) {
+  .figure-row--six { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (min-width: 72rem) {
+  .figure-row--six { grid-template-columns: repeat(6, 1fr); }
+}
+
+.figure {
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+}
+
+.figure__label {
+  margin: 0;
+  font-size: var(--text-xs);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.figure__value {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-strong);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.figure__value--bad { color: var(--status-red); }
+
+.figure__note {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+/* The verse of the week
+   --------------------------------------------------------------------------
+   A dark band across the top of the Dashboard, with a black-and-white
+   landscape behind it when one is available. Three things about it are
+   deliberate:
+
+   The gradient is not a placeholder. It is the card, and the photograph is a
+   layer on top of it — so an absent Unsplash key, a rate limit, an offline
+   laptop or a slow function all land on something that looks finished rather
+   than on a grey box waiting for an image. Nothing about the words changes.
+
+   The scrim (::after) is what makes the text legible over an unknown
+   photograph. A landscape can be bright snow or a dark forest and the type has
+   to hold up on both, so the overlay is heavy enough for the worst case rather
+   than tuned to a picture nobody has seen yet.
+
+   grayscale(1) is belt and braces. The URL the function builds already carries
+   `sat=-100`, so the bytes arrive grey; this is what keeps the look if the URL
+   is ever assembled some other way. */
+.verse {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  min-height: 11rem;
+  display: flex;
+  align-items: flex-end;
+  background: linear-gradient(135deg, #232323 0%, #171717 55%, #3a2213 100%);
+}
+
+.verse__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* The brightness lift is free. A dark frame — a misty ridge, a night sky —
+     otherwise disappears entirely under the scrims below, while the case the
+     type has to survive is a *bright* frame, and white cannot be made whiter.
+     So this rescues the dark half of the range without moving the worst case
+     at all. */
+  filter: grayscale(1) contrast(1.05) brightness(1.12);
+  /* Revealed by .verse--photo once the image has actually decoded, so a
+     picture that never arrives is never half-drawn. */
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease);
+}
+
+.verse--photo .verse__img { opacity: .55; }
+
+/* Two scrims, not one. The vertical wash lifts the whole card off whatever the
+   photograph is doing; the horizontal one is heavier where the words actually
+   are, so the left side can be dark enough for white type while the right side
+   still shows the picture. Measured against the worst case there is — a frame
+   of solid white — the verse holds 7.2:1 at the far end of its column and
+   14.7:1 at the left, and the orange reference 4.9:1. Nobody sees the
+   photograph before it publishes, so that is the case to design for. Change
+   the opacity or either gradient and those numbers move together. */
+.verse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(100deg, rgba(0, 0, 0, .62) 0%, rgba(0, 0, 0, .38) 45%, rgba(0, 0, 0, 0) 85%),
+    linear-gradient(180deg, rgba(0, 0, 0, .2) 0%, rgba(0, 0, 0, .5) 100%);
+}
+
+.verse__body {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.verse__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-xs);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, .86);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .5);
+}
+
+.verse__eyebrow svg { flex: none; color: var(--color-orange); }
+
+.verse__text {
+  margin: 0;
+  /* Room for the long ones to breathe and a limit so the short ones do not
+     stretch into a single thin line across a wide monitor. */
+  max-width: 54ch;
+  color: var(--color-white);
+  font-size: var(--text-lg);
+  line-height: 1.5;
+  font-weight: var(--weight-emphasis);
+  text-wrap: pretty;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .45);
+}
+
+.verse__foot {
+  display: flex;
+  gap: var(--space-2) var(--space-3);
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.verse__ref {
+  color: var(--color-orange);
+  font-weight: var(--weight-strong);
+  font-size: var(--text-base);
+  text-decoration: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .5);
+}
+
+.verse__ref:hover { text-decoration: underline; }
+
+/* Sits at the far right, which is the one part of the card the heavy scrim
+   does not reach — hence the shadow. Unsplash's guidelines want this legible,
+   not hidden. */
+.verse__credit {
+  margin: 0;
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, .78);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .7);
+}
+
+.verse__credit a { color: var(--color-white); }
+
+@media (min-width: 48rem) {
+  .verse { min-height: 13rem; }
+  .verse__body { padding: var(--space-5) var(--space-4); }
+  .verse__text { font-size: var(--text-xl); }
+}
+
+/* A job on the "needs attention" list: what is wrong on the left, the way to
+   deal with it on the right. */
+.attention-row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+/* Reports
+   -------------------------------------------------------------------------- */
+
+.report__section { margin-bottom: var(--space-4); }
+.report__section h3 { margin: 0 0 var(--space-2); font-size: var(--text-md); }
+
+.report__table { min-width: 0; }
+.report__table td:last-child { width: 9rem; }
+
+.report__account { color: var(--color-charcoal); text-decoration: none; }
+.report__account:hover { color: var(--color-orange-deep); text-decoration: underline; }
+
+.report__total td {
+  font-weight: var(--weight-strong);
+  border-top: 1px solid var(--color-line);
+}
+
+.report__total--strong td { border-top-width: 2px; }
+
+/* A subtotal between sections — gross profit, net profit. Given its own line
+   rather than a table row because it belongs to neither of the sections it
+   sits between. */
+.report__figure {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-canvas);
+  border-radius: var(--radius);
+  font-size: var(--text-md);
+}
+
+.report__figure strong { font-variant-numeric: tabular-nums; }
+.report__figure--good strong { color: var(--status-green); }
+.report__figure--bad strong { color: var(--status-red); }
+
+/* The journal
+   -------------------------------------------------------------------------- */
+
+.entry-list { display: grid; gap: var(--space-3); }
+
+.entry-card {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  background: var(--color-white);
+}
+
+.entry-card__head {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+}
+
+.entry-card__memo { margin: 0; font-weight: var(--weight-strong); }
+
+/* The lines inside an entry are a nested table and should read as detail, not
+   as a second list competing with the one they sit in. */
+.entry-card__lines { min-width: 0; font-size: var(--text-base); }
+.entry-card__lines td { padding: var(--space-2) 0; border-bottom: 0; }
+.entry-card__lines td:not(:first-child) { width: 8rem; }
+
+/* Three columns on the entry form: the account, then debit and credit side by
+   side, because that is the shape of the decision being made. */
+@media (min-width: 40rem) {
+  .row-card__grid--entry { grid-template-columns: 2fr 1fr 1fr; }
+
+  /* The second row of a line is a pair, not a quartet. Left to the plain
+     `.row-card__grid` it picks up the four-column deliverable shape and the
+     client picker gets a quarter of the row — narrow enough to cut a client
+     name down to "Dr. M". Description keeps the account column and the picker
+     takes the debit and credit pair, so the two rows line up. */
+  .row-card__grid--entry-meta { grid-template-columns: 2fr 1fr 1fr; }
+  .row-card__grid--entry-meta > :last-child { grid-column: 2 / -1; }
+}
+
+/* Reconciling
+   -------------------------------------------------------------------------- */
+
+.reconcile-summary {
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  margin-bottom: var(--space-3);
+}
+
+.table tr.is-cleared { background: var(--status-green-bg); }
+
+/* Receipts
+   --------------------------------------------------------------------------
+   A row of thumbnails inside a table cell. Deliberately small: the point is to
+   recognise a receipt at a glance and open the real one, not to read it here. */
+
+.receipt-strip {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.receipt-wrap { position: relative; display: inline-flex; }
+
+.receipt {
+  width: 3.25rem;
+  height: 3.25rem;
+  padding: 0;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--color-canvas);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.receipt:hover { border-color: var(--color-orange); }
+.receipt img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.receipt__img {
+  width: 100%;
+  height: 100%;
+  /* A quiet placeholder while the signed URL is fetched. */
+  background: linear-gradient(110deg, var(--color-canvas) 30%, var(--color-white) 50%, var(--color-canvas) 70%);
+}
+
+.receipt__doc {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: .04em;
+  color: var(--color-ink-soft);
+}
+
+/* Quiet, and deliberate to reach — deleting the only proof of an expense
+   should not be something a thumb finds by accident. What makes it deliberate
+   is the confirm in removeReceipt(), not a target too small to hit: it was
+   20×20, which misses WCAG 2.2 SC 2.5.8's 24×24 AA floor outright, and a
+   24px circle centred on it intersects the receipt tile behind it, so the
+   spacing exception does not rescue it either. 1.5rem is the smallest size
+   that passes on its own terms. */
+.receipt__remove {
+  position: absolute;
+  top: -.375rem;
+  right: -.375rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-line);
+  background: var(--color-white);
+  color: var(--color-gray);
+  font-size: var(--text-base);
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.receipt-wrap:hover .receipt__remove,
+.receipt__remove:focus-visible { opacity: 1; }
+
+/* Hover-to-reveal has no touch equivalent, so where the pointer cannot hover
+   the control is simply always there. `hover: none` rather than
+   `pointer: coarse` on purpose: it is the question actually being asked, and
+   it also catches the touch laptop, where the primary pointer is fine and the
+   old query left the button permanently invisible to a finger. */
+@media (hover: none) {
+  .receipt__remove { opacity: 1; }
+}
+
+/* At coarse pointer the 44px floor applies — but the tile it sits on is only
+   3.25rem, so a 44px disc in its corner would cover most of the thumbnail and
+   swallow the taps meant for "open this receipt", which is the primary action
+   of the two. So it stops being a corner badge and becomes its own row under
+   the tile: same 52px width, full 44px of height, nothing overlapping. */
+@media (pointer: coarse) {
+  .receipt-wrap { flex-direction: column; gap: var(--space-1); }
+
+  .receipt__remove {
+    position: static;
+    width: 100%;
+    min-height: 2.75rem;
+    border-radius: var(--radius);
+    opacity: 1;
+  }
+}
+
+.receipt__remove:hover { color: var(--status-red); border-color: var(--status-red); }
+
+.receipt-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+/* A button in a table is a label, not a paragraph. Without this the narrow
+   columns of the ledger's tables break "Edit" down the middle, one letter to a
+   line, which reads as a rendering fault. */
+.table .btn { white-space: nowrap; }
+
+/* Except the buttons whose label is data rather than a verb: .tap-action
+   breaks a long email address mid-token to fit its cell, and nowrap would
+   undo exactly that. */
+.table .tap-action { white-space: normal; }
+
+/* The same reasoning one level up: a row's strip of actions is a unit. Left
+   free to wrap it stacks "Open · Status" over "Delete" the moment the columns
+   tighten, which reads as two rows of controls on every row. Held to one line
+   its width feeds the table's layout instead, and the table scrolls sideways
+   in its panel. In the stacked-card layout below 40rem the wrap comes back —
+   there the buttons share a card, not a column, and a 320px phone needs it. */
+@media (min-width: 40rem) {
+  .table .btn-row { flex-wrap: nowrap; }
+}
+
+/* "5000 · Subcontractors" and "Credit card" each read as one token. Left to
+   wrap they come out as "Subcontrac / tors", which makes a column of them
+   unscannable — and the browser, seeing they *can* wrap, hands their width to
+   whichever neighbouring cell has the longest sentence in it. */
+.table td.is-tight { white-space: nowrap; }
+.table td.is-tight .sow-cell__desc { white-space: normal; }
+
+/* Below 640px the table is stacked cards, which are narrow and scroll
+   nowhere — release the no-wrap rather than push past the card edge. */
+@media (max-width: 39.999rem) {
+  .table td.is-tight { white-space: normal; }
+}
+
+/* The opposite problem, in the cell that holds the free text: an attendee list
+   is the longest thing on the row and would otherwise take half the table. */
+.table td.is-roomy { max-width: 19rem; }
+
+/* njdboards — the bell, the inbox, and the Boards tag
+   --------------------------------------------------------------------------
+   Board activity lives on boards.newjourneydesigns.com; the portal carries
+   the bell in the header, the inbox page it opens, and the Dashboard's
+   Boards panel linking out. The bell glyph is the Lucide bell drawn as an inline
+   SVG in shell.js — the search magnifier's treatment, so the portal still
+   ships no icon set and the stroke follows currentColor. */
+
+.portal-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius);
+  /* The hamburger's bar color, so the two header controls read as a set. */
+  color: var(--color-charcoal);
+  text-decoration: none;
+}
+
+.portal-bell:hover { background: var(--status-gray-bg); }
+
+.portal-bell__glyph { display: block; }
+
+.portal-bell__badge {
+  position: absolute;
+  top: .125rem;
+  right: 0;
+  min-width: 1rem;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-full);
+  /* The unread count — 12px white on a fill, so --color-action (4.86:1). */
+  background: var(--color-action);
+  color: var(--color-white);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  line-height: 1rem;
+  text-align: center;
+}
+
+.inbox { display: flex; flex-direction: column; }
+
+.inbox__row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-1);
+  border-bottom: 1px solid var(--color-line);
+  cursor: pointer;
+}
+
+.inbox__row:last-child { border-bottom: 0; }
+.inbox__row:hover { background: var(--status-gray-bg); }
+.inbox__row:focus-visible { outline: 2px solid var(--color-orange); outline-offset: -2px; }
+
+/* Unread carries the weight; read rows recede without disappearing. */
+.inbox__row--unread .inbox__title { font-weight: var(--weight-strong); }
+.inbox__row:not(.inbox__row--unread) { opacity: .72; }
+
+.inbox__dot {
+  flex: none;
+  width: .5rem;
+  height: .5rem;
+  margin-top: var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--color-gray);
+}
+
+.inbox__dot--assign { background: var(--color-orange); }
+.inbox__dot--comment { background: var(--status-blue); }
+.inbox__dot--share { background: var(--status-green, #1e7f4f); }
+.inbox__dot--due { background: var(--status-red); }
+.inbox__dot--mention { background: var(--status-amber); }
+.inbox__dot--reaction { background: var(--status-violet); }
+
+/* The one notification preference, worn by the page head. */
+.inbox__pref { margin-top: var(--space-2); font-size: var(--text-base); color: var(--color-gray); }
+
+.inbox__body { flex: 1; min-width: 0; }
+.inbox__title { margin: 0; font-size: var(--text-base); }
+.inbox__excerpt {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-gray);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.inbox__meta { margin: var(--space-1) 0 0; font-size: var(--text-xs); color: var(--color-gray); }
+
+.inbox__actions { display: flex; gap: var(--space-2); flex: none; }
+
+.inbox__action {
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  color: var(--color-gray);
+  background: none;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+}
+
+.inbox__action:hover { color: var(--color-charcoal-2); border-color: var(--color-gray); }
+
+/* Quick add
+   ==========================================================================
+   The staff button in the corner (js/portal/quick-add.js): a note on a client
+   or a card on a board, from any screen. Sits above the sticky header (z 40)
+   and below the modals it opens (z 60), so pressing it never leaves it hanging
+   over its own dialog. */
+
+.portal-fab {
+  position: fixed;
+  right: var(--space-3);
+  /* Clear of the home indicator on an iPhone, where a button in the corner is
+     otherwise a coin toss between the app and the system. */
+  bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+/* Room for the button to hover over, so the last row of any page is reachable
+   rather than half-covered. Added by initQuickAdd, so a client's pages — which
+   never mount it — keep their own spacing. */
+.has-quick-add .portal-main { padding-bottom: var(--space-7); }
+
+/* Scrim under, menu and button over — the header menu's arrangement, and for
+   the same reason: a fixed scrim is a positioned box, so without a z-index of
+   their own the two things it exists to sit behind end up underneath it, and
+   every press lands on the scrim that closes them. */
+.portal-fab__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: rgba(34, 34, 34, .25);
+}
+
+.portal-fab__scrim[hidden],
+.portal-fab__menu[hidden] { display: none; }
+
+/* Erin's prompt: shown once when something unmistakable happens on a project
+   and no timer is running. Same corner as the chip, because there should be one
+   place that talks about the clock. Never takes focus and never covers what is
+   being read — it is a suggestion, not an interruption. */
+.portal-nudge {
+  position: relative;
+  z-index: 2;
+  max-width: min(22rem, calc(100vw - 2rem));
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-left: 3px solid var(--color-orange);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lift);
+  padding: var(--space-3);
+  text-align: left;
+}
+
+.portal-nudge[hidden] { display: none; }
+
+.portal-nudge__line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-base);
+  font-weight: var(--weight-emphasis);
+  padding-right: var(--space-3);
+}
+
+.portal-nudge__glyph { flex: none; color: var(--color-orange-deep); margin-top: var(--space-1); }
+
+.portal-nudge__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+.portal-nudge__close {
+  position: absolute;
+  top: .25rem;
+  right: .375rem;
+  background: none;
+  border: 0;
+  font-size: var(--text-lg);
+  line-height: 1;
+  color: var(--color-gray);
+  cursor: pointer;
+  padding: var(--space-1);
+}
+
+.portal-nudge__close:hover { color: var(--color-charcoal); }
+
+/* The running-timer chip: always on screen while a timer is going, on every
+   staff page. It is a reading of the row, not a holder of it — the timer
+   itself survives navigation because it lives in the database. */
+.portal-fab__running {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: min(18rem, calc(100vw - 2rem));
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  color: var(--color-white);
+  background: var(--color-charcoal);
+  border: 0;
+  border-radius: var(--radius-full);
+  padding: var(--space-2) var(--space-3);
+  box-shadow: var(--shadow-lift);
+  cursor: pointer;
+}
+
+.portal-fab__running[hidden] { display: none; }
+.portal-fab__running:hover { background: var(--color-charcoal-2); }
+.portal-fab__running:focus-visible { outline: 2px solid var(--color-orange); outline-offset: 2px; }
+.portal-fab__running .portal-fab__glyph { color: var(--color-orange); }
+
+.portal-fab__clock { font-variant-numeric: tabular-nums; }
+
+/* The project name gives way first — the clock is the part being read. */
+.portal-fab__where {
+  color: rgba(255, 255, 255, .72);
+  font-weight: var(--weight-emphasis);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portal-fab__menu {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.portal-fab__action {
+  display: flex;
+  align-items: center;
+  /* 44px, not the 43 that .5rem of padding either side of 15px/1.4 text
+     happens to produce. One pixel under is still under, and this menu is
+     reached for one-handed on a phone — it is the most thumb-driven control
+     in the portal. It went unmeasured until the quick-add fixture was added
+     to tools/ui/gate.mjs on 2026-08-27, which found it on the first run.
+     min-height rather than more padding, so the rows keep their shape. */
+  min-height: 2.75rem;
+  gap: var(--space-2);
+  font: inherit;
+  font-size: var(--text-base);
+  font-weight: var(--weight-strong);
+  color: var(--color-charcoal);
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-full);
+  padding: var(--space-2) var(--space-3);
+  box-shadow: var(--shadow-lift);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.portal-fab__action:hover { border-color: var(--color-orange); }
+
+/* Lucide, like everything else that draws on this site (js/portal/icons.js).
+   It inherits currentColor, so the glyph tracks the label beside it. */
+.portal-fab__glyph { flex: none; color: var(--color-gray); }
+.portal-fab__action:hover .portal-fab__glyph { color: var(--color-orange-deep); }
+
+.portal-fab__button {
+  position: relative;
+  z-index: 2;
+  width: 3.5rem;
+  height: 3.5rem;
+  border: 0;
+  border-radius: var(--radius-full);
+  /* The portal's primary action, so it takes the action colour like every
+     other button — its hover was already --color-orange-deep, and leaving the
+     rest state bright would make it the one filled control that disagrees with
+     the rest of the system. Its glyph is white: 3.27:1 cleared the 3:1
+     non-text bar, 4.86:1 clears it comfortably. */
+  background: var(--color-action);
+  color: var(--color-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-lift);
+}
+
+.portal-fab__button:hover { background: var(--color-action-hover); }
+
+/* One glyph for both states: the Lucide plus turns into a close on the way
+   open, which is the same two strokes at 45°. */
+.portal-fab__plus { transition: transform var(--dur-fast) var(--ease); }
+
+.portal-fab__button.is-open .portal-fab__plus { transform: rotate(45deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-fab__plus { transition: none; }
+}
+
+/* Billable time
+   ==========================================================================
+   The project's timer panel (js/portal/time-tracking.js). Staff only — a
+   client never renders it — so this can be dense with figures rather than
+   explanatory. */
+
+.time-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+/* The running clock, big enough to read across a desk and tabular so the
+   digits stop dancing as the seconds tick. */
+.time-controls__clock {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-orange-deep);
+}
+
+/* The optional waypoint, beside the button rather than behind a modal — the
+   whole point is that naming the step costs one more tap and skipping it costs
+   none. Built bare, with no .form-field around it, so like the board filters it
+   needs its own dress: at the UA default it renders about 13px in the system
+   font, which looks broken next to the button and — being under 16px — makes
+   iOS zoom the page on focus and leave it zoomed.
+
+   Capped so a long waypoint title cannot push the live clock off the row, and
+   given a line of its own on a phone. */
+.time-controls__waypoint {
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  color: var(--color-charcoal);
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-2);
+  flex: 0 1 18rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Only ever disabled for the moment a change is in flight, so this reads as
+   "saving", not as "you may not". */
+.time-controls__waypoint:disabled { opacity: .6; }
+
+@media (max-width: 40rem) {
+  .time-controls__waypoint { flex-basis: 100%; }
+}
+
+.time-summary { margin-bottom: var(--space-3); }
+.time-total { margin: 0; font-size: var(--text-md); }
+.time-total strong { font-size: var(--text-xl); }
+.time-total__actual { color: var(--color-gray); }
+
+/* Where the hours went, step by step. Drawn only when it says something the
+   total above it does not, so it is never a single row repeating the figure. */
+.time-steps {
+  margin-top: var(--space-2);
+  border-top: 1px solid var(--color-line);
+  padding-top: var(--space-2);
+}
+
+.time-step {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-base);
+  padding: var(--space-1) 0;
+}
+
+.time-step__title { flex: 1; min-width: 0; }
+
+/* Time against no step at all is a real answer, not a gap to be shamed — but
+   it is not a name either, so it reads as the aside it is. */
+.time-step__title--none { color: var(--color-gray); font-style: italic; }
+
+.time-step__total {
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.time-step--running .time-step__total { color: var(--color-orange-deep); }
+
+.time-person + .time-person {
+  border-top: 1px solid var(--color-line);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+}
+
+.time-person__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+}
+
+.time-person__head h3 { margin: 0; font-size: var(--text-md); }
+
+.time-person__total {
+  margin-left: auto;
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.time-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.time-row:last-child { border-bottom: 0; }
+
+/* The one that is still going gets the brand's attention colour, because a
+   timer nobody notices is a timer left running overnight. */
+.time-row--running { background: var(--color-orange-tint); }
+
+.time-row__when { flex: 1; min-width: 10rem; font-size: var(--text-base); }
+.time-row__note { display: block; color: var(--color-gray); font-size: var(--text-sm); }
+
+.time-row__figures {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 6rem;
+}
+
+.time-row__billed,
+.time-row__clock {
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.time-row__clock { color: var(--color-orange-deep); }
+
+/* Said only when the rounding actually changed something, so the pair reads as
+   "billed / worked" rather than the same number printed twice. */
+.time-row__actual { font-size: var(--text-xs); color: var(--color-gray); }
+
+.time-row__actions { flex: none; }
+
+@media (max-width: 40rem) {
+  .time-row__figures { align-items: flex-start; min-width: 0; }
+  .time-row__actions { width: 100%; }
+}
+
+/* The send form — the studio's side
+   ==========================================================================
+
+   The dialog that stands between "Send for signature" and a document arriving
+   in a client's portal (js/portal/signature-panel.js). Two stacked lists, and
+   they are deliberately not styled alike:
+
+     .send-field  one studio field — who signs for us, in what capacity, the
+                  date we are dating it — with where its value came from, why it
+                  matters, and a tick saying a human has read it.
+     .send-check  what preflight() says the client would and would not receive.
+                  Every line carries its `why`, because the label says which
+                  line is missing and only the `why` says what the client reads
+                  instead. That sentence is the entire point of the checklist
+                  and it is never the thing to trim to save a row of height.
+
+   No icons in either, and that is not an oversight. This panel has never had
+   one; a coloured circle standing in for the word "Blocked" would be the first,
+   and it would be a second vocabulary for severity next to the text pills the
+   rest of the file already uses. Words, in pills, like every other state here.
+   ========================================================================== */
+
+.send-field {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--color-line);
+}
+
+.send-field:first-of-type { border-top: 0; padding-top: 0; }
+
+/* The label and its provenance on one line where there is room, wrapping
+   rather than squeezing the label when there is not. min-width: 0 on the label
+   so a long field name breaks instead of setting the row's minimum. */
+.send-field__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.send-field__head label { font-weight: var(--weight-emphasis); font-size: var(--text-base); min-width: 0; }
+
+/* A value the form cannot change, rendered as text rather than as a disabled
+   input. A greyed-out box invites a click and then refuses it; a line of text
+   says plainly that this is a fact from somewhere else, and .send-field__why
+   under it says where. */
+.send-field__value {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-emphasis);
+  color: var(--color-charcoal);
+}
+
+.send-field__value.is-empty { font-weight: var(--weight-emphasis); color: var(--status-red); }
+
+.send-field__why {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+.send-check { display: grid; gap: var(--space-2); }
+
+/* The pill sits beside the text at every width. It is short — one or two
+   words — so it never needs the line to itself, and putting it above the text
+   would cost a row of height per finding on the screen with the least of it. */
+.send-check__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+/* .pill sets `align-self: center` so a status word centres itself in the button
+   rows it usually lands in. Here the thing beside it is a paragraph five lines
+   tall, and a pill floating at its midpoint reads as belonging to no line in
+   particular. It labels the finding, so it sits on the finding's first line. */
+.send-check__item > .pill { flex: none; align-self: flex-start; }
+
+/* min-width: 0 is load-bearing: without it a flex item refuses to shrink below
+   its content's minimum, and one long unbroken token in a `why` would push the
+   dialog wider than the phone. */
+.send-check__body { flex: 1 1 auto; min-width: 0; }
+
+/* Tighter than the body's 1.65: these are headings, they wrap to two lines on a
+   phone, and at body leading the two halves of one label read as two findings. */
+.send-check__label {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-strong);
+  line-height: 1.3;
+}
+
+.send-check__why {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--color-ink-soft);
+}
+
+.send-check__item--blocked .send-check__label { color: var(--status-red); }
+
+/* Electronic signatures — the client's side
+   ==========================================================================
+
+   Three surfaces, and they share a vocabulary on purpose:
+
+     .first-run     the welcome, shown once (js/portal/first-run.js)
+     .signing-panel the "documents to review & sign" panel, at the top of the
+                    client's home page (js/portal/signing-panel.js)
+     .doc-review    the document itself, on screen (js/portal/sign-flow.js)
+
+   The first two are ordinary panels with a little extra weight, because they
+   are the first thing on the page and have to look like it without shouting.
+   The third is the interesting one; its own note is above it.
+   ========================================================================== */
+
+.signing-stack { display: grid; gap: var(--space-4); margin-bottom: var(--space-4); }
+
+/* The welcome. Warm rather than urgent — it is a greeting, and the client has
+   done nothing wrong by arriving. */
+.first-run { border-left: 4px solid var(--color-orange); }
+.first-run__head h2 { margin: 0 0 var(--space-2); font-size: var(--text-lg); }
+.first-run__head p { color: var(--color-ink-soft); }
+.first-run .detail-list { margin: var(--space-3) 0; }
+.first-run__actions { margin-top: var(--space-4); }
+
+/* The correct-your-details form, in groups. .field-group is already a grid with
+   its own gap, so the heading needs no margin of its own on top of it. */
+.first-run__group h3 { margin: 0; }
+
+/* A field a client may see but not change — legal_name and entity_type once
+   something has been signed (guard_client_self_edit in supabase/schema.sql).
+   Shown rather than hidden, because a missing field reads as a record with
+   nothing in it, and dressed so it plainly is not a box to type in. */
+.modal__body input[readonly],
+.sign-act input[readonly] {
+  background: var(--color-canvas);
+  color: var(--color-ink-soft);
+  cursor: default;
+}
+
+/* The panel that must be noticed and must not block. The orange edge is the
+   whole of its insistence: no scrim, no dialog, nothing that stops a client
+   walking past it to their projects. */
+.signing-panel { border-left: 4px solid var(--color-orange); }
+
+.signing-panel__glyph,
+.signing-quiet__glyph { color: var(--color-orange-deep); vertical-align: -.15em; }
+
+.signing-panel .panel__head h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.signing-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; }
+
+.signing-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-line);
+}
+
+/* The list carries its own rules between rows; the panel head above it already
+   draws the line at the top. */
+.signing-item:first-child { border-top: 0; padding-top: var(--space-2); }
+
+.signing-item__text { flex: 1 1 14rem; min-width: 0; }
+.signing-item__title { margin: 0; font-weight: var(--weight-strong); }
+
+.signing-item__meta {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+/* On a phone the actions take their own full-width line rather than being
+   squeezed against a wrapped title. */
+.signing-item__actions { flex: none; }
+
+@media (max-width: 34rem) {
+  .signing-item__actions { width: 100%; }
+}
+
+/* Dismissed: the same information at a whisper. Not a panel any more — one
+   line, on the canvas, that stays until the documents are signed. */
+.signing-quiet {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-line);
+  border-left: 4px solid var(--color-orange);
+  border-radius: var(--radius);
+  background: var(--color-panel);
+}
+
+.signing-quiet__text { margin: 0; flex: 1 1 12rem; font-size: var(--text-base); }
+
+/* The consent step. Long-form prose, so it is set at a readable measure rather
+   than the full width of a desktop panel. */
+.consent p { max-width: 42em; }
+.consent h2 { margin-top: 0; }
+
+/* The document, on screen
+   --------------------------------------------------------------------------
+   css/print.css draws the contract vocabulary — .sow-title, .sow-section,
+   .sow-table, .sow-sign and the rest — but only inside @media print, in points,
+   for paper. The signing page has to show the very same markup on a screen, so
+   this is that vocabulary in pixels. It is deliberately a second set of rules
+   rather than a rewrite of the first: paper and screen want different measures,
+   and the printed contract must not change because a review pane needed a
+   scrollbar.
+
+   What is NOT here is the .print-doc container class. It means "print only"
+   everywhere else in the portal, and sign-flow.js takes it off the copy it puts
+   on screen rather than fighting a rule that is right. Everything below the
+   container is untouched, which is the point: one set of markup, two dressings.
+   -------------------------------------------------------------------------- */
+
+.doc-review__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.doc-review__bar p { margin: 0; flex: 1 1 16rem; }
+
+/* The pane. Both axes scroll inside it, so a wide fee table on a phone moves
+   the table and never the page (ARCHITECTURE §7.12). Focusable, because a
+   scrollable region that Tab cannot reach cannot be scrolled by a keyboard —
+   which is also how the reading gate is cleared without a mouse. */
+.doc-review__pane {
+  max-height: 60vh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4);
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+}
+
+.doc-review__pane:focus-visible { outline: 2px solid var(--color-orange); outline-offset: 2px; }
+
+/* Taller where there is room to be; a 60vh window on a laptop is a letterbox. */
+@media (min-width: 60rem) {
+  .doc-review__pane { max-height: 68vh; }
+}
+
+.doc-review__doc {
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--color-charcoal);
+  max-width: 46rem;
+  margin: 0 auto;
+}
+
+.doc-review__end {
+  margin: var(--space-4) 0 0;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-line);
+  font-size: var(--text-xs);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  text-align: center;
+}
+
+.doc-review__end:focus-visible { outline: 2px solid var(--color-orange); outline-offset: 2px; }
+
+/* The contract vocabulary, for the screen. Same class names as print.css. */
+.doc-review__doc .print-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-4);
+  border-bottom: 2px solid var(--color-orange);
+}
+
+.doc-review__doc .print-head__mark { width: 34px; height: 34px; }
+.doc-review__doc .print-head__names { min-width: 0; }
+.doc-review__doc .print-head__wordmark {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+  letter-spacing: -0.02em;
+}
+
+.doc-review__doc .print-head__site {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-emphasis);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--color-gray);
+}
+
+.doc-review__doc .sow-head__ref {
+  margin: 0 0 0 auto;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--color-gray);
+}
+
+.doc-review__doc .sow-title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-xl);
+  line-height: 1.15;
+  font-weight: var(--weight-strong);
+  letter-spacing: -0.02em;
+}
+
+.doc-review__doc .sow-subtitle {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-md);
+  font-weight: var(--weight-emphasis);
+  color: var(--color-gray);
+}
+
+.doc-review__doc .sow-parties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.doc-review__doc .sow-party { flex: 1 1 14rem; min-width: 0; }
+
+.doc-review__doc .sow-party__role {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-emphasis);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--color-gray);
+}
+
+.doc-review__doc .sow-party__name { margin: 0; font-weight: var(--weight-strong); }
+.doc-review__doc .sow-party__meta {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--color-gray);
+}
+
+.doc-review__doc .print-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--color-line);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.doc-review__doc .print-fact dt {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-emphasis);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--color-gray);
+}
+
+.doc-review__doc .print-fact dd { margin: 0; font-weight: var(--weight-strong); }
+
+/* The sentence a reader must not skim past, set apart exactly as it is on
+   paper. */
+.doc-review__doc .sow-msa {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-orange-tint);
+  border-left: 3px solid var(--color-orange);
+  font-size: var(--text-base);
+}
+
+.doc-review__doc .sow-section { margin-bottom: var(--space-4); }
+
+.doc-review__doc .sow-section__title {
+  margin: 0 0 var(--space-2);
+  padding-bottom: var(--space-1);
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+  letter-spacing: -0.01em;
+  color: var(--color-orange-deep);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.doc-review__doc .sow-p { margin: 0 0 var(--space-2); }
+
+.doc-review__doc .sow-note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-base);
+  color: var(--color-gray);
+}
+
+.doc-review__doc .sow-list { margin: 0 0 var(--space-2); padding-left: var(--space-4); }
+.doc-review__doc .sow-list li { margin-bottom: var(--space-1); }
+
+.doc-review__doc .sow-clause { margin: 0 0 var(--space-2); }
+.doc-review__doc .sow-clause__lead { font-weight: var(--weight-strong); }
+
+.doc-review__doc .sow-olist {
+  margin: 0 0 var(--space-2);
+  padding-left: 0;
+  list-style: none;
+}
+.doc-review__doc .sow-olist li {
+  margin-bottom: var(--space-1);
+  padding-left: var(--space-5);
+  text-indent: calc(var(--space-5) * -1);
+}
+.doc-review__doc .sow-olist__num {
+  display: inline-block;
+  width: var(--space-5);
+  text-indent: 0;
+}
+
+.doc-review__doc .sow-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-base);
+}
+
+.doc-review__doc .sow-table th {
+  text-align: left;
+  padding: var(--space-2) var(--space-2) var(--space-2) 0;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--color-gray);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.doc-review__doc .sow-table td {
+  padding: var(--space-2) var(--space-2) var(--space-2) 0;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.doc-review__doc .sow-table th:last-child,
+.doc-review__doc .sow-table td:last-child { padding-right: 0; }
+
+.doc-review__doc .sow-table__num,
+.doc-review__doc th.sow-table__num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.doc-review__doc .sow-table__mid { white-space: nowrap; }
+.doc-review__doc .sow-cell__name { display: block; font-weight: var(--weight-strong); }
+.doc-review__doc .sow-cell__desc { display: block; color: var(--color-gray); }
+
+.doc-review__doc .sow-row--discount td { color: var(--color-gray); }
+.doc-review__doc .sow-row--total td {
+  font-weight: var(--weight-strong);
+  border-top: 2px solid var(--color-line);
+}
+.doc-review__doc .sow-row--split td { font-weight: var(--weight-strong); }
+.doc-review__doc .sow-row--split td:last-child { color: var(--color-orange-deep); }
+
+/* The signature block. Two columns on paper; one on a phone, because two
+   40mm-wide signature rules side by side are unreadable and the subgrid that
+   keeps them level has nothing to line up when each column is the full width. */
+.doc-review__doc .sow-sign {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+@media (min-width: 40rem) {
+  .doc-review__doc .sow-sign { grid-template-columns: 1fr 1fr; gap: 0 var(--space-5); }
+}
+
+.doc-review__doc .sow-sign__role {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-emphasis);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--color-gray);
+}
+
+.doc-review__doc .sow-sign__party { margin: 0 0 var(--space-4); font-weight: var(--weight-strong); }
+
+.doc-review__doc .sow-sign__rule {
+  border-bottom: 1px solid var(--color-charcoal);
+  height: 0;
+}
+
+.doc-review__doc .sow-sign__label {
+  margin: var(--space-1) 0 var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--color-gray);
+}
+
+.doc-review__doc .sow-end {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-2);
+  border-top: 2px solid var(--color-orange);
+  font-size: var(--text-xs);
+  color: var(--color-gray);
+}
+
+.doc-review__doc .sow-end p { margin: 0; }
+.doc-review__doc .sow-end__note { flex-basis: 100%; }
+
+/* Ctrl+P on the signing page. The pane is a scrolling box, and a scrolling box
+   prints clipped to whatever happened to be visible — which on a contract is
+   the difference between a document and a fragment of one. Nothing here touches
+   print.css; it only undoes this file's own window. */
+@media print {
+  .doc-review__pane {
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    padding: 0;
+  }
+
+  .doc-review__bar,
+  .doc-review__end,
+  .doc-gate { display: none !important; }
+}
+
+/* The reading gate
+   --------------------------------------------------------------------------
+   One line under the pane saying what the adopt button is waiting for. "Go to
+   the end" is the keyboard and screen-reader route stated out loud rather than
+   left to be discovered: it scrolls the pane and moves focus to the foot of the
+   document, so nobody is required to be able to flick a scrollbar in order to
+   sign something. */
+
+.doc-gate {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--status-amber-bg);
+  color: var(--status-amber);
+}
+
+.doc-gate.is-read { background: var(--status-green-bg); color: var(--status-green); }
+
+.doc-gate__glyph { display: inline-flex; }
+.doc-gate__text { margin: 0; flex: 1 1 14rem; font-size: var(--text-base); font-weight: var(--weight-emphasis); }
+
+/* The adopt act
+   --------------------------------------------------------------------------
+   Nothing is pre-filled and nothing is pre-ticked; see js/portal/sign-flow.js.
+   The date field is stamped for reading and cannot be typed into — the record
+   is the server's timestamp, not this. */
+
+.sign-act h2 { margin-top: 0; }
+
+.sign-act__fields {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+}
+
+@media (min-width: 46rem) {
+  .sign-act__fields { grid-template-columns: 2fr 1fr 1fr; align-items: start; }
+}
+
+/* The one button on the page whose words are fixed by signature-model.js. Wide
+   enough that the sentence on it is never broken across three lines on a
+   phone. */
+/* line-height comes from .btn, which is 1 — right for a one-word button and
+   wrong the moment a label wraps, because wrapped lines then sit with no
+   leading at all and touch. These labels are sentences and do wrap on a
+   phone, so they get real leading. */
+.btn--wide {
+  width: 100%;
+  max-width: 26rem;
+  text-align: center;
+  line-height: 1.25;
+}
+
+/* The confirmation */
+.sign-done { text-align: center; }
+.sign-done h2 { margin: var(--space-2) 0; }
+.sign-done p { margin-left: auto; margin-right: auto; max-width: 40em; }
+.sign-done__mark { margin: 0; color: var(--status-green); line-height: 1; }
+
+.sign-done__audit {
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  word-break: break-word;
+}
+
+.sign-done .btn-row { justify-content: center; margin-top: var(--space-4); }
+
+/* Reordering — the grip
+   ==========================================================================
+   js/portal/reorder.js draws one Lucide grip-vertical at the leading edge of
+   every row in a list whose order can be changed. It replaced a Move up /
+   Move down pair in seven places: two controls, two labels and two disabled
+   states per row, to express one idea.
+
+   The whole section is appended at the end of the file on purpose. Nothing
+   above is touched, so it merges cleanly against work happening elsewhere in
+   the stylesheet, and the incoming tokens (--radius-sm, --dur-fast, --dur,
+   --ease) are all written with a fallback so this stands on its own until
+   they land.
+
+   Two custom properties do the sizing, so the coarse-pointer override below is
+   two numbers rather than a second copy of the rules:
+
+     --reorder-grip  the grip's own box — the thing you press
+     --reorder-lane  the room reserved for it in the row, grip plus a gutter
+
+   The lane is reserved whether or not the grip is currently visible. A control
+   that appears on hover and pushes the row's text sideways as it arrives is
+   worse than no control. */
+
+.is-reorderable {
+  --reorder-grip: 1.75rem;
+  --reorder-lane: 2.25rem;
+
+  position: relative;
+  /* Every row this lands on — .record-row, .waypoint, .link-row, .quick-link,
+     .row-card — is padded with --space-3, so one rule covers all five. */
+  padding-inline-start: calc(var(--space-3) + var(--reorder-lane));
+}
+
+.reorder-handle {
+  position: absolute;
+  inset-block-start: var(--space-3);
+  inset-inline-start: var(--space-3);
+  width: var(--reorder-grip);
+  height: var(--reorder-grip);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm, 8px);
+  background: none;
+  color: var(--color-ink-soft);
+  cursor: grab;
+  /* On the grip and nowhere else. The browser hands us every touch that starts
+     here instead of scrolling, which is what makes a drag work on a phone — and
+     because it is scoped this tightly, a finger anywhere else on the row still
+     scrolls the page normally. */
+  touch-action: none;
+  /* Quiet at rest rather than absent: a mouse user should be able to see that
+     the list has an order without having to discover it by hovering. */
+  opacity: .4;
+  transition:
+    opacity var(--dur-fast, 120ms) var(--ease, ease),
+    color var(--dur-fast, 120ms) var(--ease, ease),
+    background-color var(--dur-fast, 120ms) var(--ease, ease);
+}
+
+/* The icon is scenery; every pointer event belongs to the button. */
+.reorder-handle svg { pointer-events: none; }
+
+/* Full strength whenever the row is being used — including when the focus is
+   on something else inside the row, so tabbing towards the grip reveals it
+   before you reach it. */
+.is-reorderable:hover .reorder-handle,
+.is-reorderable:focus-within .reorder-handle,
+.reorder-handle:focus-visible,
+.reorder-handle:hover { opacity: 1; }
+
+.reorder-handle:hover {
+  color: var(--color-charcoal);
+  background: var(--status-gray-bg);
+}
+
+.reorder-handle:active { cursor: grabbing; }
+
+/* Mid-drag
+   --------------------------------------------------------------------------
+   The row being dragged is lifted out of the stack and follows the pointer
+   exactly; the rows it displaces slide to make the gap. */
+
+.is-reordering {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.is-reordering > * {
+  transition: transform var(--dur, 180ms) var(--ease, cubic-bezier(.2, .7, .3, 1));
+}
+
+.reorder-row--dragging {
+  position: relative;
+  z-index: 2;
+  cursor: grabbing;
+  box-shadow: var(--shadow-lift);
+}
+
+/* No transition on the dragged row itself: it is pinned to the pointer, and
+   easing it there means it trails behind the finger holding it. */
+.is-reordering > .reorder-row--dragging { transition: none; }
+
+.reorder-row--dragging .reorder-handle { opacity: 1; cursor: grabbing; }
+
+/* Touch
+   --------------------------------------------------------------------------
+   Extends the tap-target floor set further up this file (`.btn,
+   .modal__close` at 2.75rem) rather than restating it: same 44px, which is
+   where Apple's guidance and WCAG 2.5.5 both land. Written here rather than
+   added to that block so this whole feature stays one appended section.
+
+   Always visible, because a touch screen has no hover to reveal it with. */
+
+@media (pointer: coarse) {
+  .is-reorderable {
+    --reorder-grip: 2.75rem;
+    --reorder-lane: 3rem;
+  }
+
+  .reorder-handle { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reorder-handle,
+  .is-reordering > * { transition: none; }
+}
+
+/* On paper the grip is already gone — print.css hides every button — so take
+   its lane with it rather than indenting a printed row past an empty gutter. */
+@media print {
+  .is-reorderable { padding-inline-start: var(--space-3); }
+}
+
+/* ---------------------------------------------------------------------------
+   Whiteboards
+
+   Excalidraw brings its own stylesheet (js/vendor/excalidraw-<v>/index.css),
+   appended by whiteboard.js at first use. Every rule in that file is scoped
+   under `.excalidraw`, so none of it reaches the rest of the portal — checked,
+   not assumed. What is left for us is the frame around the canvas and the row
+   the board list is drawn as.
+   --------------------------------------------------------------------------- */
+
+/* The editor sizes itself to its container and collapses to nothing without an
+   explicit height — the canvas is absolutely positioned inside. Tall enough to
+   draw on, short enough that the page around it is still reachable with a
+   thumb; the viewport cap keeps it honest on a laptop, and the floor keeps it
+   usable on a phone in landscape. */
+.whiteboard {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.whiteboard__canvas {
+  height: clamp(24rem, 65vh, 46rem);
+  /* Excalidraw paints its own background; this only shows while it loads. */
+  background: var(--color-panel);
+}
+
+/* The loading and error lines sit in the middle rather than at the top left,
+   where they read as a broken layout. */
+.whiteboard__canvas > .skeleton,
+.whiteboard__canvas > .empty {
+  display: grid;
+  place-content: center;
+  height: 100%;
+  margin: 0;
+  text-align: center;
+}
+
+/* Full screen.
+   The class is what does the work; the native Fullscreen API is asked for on
+   top of it where it exists (iOS Safari refuses it on anything but a <video>,
+   so a native-only implementation would be a dead button on an iPad).
+
+   z-index 56 clears the sticky header (40), the quick-add button (50) and the
+   emoji picker (55), and stays under the modal (60) and the toasts (70) — so
+   Settings still opens over the board and "Saved" is still readable. */
+.panel--whiteboard-full {
+  position: fixed;
+  inset: 0;
+  z-index: 56;
+  margin: 0;
+  border-radius: 0;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* The panel's own padding would inset the canvas by 32px a side, so it moves
+     onto the head instead: the controls keep their breathing room and the
+     drawing surface actually reaches the edge of the screen, which is what
+     "full screen" was asked for. */
+  padding: 0;
+}
+
+.panel--whiteboard-full .panel__head {
+  padding: var(--space-3) var(--space-4);
+  margin: 0;
+  border-bottom: 1px solid var(--color-line);
+}
+
+/* min-height:0 is load-bearing: without it a flex child refuses to shrink
+   below its content and the canvas pushes its own bottom off the screen. */
+.panel--whiteboard-full .whiteboard {
+  flex: 1;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.panel--whiteboard-full .whiteboard__canvas { height: 100%; }
+
+/* The page behind must not scroll under a full-screen canvas — on a phone that
+   is how you end up dragging the page instead of drawing on it. */
+body.has-whiteboard-full { overflow: hidden; }
+
+/* And the floating quick-add button has nothing to say over a full-screen
+   board; it would sit on top of Excalidraw's own bottom-right controls. */
+body.has-whiteboard-full .portal-fab { display: none; }
+
+/* Who else is on the board, under the title beside the saved line. Its own
+   colour so the two lines do not read as one sentence, and it carries the
+   orange rather than the grey because somebody arriving is news. */
+.whiteboard__presence {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--color-orange-deep);
+  font-weight: var(--weight-strong);
+}
+
+/* Offline is a statement of fact, not an alarm — the drawing is still saving,
+   so it gets the muted grey rather than the error red. */
+.whiteboard__presence--offline {
+  color: var(--color-ink-soft);
+  font-weight: inherit;
+}
+
+/* A board row opens in place rather than navigating, so its main target is a
+   <button> where .link-row uses an <a>. Same row, so it has to shed the
+   browser's button chrome and stop centring its own text. */
+button.link-row__main {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  width: 100%;
+}
+
+button.link-row__main:hover .link-row__title,
+button.link-row__main:focus-visible .link-row__title {
+  color: var(--color-orange-deep);
+  text-decoration: underline;
+}
+
+/* On paper a whiteboard is whatever was on screen when Print was pressed —
+   the canvas cannot reflow — so let it take its natural height rather than
+   cropping it to a viewport that no longer exists. */
+@media print {
+  .whiteboard__canvas { height: auto; min-height: 20rem; }
+}
+
+/* The install hint, and the notifications dialog behind the menu
+   ==========================================================================
+   Both belong to the portal-as-an-app story: the hint says the thing can be
+   installed (iOS never volunteers it), and the dialog is where a person turns
+   notifications on for the device in their hand. See js/portal/install-hint.js
+   and js/portal/push.js. */
+
+/* A single quiet row under the header. It wraps rather than scrolls: at 320px
+   the text, the button and the dismiss all have to fit somewhere, and a bar
+   that pushed the page sideways would fail the one thing tools/ui/gate.mjs
+   refuses to let slide. */
+.install-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-4);
+  padding: var(--space-3);
+  background: var(--color-orange-tint);
+  border: 1px solid #F6D9C6;
+  border-radius: var(--radius);
+}
+
+.install-hint__icon { flex: none; color: var(--color-orange-deep); }
+
+/* flex-basis in rem rather than a percentage, so the text takes the rest of a
+   wide bar but drops to its own line before it can squeeze the button. The
+   min-width: 0 is what actually permits it to shrink at all — a flex item's
+   default min-width is its content, which is how a long sentence turns into a
+   sideways scrollbar. */
+.install-hint__text {
+  flex: 1 1 14rem;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-charcoal);
+  overflow-wrap: anywhere;
+}
+
+.install-hint__steps { font-weight: var(--weight-emphasis); }
+
+.install-hint .btn { flex: none; }
+
+/* Pushed to the end of the row, and holding the 44px floor on its own — it is
+   a bare button, so it inherits nothing from .btn's coarse-pointer rule. */
+.install-hint__close {
+  flex: none;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+
+.install-hint__close:hover { color: var(--color-charcoal); }
+
+.push-dialog__status {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+  color: var(--color-charcoal);
+}
+
+/* Only the states that are genuinely a state get a colour. "off" is not a
+   problem to be flagged amber — it is the ordinary condition of a device
+   nobody has opted in on yet. */
+.push-dialog__status--on { color: var(--status-green); }
+.push-dialog__status--blocked,
+.push-dialog__status--needs-install { color: var(--status-amber); }
+
+.push-dialog__body,
+.push-dialog__steps {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-base);
+  color: var(--color-ink-soft);
+}
+
+.push-dialog__steps { font-weight: var(--weight-emphasis); color: var(--color-charcoal); }

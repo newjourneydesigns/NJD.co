@@ -1,0 +1,1948 @@
+/* ==========================================================================
+   New Journey Designs — styles.css
+   Design tokens first; everything below composes from them.
+   Orange #FF5100 is 3.27:1 on white — reserve it for large text (≥24px or
+   ≥18.66px bold) and for accents that carry no text: rules, borders, icons,
+   the focus ring, the logo. Body-size orange on white uses
+   --color-orange-deep (#CC4100, 4.9:1, WCAG AA).
+
+   Anything with WHITE text on an orange fill is an *action surface*, not an
+   accent, and takes --color-action instead. That is a separate token for a
+   separate job — see the note above it in :root.
+   ========================================================================== */
+
+/* Inter, self-hosted — same reasoning as the vendored Supabase client.
+   Google Fonts cost 1,750ms of render-blocking on a slow 4G phone: a
+   render-blocking stylesheet on fonts.googleapis.com, which then fetches the
+   woff2 from fonts.gstatic.com. Two origins, two DNS+TLS handshakes, both in
+   the critical path before a single word paints. Self-hosting makes it one
+   same-origin file, which /assets/* already serves immutable for a year.
+
+   One file, not four: Google serves Inter as a variable font, so 400/600/700/
+   800 all resolved to the same woff2. `font-weight: 100 900` exposes the axis.
+
+   Latin subset only, deliberately. Every non-ASCII character the site uses —
+   ’ — · – “ ” © é — is in this range. The exception is → (U+2192), which is in
+   no subset Google serves either, so it falls back to a system font exactly as
+   it did before. latin-ext would add 83KB and change nothing.
+
+   tools/og/generate.mjs still pulls Inter from Google Fonts. That is a dev-only
+   card renderer that never runs on the site, so it is not in this critical path. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/assets/fonts/inter-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+                 U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  /* Pigments. What the colour *is*. */
+  --color-orange:        #FF5100;
+  --color-orange-deep:   #CC4100;
+  --color-orange-deeper: #B83A00;
+  --color-orange-tint:   #FFF3EC;
+  --color-charcoal:      #222222;
+  --color-charcoal-2:    #2E2E2E;
+  --color-gray:          #595959;
+  --color-line:          #E7E7E7;
+  --color-white:         #FFFFFF;
+
+  /* Jobs. What the colour is *for*.
+
+     The brand accent and the action surface are two different jobs, and
+     --color-orange was doing both. That cost us the whole button system:
+     white on #FF5100 is 3.27:1, which clears AA only by qualifying as large
+     text (≥18.66px bold), so every button on the site was 19px/700 — not
+     because a 19px button was designed, but because 18px would have failed.
+     The size was a contrast workaround wearing a type scale's clothes.
+
+     Splitting the token removes the constraint. --color-action is 4.86:1 on
+     white and carries a label at any size, so the button can be sized by
+     design instead. --color-orange keeps every job where it is *not* behind
+     white text and is unchanged: links, icons, rules, the logo, focus rings,
+     borders, tints.
+
+     To put the bright orange back on buttons, set --color-action to
+     var(--color-orange) — but then nothing below --text-lg/700 may sit on it. */
+  --color-action:        var(--color-orange-deep);    /* 4.86:1 on white */
+  --color-action-hover:  var(--color-orange-deeper);  /* 5.76:1 on white */
+
+  /* Disabled is a flat surface, never opacity. Opacity fades the label and the
+     fill together: .btn[disabled] used to be opacity .55, which composited to
+     white-on-#FF9F73 — 2.01:1, barely legible. These two are 5.66:1. */
+  --color-disabled:      var(--color-line);
+  --color-disabled-ink:  var(--color-gray);
+
+  /* Spacing. Every margin, padding and gap on the site comes from this scale.
+     A value with no token rounds to the nearest one rather than earning a new
+     one; an exact tie rounds *up*, because the direction that grows a control
+     is the direction that helps the 44px tap floor.
+
+     What is deliberately not on this scale: a clearance. Padding sized to hold
+     text off an absolutely-positioned sibling (the search field's magnifier,
+     the password field's Show button, the trail markers) is a dimension
+     measured from another element, not rhythm, and rounding it breaks the
+     thing it was measured for. Those stay literal and say so where they sit. */
+  --space-1: .25rem;
+  --space-2: .5rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-5: 2.5rem;
+  --space-6: 4rem;
+  --space-7: 6rem;
+
+  /* Type. Eight sizes, and every font-size on the site is one of them — the
+     point is not the sizes themselves but that there is no twenty-first. */
+  --text-xs:   .75rem;    /* 12px — timestamps, pill text, table meta       */
+  --text-sm:   .8125rem;  /* 13px — secondary detail, captions              */
+  --text-base: .9375rem;  /* 15px — body. The portal's default reading size */
+  --text-md:   1rem;      /* 16px — emphasised body, and every form control */
+  --text-lg:   1.125rem;  /* 18px — panel headings                          */
+  --text-xl:   1.375rem;  /* 22px — page headings                           */
+  --text-2xl:  1.75rem;   /* 28px — the one number on a figure tile         */
+  --text-3xl:  2.25rem;   /* 36px — page title on marketing surfaces only   */
+
+  /* --text-md is a floor for input, select and textarea, and that is a
+     correctness rule rather than a stylistic one: below 16px, iOS Safari
+     zooms the page on focus and never zooms back. This is a form-heavy app. */
+
+  /* Weight. 400 reads, 600 emphasises, 700 is the strongest call — and
+     nothing else. 500 and 800 were each doing a job one of these three
+     already does, at a difference Inter renders as accidental. */
+  --weight-body:     400;
+  --weight-emphasis: 600;
+  --weight-strong:   700;
+
+  /* Corners. An element inside another rounded element takes the smaller
+     radius: a --radius-lg panel holding a --radius button reads as intended,
+     where two equal corners nested read as a mistake. */
+  --radius-sm:   6px;    /* pills, tags, small inline chips       */
+  --radius:      10px;   /* buttons, inputs, rows                 */
+  --radius-lg:   14px;   /* panels, cards, modals                 */
+  --radius-full: 999px;  /* avatars, status dots, progress tracks */
+
+  /* Motion. Three durations and one curve. Anything longer than --dur-slow is
+     a decorative loop (the hero), not an interface responding to a person. */
+  --ease:     cubic-bezier(.32, .72, 0, 1);
+  --dur-fast: 120ms;  /* hover, focus, colour                     */
+  --dur:      200ms;  /* the default: reveals, panels, transforms */
+  --dur-slow: 320ms;  /* modal enter, route-level change          */
+
+  /* Elevation. Two, because a shadow is a statement about how far off the page
+     a thing is, and this interface has exactly two answers to that. Declared
+     here rather than in portal.css so the marketing pages — which never load
+     portal.css — can compose from them too. */
+  --shadow-panel: 0 1px 3px rgba(34, 34, 34, .06);
+  --shadow-lift:  0 6px 20px rgba(34, 34, 34, .12);
+
+  --container: 72rem;
+  --container-narrow: 42rem;
+
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Base
+   ========================================================================== */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+/* Reduced motion turns all of it off.
+   ==========================================================================
+   The hero loop and the smooth scroll were already gated the other way round
+   — inside `no-preference`, so they simply never start. Nothing covered the
+   transitions: buttons, the header's scrolled state, the hamburger, the
+   scroll-reveal, the progress bar, card hovers, the verse photograph's fade.
+   The portal carried two element-specific `reduce` blocks and no more, which
+   meant a person who had asked the OS to stop animating things still got nine
+   of them.
+
+   1ms rather than 0s deliberately: a zero-length transition never fires
+   `transitionend`, and any script waiting on that event waits forever.
+   Iteration count 1 lets a looping animation finish its current pass and
+   stop, rather than freezing mid-way through a shape. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: 1.65;
+  color: var(--color-charcoal);
+  background: var(--color-white);
+}
+
+img { max-width: 100%; height: auto; display: block; }
+
+h1, h2, h3 {
+  line-height: 1.15;
+  margin: 0 0 var(--space-3);
+  font-weight: var(--weight-strong);
+  letter-spacing: -0.02em;
+}
+
+h1 { font-size: clamp(2.25rem, 5vw, 3.75rem); }
+h2 { font-size: clamp(1.75rem, 3.5vw, 2.5rem); }
+h3 { font-size: var(--text-lg); font-weight: var(--weight-emphasis); }
+
+p { margin: 0 0 var(--space-3); }
+
+a { color: var(--color-orange-deep); }
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-base);
+  background: var(--color-orange-tint);
+  border-radius: var(--radius-sm);
+  padding: .1em .35em;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-orange);
+  outline-offset: 3px;
+}
+
+section { scroll-margin-top: 5rem; }
+
+/* Layout helpers
+   ========================================================================== */
+
+.container {
+  max-width: var(--container);
+  margin-inline: auto;
+  padding-inline: var(--space-4);
+}
+
+.container--narrow { max-width: var(--container-narrow); }
+
+.section { padding-block: var(--space-6); }
+
+/* Alternating band, so stacked sections don't run together on long pages. */
+.section--tint { background: var(--color-orange-tint); }
+
+@media (min-width: 48rem) {
+  .section { padding-block: var(--space-7); }
+}
+
+.eyebrow {
+  display: block;
+  font-size: var(--text-base);
+  font-weight: var(--weight-emphasis);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--color-orange-deep);
+  margin-bottom: var(--space-2);
+}
+
+.section-lede {
+  color: var(--color-gray);
+  max-width: 38rem;
+  margin-bottom: var(--space-5);
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--color-charcoal);
+  color: var(--color-white);
+  padding: var(--space-2) var(--space-3);
+  z-index: 100;
+}
+
+.skip-link:focus { left: 0; }
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Buttons
+   ========================================================================== */
+
+/* Every font-size on the site is on the scale again. This one used to be the
+   exception — 19px, off-scale, sized to clear the large-text contrast bar
+   rather than because a 19px button was drawn. --color-action retired that
+   constraint, so the label is now --text-md/600: the same 16px the rest of the
+   emphasised body uses, which is what stops a button shouting over the
+   sentence that introduces it.
+
+   Height: 16px label + 2 × --space-3 of padding = 48px. That clears the 44px
+   floor (Apple HIG, WCAG 2.5.5) with room to spare and without becoming a
+   slab, and the horizontal --space-4 keeps the label from touching the
+   corners. Both come off the spacing scale, so the proportions are chosen
+   rather than inherited from the old size. */
+.btn {
+  display: inline-block;
+  background: var(--color-action);
+  color: var(--color-white);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  font-weight: var(--weight-emphasis);
+  line-height: 1;
+  text-decoration: none;
+  border: 0;
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+
+.btn:hover { background: var(--color-action-hover); }
+.btn:active { transform: translateY(1px); }
+
+/* Disabled, stated explicitly rather than dialled in with opacity — see the
+   token note. Listing :hover here as well is not belt-and-braces: portal.css
+   loads after this file and its .btn--ghost:hover / .btn--danger:hover are the
+   same specificity as a bare .btn[disabled], so they would repaint an inert
+   control on hover. .btn[disabled]:hover outranks both.
+
+   #595959 on #E7E7E7 is 5.66:1 — AA at any size, where the old opacity
+   composited to 2.01:1. WCAG exempts disabled controls from contrast
+   altogether; a Save button whose label you cannot read is still a bad
+   button, so this clears the normal-text bar on purpose. */
+.btn[disabled],
+.btn[disabled]:hover {
+  background: var(--color-disabled);
+  color: var(--color-disabled-ink);
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* The compact button: same label, tighter box. It no longer differs in
+   font-size — the base is 16px now — so padding is the whole variant.
+
+   inline-flex with a min-height rather than more padding, because 44px of
+   padding-derived height would need an off-scale 14px block padding, and
+   because this is the only .btn on the marketing pages that was under the
+   floor: the coarse-pointer floor lives in portal.css, which /index.html and
+   the city pages never load. Centring is what keeps the label in the middle
+   of a box that is taller than its own padding. */
+.btn--small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+}
+
+/* A standalone call to action that happens to be a link rather than a button,
+   so WCAG 2.2 SC 2.5.8 wants 24×24 of it. Inter's inline box at --text-md is
+   ~20px, and the spec's "inline" exemption does not cover these: it is for a
+   target boxed in by the line-height of the sentence around it, and most of
+   these sit alone on their own line.
+
+   padding-block, and deliberately not display: inline-block. Vertical padding
+   on an inline element enlarges the hit box (and getBoundingClientRect with
+   it) without touching line boxes, so nothing reflows — whereas inline-block
+   would make the whole label unbreakable, and "See how we build websites →"
+   at the end of a paragraph is exactly the 451px-of-nowrap shape that took the
+   Expenses page sideways (ARCHITECTURE §7.18). 20 + 2 × 4 = 28px. */
+.link-arrow {
+  font-weight: var(--weight-emphasis);
+  text-decoration: none;
+  padding-block: var(--space-1);
+}
+
+.link-arrow:hover { text-decoration: underline; }
+
+/* Header
+   ========================================================================== */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255, 255, 255, .95);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.site-header.is-scrolled {
+  border-bottom-color: var(--color-line);
+  box-shadow: var(--shadow-panel);
+}
+
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+  min-height: 4rem;
+}
+
+.site-header__logo img { height: 42px; width: 42px; }
+
+.site-nav {
+  display: none;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.site-nav a:not(.btn) {
+  color: var(--color-charcoal);
+  text-decoration: none;
+  font-weight: var(--weight-emphasis);
+  font-size: var(--text-base);
+}
+
+.site-nav a:not(.btn):hover { color: var(--color-orange-deep); }
+
+.nav-toggle {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  /* Off the spacing scale on purpose. The bars are 2px tall, so this gap sets
+     their centre-to-centre distance at 7px — which is exactly the translateY
+     the open state rotates them by to make the X. Move one and the X stops
+     meeting in the middle, so the pair only moves together. */
+  gap: 5px;
+  width: 44px;
+  height: 44px;
+  padding: var(--space-2);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.nav-toggle span {
+  display: block;
+  height: 2px;
+  background: var(--color-charcoal);
+  border-radius: var(--radius-full);
+  transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+
+.nav-toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.nav-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.nav-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+@media (max-width: 47.9375rem) {
+  .site-nav {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+    background: var(--color-white);
+    border-bottom: 1px solid var(--color-line);
+    padding: var(--space-4);
+    box-shadow: var(--shadow-lift);
+  }
+
+  .site-nav.is-open { display: flex; }
+}
+
+@media (min-width: 48rem) {
+  .site-nav { display: flex; }
+  .nav-toggle { display: none; }
+}
+
+/* Hero
+   ========================================================================== */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding-block: var(--space-7) var(--space-6);
+}
+
+.hero__content { position: relative; max-width: 46rem; }
+
+.hero h1 { margin-bottom: var(--space-4); }
+
+.hero__sub {
+  font-size: var(--text-lg);
+  color: var(--color-gray);
+  max-width: 36rem;
+  margin-bottom: var(--space-5);
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* Topographic background
+   ==========================================================================
+   The map the studio is named for, drawn as an actual one. The field, the
+   contouring and the loop live in js/topo-hero-bg.js; what has to be CSS is
+   here, because the site's policy is script-src 'self' with no
+   'unsafe-inline' — there is no inline bootstrap and no style attribute to
+   put any of this in.
+
+   Every placement masks the field away from its own text, and that is not
+   decoration. An ordinary contour is 1px of --color-line and endangers no
+   contrast ratio, but an index contour is #C9C9C9 — 4.25:1 under 15px
+   --color-gray, just under AA — and a route in full orange behind a headline
+   is a distraction whatever its ratio. The mask is what keeps the type on a
+   clean ground while the map still reads as a map. */
+
+.topo {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* A positioned element paints above a static one whatever the source order
+   says, so the canvas — absolute, and first in the markup — came out on top
+   of copy that had never needed a position of its own. Contour lines ran
+   across the headlines. Both sides get a layer, explicitly. */
+.hero > .container,
+.case-hero > .container,
+.page-simple > .container {
+  position: relative;
+  z-index: 1;
+}
+
+/* Type on the left, terrain to the right — the balance the hero has always
+   had. The left is faded rather than cut: a trace of contour behind the
+   headline reads as paper, and a hard edge reads as a mistake. */
+.topo--right {
+  -webkit-mask-image: linear-gradient(to right, rgba(0, 0, 0, .11), rgba(0, 0, 0, .19) 40%, rgba(0, 0, 0, .7) 70%, #000 88%);
+          mask-image: linear-gradient(to right, rgba(0, 0, 0, .11), rgba(0, 0, 0, .19) 40%, rgba(0, 0, 0, .7) 70%, #000 88%);
+}
+
+/* Centred type — the utility pages. A vignette instead: the map is thinnest
+   where the words are and strongest at the edges of the screen. */
+.topo--vignette {
+  -webkit-mask-image: radial-gradient(115% 85% at 50% 50%, rgba(0, 0, 0, .06), rgba(0, 0, 0, .22) 40%, rgba(0, 0, 0, .78) 72%, #000 92%);
+          mask-image: radial-gradient(115% 85% at 50% 50%, rgba(0, 0, 0, .06), rgba(0, 0, 0, .22) 40%, rgba(0, 0, 0, .78) 72%, #000 92%);
+}
+
+/* A section that is a band rather than a screen: fade from the top, where the
+   heading sits, and let the terrain gather along the bottom edge. */
+.topo--band {
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .1), rgba(0, 0, 0, .3) 45%, #000);
+          mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .1), rgba(0, 0, 0, .3) 45%, #000);
+}
+
+/* Below 48rem the headline spans the whole width, so there is no clear half
+   of the screen left to give the map — and a left-to-right fade on a 390px
+   viewport hides the whole thing, because the entire screen is the faded end
+   of it. Every placement collapses to the same answer at this width: an even
+   texture, held back everywhere the words are and strongest at the edges. */
+@media (max-width: 47.9375rem) {
+  .topo { opacity: .7; }
+
+  .topo--right,
+  .topo--band,
+  .topo--vignette {
+    -webkit-mask-image: radial-gradient(145% 100% at 50% 45%, rgba(0, 0, 0, .3), rgba(0, 0, 0, .55) 55%, #000 88%);
+            mask-image: radial-gradient(145% 100% at 50% 45%, rgba(0, 0, 0, .3), rgba(0, 0, 0, .55) 55%, #000 88%);
+  }
+}
+
+/* Stakes
+   ========================================================================== */
+
+.stakes { background: var(--color-orange-tint); }
+
+.stakes__grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.stakes__item {
+  background: var(--color-white);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  border: 1px solid rgba(255, 81, 0, .12);
+}
+
+.stakes__item h3 { margin-bottom: var(--space-2); }
+.stakes__item p { margin: 0; color: var(--color-gray); }
+
+.stakes__closer {
+  margin: var(--space-5) 0 0;
+  font-weight: var(--weight-emphasis);
+  max-width: 34rem;
+}
+
+/* Guide
+   ========================================================================== */
+
+.guide__inner {
+  display: grid;
+  gap: var(--space-5);
+  align-items: center;
+}
+
+@media (min-width: 48rem) {
+  .guide__inner { grid-template-columns: auto 1fr; }
+}
+
+.guide__mark {
+  width: 9rem;
+  margin-inline: auto;
+}
+
+/* Landscape group photo, so it needs a wider column than a portrait would.
+   26rem + the 40rem body + the 2.5rem gap still clears the 72rem container.
+   The mobile cap is vw, not %: the photo sits in an `auto` grid track, and a
+   percentage would resolve against a track that is itself sized from the
+   image — the circular reference drops the track back to the intrinsic
+   1040px and squeezes the copy into a sliver. */
+.guide__photo {
+  width: min(26rem, 88vw);
+  margin-inline: auto;
+  border-radius: var(--radius-lg);
+  /* Not an elevation, so not one of the two shadow tokens: a zero-blur solid
+     offset is a printed-looking orange plate behind the photo, closer to a
+     border than to a drop shadow. --shadow-panel here would delete a piece of
+     artwork rather than regularise a shadow. */
+  box-shadow: 8px 8px 0 var(--color-orange);
+}
+
+.guide__body { max-width: 40rem; }
+
+/* Plan (numbered step cards — the service pages' adapted three-step plans)
+   ========================================================================== */
+
+.plan__grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  margin-bottom: var(--space-5);
+}
+
+.plan__step {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5) var(--space-4);
+}
+
+.plan__num {
+  display: block;
+  font-size: var(--text-3xl); /* large text: orange on white is AA-safe */
+  font-weight: var(--weight-strong);
+  line-height: 1;
+  color: var(--color-orange);
+  margin-bottom: var(--space-3);
+}
+
+.plan__step h3 { margin-bottom: var(--space-2); }
+.plan__step p { margin: 0; color: var(--color-gray); }
+
+/* Trail — the four-step process framework (homepage #process)
+   ==========================================================================
+   Discover, Chart, Trek, Journey as waypoints on a route: a dashed path runs
+   marker to marker, vertical on phones, horizontal from 64rem where four
+   columns sit comfortably in the container. The connectors span the grid gap
+   exactly — vertical from marker bottom (2.5rem) across the 2.5rem row gap,
+   horizontal from marker edge across the column gap — so resizing either gap
+   means retuning the ::before offsets with it. */
+
+.trail {
+  list-style: none;
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  display: grid;
+  gap: var(--space-5);
+}
+
+.trail__step {
+  position: relative;
+  padding-left: 3.5rem;
+}
+
+.trail__marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  /* White numerals on a filled circle: an action surface's contrast problem
+     even though you cannot click it, so it takes --color-action like the
+     buttons do. That also puts it back on the type scale — it was 20px for the
+     same reason .btn was 19px, and --text-lg (18px) now reads 4.86:1, which is
+     AA for *normal* text rather than squeaking through the large-text
+     exemption at 3.27:1. */
+  background: var(--color-action);
+  color: var(--color-white);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-strong);
+  line-height: 1;
+}
+
+/* The route between waypoints. Decorative, so opacity is a style choice
+   rather than a contrast obligation. */
+.trail__step:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: calc(1.25rem - 1px);
+  top: 2.5rem;
+  bottom: calc(-1 * var(--space-5));
+  border-left: 2px dashed rgba(255, 81, 0, .4);
+}
+
+/* The road past the last waypoint. Step four is "the finish line isn't the
+   end", so the route carries on past Journey and dissolves rather than
+   stopping dead at a fourth marker.
+
+   Same `dashed` border as the connectors above, deliberately: the browser
+   draws that dash rhythm itself, and any hand-rolled repeating-gradient
+   would land a hair out of step with the line it continues. A border can't
+   fade, so a mask does it — holding full weight briefly, then falling away.
+   Where mask-image is unsupported the trail simply ends crisply, which is
+   the old behaviour and reads fine.
+
+   It stays inside the step's own box (mobile) and inside one gap's reach
+   (desktop), so a trailing road can never widen the page — §7.12. */
+.trail__step:last-child::after {
+  content: "";
+  position: absolute;
+  left: calc(1.25rem - 1px);
+  top: 2.5rem;
+  bottom: calc(-1 * var(--space-5));
+  border-left: 2px dashed rgba(255, 81, 0, .4);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0 25%, transparent);
+  mask-image: linear-gradient(to bottom, #000 0 25%, transparent);
+}
+
+/* Nudge the word down so its first line sits centred beside the marker. */
+.trail__step h3 { padding-top: var(--space-2); margin-bottom: var(--space-2); }
+.trail__step p { margin: 0; color: var(--color-gray); }
+
+@media (min-width: 64rem) {
+  .trail {
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-4);
+  }
+
+  .trail__step {
+    padding-left: 0;
+    padding-top: 3.75rem;
+  }
+
+  .trail__step h3 { padding-top: 0; }
+
+  .trail__step:not(:last-child)::before {
+    top: calc(1.25rem - 1px);
+    left: 2.5rem;
+    right: calc(-1 * var(--space-4));
+    bottom: auto;
+    border-left: 0;
+    border-top: 2px dashed rgba(255, 81, 0, .4);
+  }
+
+  .trail__step:last-child::after {
+    top: calc(1.25rem - 1px);
+    left: 2.5rem;
+    right: calc(-1 * var(--space-4));
+    bottom: auto;
+    border-left: 0;
+    border-top: 2px dashed rgba(255, 81, 0, .4);
+    -webkit-mask-image: linear-gradient(to right, #000 0 30%, transparent);
+    mask-image: linear-gradient(to right, #000 0 30%, transparent);
+  }
+}
+
+/* Services
+   ========================================================================== */
+
+.services { background: var(--color-orange-tint); }
+
+.services__grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+/* Cap at 3 columns so 6 cards always land as a balanced 3x2 (or 2x3) grid.
+   54rem is where auto-fit reaches three columns on its own: three 16rem tracks
+   plus two 1.5rem gaps is 51rem of container, and .container adds 1.5rem of
+   padding each side. Pinning it at exactly that point is a no-op for the layout
+   and buys one breakpoint that means "the grid is three wide" — which is what
+   the orphan rule below depends on being true. Recompute both together if the
+   track size or the gap ever moves. */
+@media (min-width: 54rem) {
+  .services__grid { grid-template-columns: repeat(3, 1fr); }
+
+  /* A seventh service leaves one card alone on the last row. Centre it under
+     the block above rather than stranding it at the left edge. Scoped to
+     exactly seven: an eighth card fills the gap by itself, and this rule would
+     otherwise punch a hole beside it. Below 54rem the grid is one or two wide,
+     where a last card sitting at the left is simply how a grid ends. */
+  .service:nth-child(7):last-child { grid-column: 2; }
+}
+
+.service {
+  background: var(--color-white);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  border: 1px solid rgba(255, 81, 0, .12);
+}
+
+.service svg {
+  width: 32px;
+  height: 32px;
+  stroke: var(--color-orange);
+  margin-bottom: var(--space-3);
+}
+
+.service h3 { margin-bottom: var(--space-2); }
+
+/* Four of the seven service cards now lead to a service page and three don't.
+   An orange heading on the four that link would split the grid into two
+   visual classes for a reason the reader can't see, so the link inherits the
+   heading colour and earns its underline on hover instead. */
+.service h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.service h3 a:hover,
+.service h3 a:focus-visible { text-decoration: underline; }
+.service p { margin: 0; color: var(--color-gray); }
+
+.services__more { margin: var(--space-5) 0 0; }
+
+/* Findable (AI search / answer engines)
+   ========================================================================== */
+
+.findable { border-block: 1px solid var(--color-line); }
+
+.findable__grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  margin-bottom: var(--space-5);
+}
+
+.findable__item h3 { margin-bottom: var(--space-2); }
+.findable__item p { margin: 0; color: var(--color-gray); }
+
+.findable__item svg {
+  width: 1.75rem;
+  height: 1.75rem;
+  stroke: var(--color-orange);
+  margin-bottom: var(--space-3);
+}
+
+/* Success vision (dark band)
+   ========================================================================== */
+
+/* Background photo: winding road at dusk (Pexels, © Aleksandar — free license).
+   Heavy charcoal overlay keeps white text WCAG-safe over the image. */
+.vision {
+  background:
+    linear-gradient(rgba(28, 28, 28, .74), rgba(28, 28, 28, .74)),
+    var(--color-charcoal) url("/assets/img/vision-road-1600.webp") center / cover no-repeat;
+  color: var(--color-white);
+  text-align: center;
+}
+
+.vision h2 { color: var(--color-white); }
+
+.vision__lede {
+  font-size: var(--text-lg);
+  max-width: 40rem;
+  margin: 0 auto var(--space-3);
+  color: rgba(255, 255, 255, .85);
+}
+
+.vision__contrast {
+  color: rgba(255, 255, 255, .6);
+  max-width: 34rem;
+  margin: 0 auto var(--space-5);
+}
+
+/* Work teaser
+   ========================================================================== */
+
+.work__list {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.work__card {
+  display: grid;
+  gap: var(--space-5);
+  align-items: center;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+@media (min-width: 48rem) {
+  .work__card { grid-template-columns: 1fr 1fr; }
+}
+
+.work__visual {
+  background: var(--color-charcoal);
+  border-radius: var(--radius);
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+}
+
+.work__visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* For artwork that shouldn't be cropped to the 16:10 frame — a share card
+   already has its own proportions and loses its wordmark to a cover crop */
+.work__visual--natural { aspect-ratio: auto; }
+.work__visual--natural img { height: auto; }
+
+/* For engagements with no single screenshot to show: the disciplines stand in
+   for the artwork and carry the breadth of the work instead */
+/* A client logo rather than artwork: contain it and give it breathing room,
+   so a trimmed-to-the-edge export doesn't run into the corners */
+.work__visual--logo {
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+}
+
+.work__visual--logo img {
+  width: auto;
+  height: auto;
+  max-width: min(68%, 17rem);
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.work__body h3 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: var(--weight-strong);
+}
+
+.work__body p { color: var(--color-gray); }
+
+.work__meta {
+  font-size: var(--text-base);
+  color: var(--color-gray);
+  margin-bottom: var(--space-2);
+}
+
+/* Testimonials
+   Staged for the Heddi quote the client is writing; .quote-band is the
+   full-width dark treatment, .quote-figure works on any background.
+   ========================================================================== */
+
+.quote-figure {
+  margin: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.quote-figure blockquote {
+  margin: 0;
+  font-size: clamp(1.125rem, 2.2vw, 1.4375rem);
+  line-height: 1.5;
+  font-weight: var(--weight-emphasis);
+  letter-spacing: -0.01em;
+}
+
+.quote-figure blockquote p:last-child { margin-bottom: 0; }
+
+.quote-figure figcaption {
+  font-size: var(--text-base);
+  font-weight: var(--weight-emphasis);
+  line-height: 1.45;
+}
+
+.quote-figure figcaption span {
+  display: block;
+  font-weight: var(--weight-body);
+}
+
+.quote-band {
+  background: var(--color-charcoal);
+  border-block: 1px solid var(--color-charcoal);
+  color: var(--color-white);
+}
+
+.quote-band .quote-figure figcaption span { color: rgba(255, 255, 255, .7); }
+
+.quote-band .eyebrow { color: var(--color-orange); }
+
+.quote-band .quote-figure { max-width: 46rem; }
+
+/* Lead magnet band (transitional CTA)
+   ========================================================================== */
+
+.lead-band {
+  border-block: 1px solid var(--color-line);
+  background: var(--color-white);
+}
+
+/* Copy centred above the form, one column at every width. This was a two-column
+   grid (1fr auto) on desktop, and the auto track is the trap: it sizes to the
+   form's max-content, and the form is three inputs at a 16rem minimum plus the
+   button — wider than the container on its own. The 1fr column got what was
+   left, which was about eight characters, so the heading came down the page one
+   word per line. Anything that keeps the form beside the copy has to fight that
+   minimum; stacking sidesteps it. */
+.lead-band__inner {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: center;
+}
+
+.lead-band__intro {
+  max-width: 46rem;
+  text-align: center;
+}
+
+.lead-band h2 { margin-bottom: var(--space-2); }
+
+.lead-band p { color: var(--color-gray); margin: 0 auto; max-width: 34rem; }
+
+.lead-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The checkup form asks for a first and last name alongside the email. Same box
+   for all three rather than a new class: they sit in one wrapping flex row and
+   any difference between them would read as a mistake. */
+.lead-form input[type="email"],
+.lead-form input[type="text"] {
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  color: var(--color-charcoal);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  min-width: 16rem;
+  flex: 1;
+}
+
+/* In the band the form is held to 42rem so the two names pair up on one row
+   under the centred copy instead of stretching into one 69rem line, with the
+   email and the button on the row below. The article CTA needs none of this —
+   its own narrow container already does the job. Note
+   that text-align is deliberately left alone: it would be inherited into the
+   inputs, and placeholders belong at the start of their field, not the middle. */
+.lead-band .lead-form {
+  width: min(42rem, 100%);
+  justify-content: center;
+}
+
+/* Checkup page
+   ========================================================================== */
+
+.checkup-list {
+  list-style: none;
+  counter-reset: checkup;
+  margin: var(--space-5) 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.checkup-list li {
+  counter-increment: checkup;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-6);
+  position: relative;
+}
+
+.checkup-list li::before {
+  content: counter(checkup);
+  position: absolute;
+  left: var(--space-4);
+  top: var(--space-4);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-strong);
+  line-height: 1;
+  color: var(--color-orange);
+}
+
+.checkup-list h3 { margin-bottom: var(--space-2); }
+.checkup-list p { margin: 0 0 var(--space-2); color: var(--color-gray); }
+
+.checkup-list .ask {
+  display: block;
+  font-weight: var(--weight-emphasis);
+  color: var(--color-charcoal);
+}
+
+/* Contact form
+   ========================================================================== */
+
+.contact { background: var(--color-orange-tint); }
+
+.contact-form {
+  display: grid;
+  gap: var(--space-4);
+  background: var(--color-white);
+  border: 1px solid rgba(255, 81, 0, .12);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+@media (min-width: 48rem) {
+  .contact-form { grid-template-columns: 1fr 1fr; }
+  .contact-form .form-field--full,
+  .contact-form button { grid-column: 1 / -1; }
+}
+
+.form-field { display: grid; gap: var(--space-1); }
+
+.form-field label {
+  font-weight: var(--weight-emphasis);
+  font-size: var(--text-base);
+}
+
+.label-optional {
+  font-weight: var(--weight-body);
+  color: var(--color-gray);
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  color: var(--color-charcoal);
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  width: 100%;
+}
+
+.form-field textarea { resize: vertical; min-height: 8rem; }
+
+/* Date and time inputs, and the mess iOS hands you with them.
+   ==========================================================================
+   Safari on iOS gives these a *minimum intrinsic width* of its own, measured
+   from the little internal fields it draws the value with. `width: 100%` is
+   then a floor rather than a ceiling: in a container narrower than that
+   intrinsic width — a panel on a phone — the field keeps its own size and
+   hangs over the edge of everything around it, while the text inputs beside
+   it sit obediently inside. That is exactly the wrong way round, and it is
+   why a date field is the one control on this site that looked broken on a
+   phone. Blink and Gecko never did this, which is why it survives desktop
+   testing untouched.
+
+   `appearance: none` is what takes the intrinsic sizing away and lets the
+   width we asked for actually win; `min-width: 0` lets it shrink inside a
+   flex or grid parent as well. The two go together — either alone leaves the
+   overhang in one of the two layouts.
+
+   Element selectors rather than `.form-field input`, because plenty of these
+   are built bare: the ledger's filter bar, the reports date range, the
+   board filters. A date input should behave the same wherever it is put. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="week"] {
+  -webkit-appearance: none;
+  appearance: none;
+  /* Both, deliberately: min-width releases the intrinsic floor, max-width
+     stops anything else pushing it back past its container. */
+  min-width: 0;
+  max-width: 100%;
+  /* Removing the appearance also removes whatever height iOS was giving it,
+     and an empty date field with no value has nothing to hold it open. */
+  min-height: 2.75rem;
+}
+
+/* iOS centres the value inside the field — so a date sat in the middle of its
+   box while every other field on the form started at the left. This is the
+   element that holds it. */
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value,
+input[type="month"]::-webkit-date-and-time-value,
+input[type="week"]::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+/* The calendar button, once appearance: none has stopped the browser sizing it.
+   Kept a comfortable tap target rather than the 12px default. */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  margin-left: var(--space-2);
+  cursor: pointer;
+  opacity: .6;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+
+.contact-form button { justify-self: start; }
+
+.contact-alt {
+  margin: var(--space-4) 0 0;
+  color: var(--color-gray);
+  font-size: var(--text-base);
+}
+
+.hidden-field { position: absolute; left: -9999px; }
+
+/* Footer
+   ========================================================================== */
+
+.site-footer {
+  background: var(--color-charcoal-2);
+  color: rgba(255, 255, 255, .75);
+  padding-block: var(--space-6);
+  font-size: var(--text-base);
+}
+
+.site-footer__inner {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: center;
+  text-align: center;
+}
+
+.site-footer__mark { width: 3rem; }
+
+.site-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+.site-footer a {
+  color: rgba(255, 255, 255, .85);
+  text-decoration: none;
+  font-weight: var(--weight-emphasis);
+}
+
+.site-footer a:hover { color: var(--color-white); }
+
+.site-footer__legal { margin: 0; color: rgba(255, 255, 255, .55); }
+
+/* Service and service-area columns. Every page carries them, which is what
+   gives the service and city pages an internal link from the whole site
+   rather than from one hub — the difference between a page Google finds
+   and a page Google thinks is an afterthought.
+
+   Left-aligned inside each column, but the block as a whole is centred in the
+   footer grid, so it sits under the centred mark without fighting it. Below
+   the breakpoint the columns stack and centre with everything else. */
+.site-footer__local {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, auto));
+  gap: var(--space-4) var(--space-6);
+  justify-content: center;
+  text-align: left;
+  width: 100%;
+  padding-block: var(--space-4);
+  border-block: 1px solid rgba(255, 255, 255, .12);
+}
+
+.site-footer__col h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, .55);
+}
+
+.site-footer__col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* Lighter than the main footer nav on purpose: these are wayfinding, not the
+   primary calls to action, and 600 weight on eleven links reads as shouting. */
+.site-footer__col a { font-weight: var(--weight-body); }
+
+@media (max-width: 40rem) {
+  .site-footer__local { text-align: center; }
+}
+
+/* Case study page
+   ========================================================================== */
+
+/* Relative and clipped so the topographic canvas has something to be
+   absolute inside, and so the map ends at the section rather than at the
+   viewport. See "Topographic background" above. */
+.case-hero {
+  position: relative;
+  overflow: hidden;
+  padding-block: var(--space-7) var(--space-5);
+}
+
+/* Client logo plate. The Switch mark is white-on-transparent, so it needs a
+   dark ground to read at all on this page. */
+.case-hero__logo {
+  background: var(--color-charcoal);
+  border-radius: var(--radius-lg);
+  display: grid;
+  place-items: center;
+  width: fit-content;
+  padding: var(--space-4) var(--space-5);
+  margin: 0 0 var(--space-4);
+}
+
+.case-hero__logo img { width: 11rem; height: auto; }
+
+/* Standing qualifier under a hero — small, present, not shouting. */
+.case-hero__note {
+  margin: var(--space-4) 0 0;
+  max-width: 40rem;
+  font-size: var(--text-base);
+  color: var(--color-gray);
+}
+
+.case-hero__sub {
+  font-size: var(--text-lg);
+  color: var(--color-gray);
+  max-width: 40rem;
+}
+
+.case-glance {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  border-block: 1px solid var(--color-line);
+  padding-block: var(--space-4);
+  margin-block: var(--space-5);
+}
+
+.case-glance dt {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--color-gray);
+  margin-bottom: var(--space-1);
+}
+
+.case-glance dd { margin: 0; font-weight: var(--weight-emphasis); }
+
+.case-section { padding-block: var(--space-5); }
+
+.case-section h2 { font-size: clamp(1.5rem, 3vw, 2rem); }
+
+.case-img {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-line);
+  margin-block: var(--space-4) var(--space-5);
+  width: 100%;
+}
+
+/* Phone screenshots: shown near their native width rather than stretched,
+   so a mobile capture stays sharp */
+.case-img--phone {
+  max-width: 20rem;
+  margin-inline: auto;
+}
+
+.case-figure {
+  margin: var(--space-4) 0 var(--space-5);
+}
+
+.case-figure .case-img { margin-block: 0; }
+
+.case-figure figcaption {
+  font-size: var(--text-base);
+  color: var(--color-gray);
+  text-align: center;
+  margin-top: var(--space-2);
+}
+
+.case-placeholder {
+  background: var(--color-orange-tint);
+  border: 1px dashed rgba(255, 81, 0, .35);
+  border-radius: var(--radius-lg);
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  margin-block: var(--space-4);
+  color: var(--color-orange-deep);
+  font-weight: var(--weight-emphasis);
+  font-size: var(--text-base);
+}
+
+.cta-band {
+  background: var(--color-charcoal);
+  color: var(--color-white);
+  text-align: center;
+}
+
+.cta-band h2 { color: var(--color-white); }
+
+.cta-band p {
+  color: rgba(255, 255, 255, .75);
+  max-width: 34rem;
+  margin: 0 auto var(--space-5);
+}
+
+/* Utility pages (thanks / 404)
+   ========================================================================== */
+
+.page-simple {
+  position: relative;   /* the topographic canvas is absolute inside it */
+  overflow: hidden;
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding-block: var(--space-7);
+}
+
+.page-simple .container { max-width: 34rem; }
+
+.page-simple p { color: var(--color-gray); margin-bottom: var(--space-5); }
+
+/* Scroll animation (JS adds .is-hidden before observing; no-JS stays visible)
+   ========================================================================== */
+
+[data-animate].is-hidden {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+[data-animate].is-visible {
+  opacity: 1;
+  transform: none;
+  transition: opacity var(--dur-slow) var(--ease), transform var(--dur-slow) var(--ease);
+}
+
+/* Blog index
+   The card is a lighter cousin of .work__card: same visual-then-body shape and
+   the same 16:10 frame, but stacked on a narrow column instead of two-up,
+   because an article list is read top to bottom rather than scanned.
+   ========================================================================== */
+
+.blog-list__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-5);
+}
+
+.blog-card {
+  position: relative;
+  display: grid;
+  gap: var(--space-3);
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.blog-card:last-child { border-bottom: 0; padding-bottom: 0; }
+
+.blog-card__visual {
+  display: block;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--fallback) center / cover no-repeat, var(--color-charcoal);
+}
+
+.blog-card__visual img { width: 100%; height: 100%; object-fit: cover; }
+
+.blog-card__body { display: grid; gap: var(--space-2); }
+
+.blog-card__meta {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--color-gray);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.blog-card h2 { font-size: clamp(var(--text-xl), 2.6vw, var(--text-2xl)); margin: 0; }
+
+.blog-card h2 a { color: inherit; text-decoration: none; }
+
+/* Hovering anywhere on the card lights up both the headline and the cue, so the
+   whole row reads as one target even though it is three separate links. */
+.blog-card:hover h2 a,
+.blog-card:hover .blog-card__cue { color: var(--color-orange-deep); }
+
+.blog-card__cue { display: inline-block; }
+
+.blog-card p { margin: 0; color: var(--color-gray); }
+
+@media (min-width: 48rem) {
+  .blog-card {
+    grid-template-columns: 15rem 1fr;
+    gap: var(--space-4);
+    align-items: start;
+  }
+}
+
+/* Article page
+   ========================================================================== */
+
+.article-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  margin-bottom: 0;
+  font-size: var(--text-base);
+  color: var(--color-gray);
+}
+
+.article-figure { margin: 0 0 var(--space-5); }
+
+/* The frame holds the article's own share card as a background. If the Unsplash
+   photo ever stops resolving, that card shows through instead of a broken
+   image, so a page publishing months from now degrades to on-brand rather than
+   to broken. The photo covers it completely whenever it loads. */
+.article-figure__frame {
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--fallback) center / cover no-repeat, var(--color-charcoal);
+}
+
+.article-figure img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.article-figure figcaption {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-gray);
+}
+
+/* Body copy runs slightly larger than the site default. These are 1,000-word
+   reads rather than scannable marketing sections, and the extra measure of
+   line height is what makes that bearable on a phone. */
+.article-body p,
+.article-body li { font-size: var(--text-lg); line-height: 1.7; }
+
+.article-body h2 { margin-top: var(--space-5); }
+
+.article-body h3 { margin-top: var(--space-4); }
+
+.article-body > div > :first-child { margin-top: 0; }
+
+.article-body ul,
+.article-body ol { padding-left: var(--space-4); margin-bottom: var(--space-4); }
+
+.article-body li { margin-bottom: var(--space-2); }
+
+/* Pull quote. Reuses .quote-figure's type scale and adds the orange rule so it
+   reads as a break in the argument rather than as a caption. */
+.article-body .quote-figure {
+  margin: var(--space-5) 0;
+  padding-left: var(--space-4);
+  border-left: 3px solid var(--color-orange);
+}
+
+.article-body .quote-figure blockquote p { color: var(--color-charcoal); }
+
+/* Copyable example. The content pack draws a hard line between a pull quote and
+   a prompt the reader is meant to paste into an AI tool; these are the latter,
+   so they get monospace and a border instead of display type. Styling them like
+   the pull quote above would tell the reader to admire text meant to be used. */
+.prompt {
+  margin: var(--space-4) 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: #FAFAFA;
+}
+
+.prompt__label {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--color-orange-deep);
+}
+
+.prompt__body {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-base) !important;
+  line-height: 1.6 !important;
+  white-space: pre-wrap;
+}
+
+/* Mid-article ask. Deliberately the quieter of the two CTAs: it interrupts a
+   reader mid-argument, so it is a bordered block on the same measure as the
+   body copy rather than a full-bleed band. */
+.inline-cta {
+  margin: var(--space-5) 0;
+  padding: var(--space-4);
+  border: 1px solid rgba(255, 81, 0, .28);
+  border-radius: var(--radius-lg);
+  background: var(--color-orange-tint);
+}
+
+.inline-cta__heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-strong);
+}
+
+.inline-cta p { margin: 0 0 var(--space-3); font-size: var(--text-md) !important; }
+
+.inline-cta .link-arrow { font-size: var(--text-md); }
+
+/* Closing ask. */
+.article-cta {
+  background: var(--color-orange-tint);
+  border-block: 1px solid rgba(255, 81, 0, .18);
+}
+
+.article-cta h2 { margin-bottom: var(--space-3); }
+
+.article-cta > .container > p {
+  color: var(--color-gray);
+  margin-bottom: var(--space-4);
+}
+
+.related__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.related__list a { font-weight: var(--weight-emphasis); font-size: var(--text-md); }
+
+.related__list p { margin: var(--space-1) 0 0; color: var(--color-gray); }
+
+/* Blog search
+   Hidden until main.js reveals it, so a visitor without JavaScript sees the
+   full list rather than a search box that does nothing.
+   ========================================================================== */
+
+.blog-search { margin-bottom: var(--space-4); }
+
+.blog-search input[type="search"] {
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  color: var(--color-charcoal);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.blog-search input[type="search"]::placeholder { color: var(--color-gray); }
+
+.blog-search__status {
+  margin: calc(var(--space-4) * -1) 0 var(--space-4);
+  font-size: var(--text-base);
+  color: var(--color-gray);
+}
+
+.blog-card[hidden] { display: none; }
+
+/* From the blog (homepage)
+   Every article is in the markup, fenced; the edge function drops the ones that
+   have not published and this rule shows only the first that survived. That is
+   what makes the homepage move to the new article on publish day with no
+   redeploy and no JavaScript.
+   ========================================================================== */
+
+.home-blog { border-block: 1px solid var(--color-line); }
+
+.home-blog__list { list-style: none; margin: 0; padding: 0; }
+
+.home-blog__item:not(:first-of-type) { display: none; }
+
+.home-blog__item {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.home-blog__visual {
+  display: block;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--fallback) center / cover no-repeat, var(--color-charcoal);
+}
+
+.home-blog__visual img { width: 100%; height: 100%; object-fit: cover; }
+
+.home-blog__body { display: grid; gap: var(--space-2); align-content: start; }
+
+.home-blog__meta {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--color-gray);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.home-blog__body h3 { font-size: clamp(1.25rem, 2.4vw, 1.625rem); margin: 0; }
+
+.home-blog__body h3 a { color: inherit; text-decoration: none; }
+
+.home-blog__item:hover h3 a,
+.home-blog__item:hover .link-arrow { color: var(--color-orange-deep); }
+
+.home-blog__body > p { margin: 0; color: var(--color-gray); }
+
+.home-blog__all { margin: var(--space-5) 0 0; }
+
+@media (min-width: 48rem) {
+  .home-blog__item { grid-template-columns: 22rem 1fr; align-items: center; }
+}
+
+
+/* Pricing page
+   ========================================================================== */
+
+.price-grid {
+  display: grid;
+  gap: var(--space-4);
+  /* Room for the featured card's badge, which hangs over the top border. */
+  margin-top: var(--space-2);
+}
+
+@media (min-width: 48rem) {
+  .price-grid { grid-template-columns: repeat(3, 1fr); align-items: stretch; }
+}
+
+.price-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-white);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+
+.price-card--featured {
+  border-color: var(--color-orange);
+  box-shadow: var(--shadow-lift);
+}
+
+/* MOST POPULAR, in 12px caps. White on #FF5100 at that size was 3.27:1 against
+   a 4.5:1 bar — the large-text exemption cannot rescue 12px — so the fill is
+   --color-action. The featured card's *border* stays --color-orange: that is
+   an accent carrying no text, and it is what the bright orange is for. */
+.price-card__badge {
+  position: absolute;
+  top: 0;
+  left: var(--space-4);
+  transform: translateY(-50%);
+  background: var(--color-action);
+  color: var(--color-white);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-2);
+  margin: 0;
+}
+
+.price-card h3 { margin-bottom: var(--space-2); }
+
+.price-card__amount {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-strong);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0;
+}
+
+/* "/month", "flat", "to start" — the qualifier rides the number. */
+.price-card__amount span {
+  font-size: var(--text-md);
+  font-weight: var(--weight-emphasis);
+  color: var(--color-gray);
+  letter-spacing: 0;
+}
+
+/* Delivery window, used on the branding cards. Deliberately a window and not a
+   turnaround promise — see the note under that grid. */
+.price-card__time {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+  color: var(--color-orange-deep);
+}
+
+.price-card__time svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  stroke: currentColor;
+}
+
+.price-card__lede {
+  color: var(--color-gray);
+  font-size: var(--text-base);
+  margin: var(--space-3) 0;
+}
+
+.price-card__list {
+  list-style: none;
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.price-card__list li {
+  position: relative;
+  padding-left: var(--space-4);
+  color: var(--color-gray);
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+
+.price-card__list li::before {
+  content: "";
+  position: absolute;
+  left: .15rem;
+  top: .3em;
+  width: .8rem;
+  height: .4rem;
+  border-left: 2px solid var(--color-orange);
+  border-bottom: 2px solid var(--color-orange);
+  transform: rotate(-45deg);
+}
+
+/* Bottom-anchored, and the button is the last thing in it, so the CTAs line up
+   across a row no matter how uneven the lists or the fine print above them. */
+.price-card__foot { margin-top: auto; }
+
+.price-card__foot .btn { width: 100%; text-align: center; }
+
+.price-card__fine {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-base);
+  color: var(--color-gray);
+}
+
+.price-note {
+  margin: var(--space-4) 0 0;
+  color: var(--color-gray);
+  max-width: 44rem;
+}
+
+.price-note strong { color: var(--color-charcoal); }
+
+/* The note carries no bottom margin because it is normally the last thing in
+   its section (/app-development/). Where a section closes on a call to action
+   instead — the homepage's #platforms, /custom-platforms/ — the note sits above
+   it, and neither .btn nor .link-arrow carries a top margin of its own. */
+.price-note + .btn,
+.price-note + .link-arrow {
+  display: inline-block;
+  margin-top: var(--space-4);
+}
+
+/* The rules that make a retainer work — stated plainly rather than buried. */
+.terms {
+  list-style: none;
+  margin: var(--space-5) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+  max-width: 46rem;
+}
+
+.terms__heading {
+  margin: var(--space-6) 0 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-strong);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--color-gray);
+}
+
+.terms__heading + .terms { margin-top: var(--space-4); }
+
+.terms__closer {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-line);
+}
+
+.terms li {
+  border-left: 3px solid var(--color-orange);
+  padding: var(--space-1) 0 var(--space-1) var(--space-4);
+  color: var(--color-gray);
+}
+
+.terms strong {
+  display: block;
+  color: var(--color-charcoal);
+  margin-bottom: var(--space-1);
+}
+
+.faq__list {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 46rem;
+  margin-top: var(--space-5);
+}
+
+.faq__item h3 { margin-bottom: var(--space-2); }
+.faq__item p { margin: 0 0 var(--space-2); color: var(--color-gray); }
+.faq__item p:last-child { margin-bottom: 0; }

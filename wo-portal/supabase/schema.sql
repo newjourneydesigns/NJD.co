@@ -1193,6 +1193,10 @@ grant execute on function is_owner()          to authenticated;
 -- The invoice writers run as the caller, so the staff-only policies on
 -- invoices and its lines are what actually decides. A 'none' account calling
 -- one updates zero rows and gets an exception.
+-- next_invoice_number is called from inside create_invoice, which runs as the
+-- caller (SECURITY INVOKER, so RLS decides the insert). The caller therefore
+-- needs EXECUTE on it too; it only reads invoices under RLS.
+grant execute on function next_invoice_number(date)       to authenticated;
 grant execute on function create_invoice(uuid, date)          to authenticated;
 grant execute on function duplicate_invoice(uuid)             to authenticated;
 grant execute on function save_invoice(uuid, jsonb, jsonb)    to authenticated;

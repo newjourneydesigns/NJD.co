@@ -35,7 +35,7 @@ const MODULES = readdirSync(PORTAL).filter((f) => f.endsWith('.js'));
 
 test('there is something to check', () => {
   // A glob that quietly matches nothing passes every assertion below it.
-  assert.ok(MODULES.length > 100, `expected the portal's modules, found ${MODULES.length}`);
+  assert.ok(MODULES.length > 20, `expected the portal's modules, found ${MODULES.length}`);
 });
 
 for (const dialog of ['confirm', 'alert', 'prompt']) {

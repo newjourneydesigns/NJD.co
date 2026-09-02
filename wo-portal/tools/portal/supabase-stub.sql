@@ -43,6 +43,11 @@ language sql stable as $$
   select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
 $$;
 
+-- Supabase grants these to signed-in users; a SECURITY INVOKER function that
+-- reads auth.uid() as the caller needs them here too.
+grant usage on schema auth to authenticated;
+grant execute on function auth.uid() to authenticated;
+
 create table if not exists storage.buckets (
   id                 text primary key,
   name               text not null,

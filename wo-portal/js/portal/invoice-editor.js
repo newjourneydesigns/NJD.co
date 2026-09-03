@@ -620,9 +620,26 @@ function recompute() {
   const invoice = state.invoice;
   state.totals = invoiceTotals(state.items, invoice.tax_rate_bp);
 
+  // Did the row we were handed already disagree with its own lines?
+  //
+  // Asked BEFORE the overwrite below, because after it the answer is always
+  // no — which is what made invoice-catalog's "the saved total does not match"
+  // blocker unable to fire. A row can arrive inconsistent (a copy carrying a
+  // tax its rate no longer produces, a save that half-landed), and the editor
+  // shows the recomputed figures, so pressing Issue without typing anything
+  // would freeze a document the record does not agree with. Marking it dirty
+  // means the correction is written before anything can be frozen.
+  const stale = !state.readOnly && (
+    invoice.subtotal_cents !== state.totals.subtotal_cents
+    || invoice.tax_cents !== state.totals.tax_cents
+    || invoice.total_cents !== state.totals.total_cents
+  );
+
   invoice.subtotal_cents = state.totals.subtotal_cents;
   invoice.tax_cents = state.totals.tax_cents;
   invoice.total_cents = state.totals.total_cents;
+
+  if (stale) queueSave();
 
   state.problems = validate(invoice, state.items, state.client);
 
@@ -767,10 +784,12 @@ async function preview() {
 /** Save → check → assemble → hash → issue_invoice → re-render → print. */
 async function issue() {
   window.clearTimeout(saveTimer);
-  if (state.dirty || state.saving) {
-    const saved = await save();
-    if (!saved) return;
-  }
+  // Always, not just when something is dirty. Freezing is the one action that
+  // cannot be undone, and the row on the server is what the freeze reads: a
+  // save here costs a round trip and removes the whole class of "the PDF says
+  // one number and the record says another".
+  const saved = await save();
+  if (!saved) return;
 
   const stopping = blockers(state.problems);
   if (stopping.length) {

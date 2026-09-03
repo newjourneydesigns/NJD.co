@@ -292,6 +292,17 @@ select refuses(
 select assert(count(*) = 1, 'the line is still there afterwards')
   from invoice_items where invoice_id = (select first_id from inv);
 
+-- An issued invoice cannot be deleted either. The list screen only offers
+-- Delete on a draft, but that is a convention in a JavaScript file; this is
+-- what holds for anything that reaches the table.
+select refuses(
+  format($$delete from invoices where id = %L$$, (select first_id from inv)),
+  'an issued invoice cannot be deleted');
+
+select assert(
+  (select count(*) from invoices where id = (select first_id from inv)) = 1,
+  'and it is still there');
+
 \echo 'Payments'
 
 select refuses(
@@ -406,6 +417,14 @@ begin
     'copied by value');
   perform assert((select total_cents from invoices where id = fresh) = 108250,
     'and the same total');
+
+  -- The rate is part of the document being copied. Copying the tax it
+  -- produced without the rate that produced it leaves a row whose stored
+  -- total no rate on it can explain.
+  perform assert(
+    (select tax_rate_bp from invoices where id = fresh) = 825
+      and (select tax_rate_bp from invoice_settings where id = true) = 0,
+    'and the same tax rate, not today''s settings');
   perform assert((select paid_cents from invoices where id = fresh) = 0,
     'but nothing paid against it');
   perform assert((select summary from invoices where id = fresh) = 'September work',

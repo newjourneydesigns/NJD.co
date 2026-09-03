@@ -171,11 +171,19 @@ async function main() {
   state = (await rest(`invoices?select=status,paid_cents&id=eq.${invoiceId}`)).data[0];
   ok(state.status === 'sent' && state.paid_cents === 50000, 'back to sent after the delete');
 
-  // Duplicate
+  // Duplicate. Taxed on purpose: a copy that keeps the source's tax but takes
+  // today's settings rate is a row whose total no rate on it can explain, and
+  // a tax-free duplicate would never show it.
+  await rest(`invoices?id=eq.${invoiceId}`, { method: 'PATCH', body: {} });
   const dup = await rpc('duplicate_invoice', { p_id: invoiceId });
-  const dupRow = (await rest(`invoices?select=number,status,total_cents&id=eq.${dup.data}`)).data?.[0];
+  const dupRow = (await rest(`invoices?select=number,status,total_cents,tax_rate_bp&id=eq.${dup.data}`)).data?.[0];
   const dupLines = await rest(`invoice_items?select=name&invoice_id=eq.${dup.data}`);
   ok(dupRow?.status === 'draft' && dupRow.total_cents === 72550 && dupLines.data?.length === 2, `duplicate_invoice → draft ${dupRow?.number} with 2 lines`);
+  ok(dupRow?.tax_rate_bp === inv.tax_rate_bp, `and the source's tax rate, not today's settings (${dupRow?.tax_rate_bp})`);
+
+  // An issued invoice is a record somebody is holding. Void, never delete.
+  const killed = await rest(`invoices?id=eq.${invoiceId}`, { method: 'DELETE' });
+  ok(killed.status >= 400, 'deleting an issued invoice refused');
 
   // Expense + receipt object
   const software = cats.data.find((c) => c.code === 'software');
@@ -217,13 +225,32 @@ async function main() {
   await rest(`documents?client_id=eq.${clientId}`, { method: 'DELETE' });
   await rest(`expenses?client_id=eq.${clientId}`, { method: 'DELETE' });
   await rest(`payments?client_id=eq.${clientId}`, { method: 'DELETE' });
-  // An issued invoice cannot be deleted through the UI; the check owns these
-  // rows, so it voids and removes them directly (payments are gone).
-  await rest(`invoices?client_id=eq.${clientId}`, { method: 'DELETE' });
-  const gone = await rest(`invoices?select=id&client_id=eq.${clientId}`);
-  ok(gone.data?.length === 0, 'check invoices removed');
-  const bye = await rest(`clients?id=eq.${clientId}`, { method: 'DELETE' });
-  ok(bye.status === 200 || bye.status === 204, 'check client removed');
+  // Drafts go. The issued ones cannot: the guard this check just proved is
+  // the same guard that applies here, and adding an un-issue path so the test
+  // could tidy up would be a back door in the product for the convenience of
+  // the test. They are voided and left, and the operator is told the one
+  // statement that clears them — which needs the SQL editor, as deleting a
+  // business record should.
+  await rest(`invoices?client_id=eq.${clientId}&issued_at=is.null`, { method: 'DELETE' });
+  await rest(`invoices?client_id=eq.${clientId}`, { method: 'PATCH', body: { status: 'void' } });
+  const left = await rest(`invoices?select=id&client_id=eq.${clientId}`);
+  const stuck = left.data?.length || 0;
+
+  if (!stuck) {
+    const bye = await rest(`clients?id=eq.${clientId}`, { method: 'DELETE' });
+    ok(bye.status === 200 || bye.status === 204, 'check client removed');
+  } else {
+    ok(true, `${stuck} issued check invoice(s) voided and left — see below`);
+    console.log(`
+Clear them in the Supabase SQL editor when you are done:
+
+  delete from payments where client_id = '${clientId}';
+  alter table invoices disable trigger invoices_guard_delete;
+  delete from invoices where client_id = '${clientId}';
+  alter table invoices enable trigger invoices_guard_delete;
+  delete from clients where id = '${clientId}';
+`);
+  }
 
   console.log(failures ? `\n${failures} FAILED` : '\nLive check OK — the database behaves through the API.');
   process.exit(failures ? 1 : 0);

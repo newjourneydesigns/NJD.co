@@ -135,7 +135,15 @@ function linesTable(snapshot, paidCents) {
   if (paid > 0) {
     body.push(totalRow('Total', formatMoney(snapshot.total_cents), 'doc-tr--total'));
     body.push(totalRow('Paid', `− ${formatMoney(paid)}`, 'doc-tr--muted', 'Thank you.'));
-    body.push(totalRow('Balance due', formatMoney(snapshot.total_cents - paid), 'inv-row--due'));
+    // Clamped, and it must stay clamped: the fact list at the top of the page
+    // prints the same figure through Math.max(0, …), and an overpaid invoice
+    // showing "Balance due −$40.00" here and "$0.00" there is a document that
+    // argues with itself in front of a client.
+    body.push(totalRow('Balance due', formatMoney(Math.max(0, snapshot.total_cents - paid)), 'inv-row--due'));
+    if (paid > centsOf(snapshot.total_cents)) {
+      body.push(totalRow('Overpaid', formatMoney(paid - centsOf(snapshot.total_cents)), 'doc-tr--muted',
+        'On account.'));
+    }
   } else {
     body.push(totalRow('Total due', formatMoney(snapshot.total_cents), 'inv-row--due'));
   }

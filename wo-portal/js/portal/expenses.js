@@ -312,9 +312,14 @@ function expenseWatch(row = {}) {
     const vendorId = vendor ? vendor.id : null;
     if (!opening && vendorId !== lastVendorId) {
       lastVendorId = vendorId;
-      if (vendor && vendor.default_category_id && categoryById(vendor.default_category_id)) {
-        api.set('category_id', vendor.default_category_id);
-      }
+      // Only a category the select actually offers. categoryById() searches
+      // the archived ones too (the list needs them, so an old expense still
+      // shows what it was filed under), and setting the field to a value with
+      // no <option> behind it empties a required field the person did not
+      // touch. A vendor whose default was archived simply offers nothing.
+      const preset = vendor && vendor.default_category_id
+        ? categoryById(vendor.default_category_id) : null;
+      if (preset && !preset.archived_at) api.set('category_id', preset.id);
     }
 
     const category = categoryById(values.category_id);

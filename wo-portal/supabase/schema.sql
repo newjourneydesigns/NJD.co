@@ -779,6 +779,13 @@ begin
     summary        = source.summary,
     notes          = source.notes,
     subtotal_cents = source.subtotal_cents,
+    -- The rate travels with the document, exactly as the tax it produced
+    -- does. create_invoice set the new draft's rate from today's settings,
+    -- which is right for an invoice raised today and wrong for a copy of one
+    -- that charged a different rate: leaving it would hand back a row whose
+    -- stored tax no rate on it can explain, and the editor would then print a
+    -- document disagreeing with its own record.
+    tax_rate_bp    = source.tax_rate_bp,
     tax_cents      = source.tax_cents,
     total_cents    = source.total_cents
   where id = fresh;
@@ -911,6 +918,31 @@ end $$;
 drop trigger if exists invoices_guard_issued on invoices;
 create trigger invoices_guard_issued before update on invoices
   for each row execute function guard_issued_invoice();
+
+-- And it cannot be deleted either.
+--
+-- The freeze above stops an issued invoice being edited, which made deleting
+-- one the way around it: the number is spent, a client is holding the
+-- document, and the row is the only record of what was asked for. The list
+-- screen only offers Delete on a draft, but that is a convention in a
+-- JavaScript file — this is the rule, and it holds for anything that reaches
+-- the table, including a hand-written query in the dashboard.
+--
+-- Void is the way to cancel an issued invoice: it leaves the number spent and
+-- the history readable, which is what an accountant expects to find.
+create or replace function guard_issued_invoice_delete() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if old.issued_at is not null then
+    raise exception
+      'Invoice % has been issued and cannot be deleted. Void it instead.', old.number;
+  end if;
+  return old;
+end $$;
+
+drop trigger if exists invoices_guard_delete on invoices;
+create trigger invoices_guard_delete before delete on invoices
+  for each row execute function guard_issued_invoice_delete();
 
 -- The lines are frozen by the same rule: a line added to an issued invoice
 -- changes what a client owes without touching the header row at all.
@@ -1194,6 +1226,7 @@ revoke all on function save_invoice(uuid, jsonb, jsonb) from public, anon, authe
 revoke all on function issue_invoice(uuid, jsonb, text) from public, anon, authenticated;
 revoke all on function guard_issued_invoice()       from public, anon, authenticated;
 revoke all on function guard_issued_invoice_child() from public, anon, authenticated;
+revoke all on function guard_issued_invoice_delete() from public, anon, authenticated;
 revoke all on function refresh_invoice_payment(uuid) from public, anon, authenticated;
 revoke all on function payments_sync()            from public, anon, authenticated;
 revoke all on function guard_payment_invoice()    from public, anon, authenticated;

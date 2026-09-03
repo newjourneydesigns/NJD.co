@@ -1071,10 +1071,15 @@ create or replace function handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare invite invites;
 begin
+  -- Only a fresh invite counts. One left behind by an interrupted account
+  -- creation is a role nobody is watching; an hour is far longer than the
+  -- round trip that writes it, and far shorter than the window an attacker
+  -- would need to find it.
   select * into invite
     from invites
    where lower(email) = lower(new.email)
      and consumed_at is null
+     and created_at > now() - interval '1 hour'
    order by created_at
    limit 1;
 
@@ -1104,20 +1109,31 @@ select u.id, u.email, coalesce(u.raw_user_meta_data ->> 'full_name', '')
   from auth.users u
  where not exists (select 1 from profiles p where p.id = u.id);
 
--- The owner's sign-in. Seeded as an invite rather than a hand-promoted
--- profile: the account does not exist until the owner is added in the
--- dashboard, and the trigger above makes them the owner on that insert.
--- The address is the synthetic one the portal maps the username 'walter' to;
--- nothing is ever mailed to it.
-insert into invites (email, role)
-select v.email, 'owner'
-  from (values ('walter@wo-portal.invalid')) as v(email)
- where not exists (
-   select 1 from profiles p where lower(p.email) = lower(v.email)
- )
-   and not exists (
-   select 1 from invites i where lower(i.email) = lower(v.email) and i.consumed_at is null
- );
+-- No seeded invite, and that is the point.
+--
+-- The obvious way to bootstrap the first account is to seed a pending invite
+-- for the owner and let the trigger above grant the role on first sign-in.
+-- Do not: a pending invite is a role waiting for whoever presents that address
+-- first, and Supabase's public sign-up endpoint is ON by default. Until the
+-- owner got round to signing in, a stranger who guessed the address would have
+-- been handed the business.
+--
+-- So the first account is made deliberately, in the SQL editor, by somebody
+-- who already has the keys to the database — see WO-LAUNCH.md step 1. It
+-- creates the auth row and sets the role in the same statement, so there is
+-- never an unclaimed grant sitting in this table.
+--
+-- Every account after that is made from Admin → People by a signed-in owner,
+-- which writes the invite and creates the account in the same request. An
+-- invite is therefore never pending for longer than that round trip.
+
+-- An invite that was written but never consumed is a role somebody could still
+-- claim. Nothing should leave one behind, so anything older than a day is
+-- swept up here rather than waiting for someone to notice it.
+update invites
+   set consumed_at = now()
+ where consumed_at is null
+   and created_at < now() - interval '1 day';
 
 -- ---------------------------------------------------------------------------
 -- Seed: expense categories

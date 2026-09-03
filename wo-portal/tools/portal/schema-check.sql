@@ -501,26 +501,42 @@ declare
   boss  uuid := gen_random_uuid();
 begin
   insert into invites (email, role) values ('books@wo-portal.invalid', 'staff');
+  -- An invite nobody consumed in time. The one an interrupted account
+  -- creation would leave behind, and the one an attacker would want.
+  insert into invites (email, role, created_at)
+  values ('stale@wo-portal.invalid', 'owner', now() - interval '2 hours');
 
-  -- Fires handle_new_user(), the way the dashboard's Add user or the
-  -- admin-users function would.
+  -- Fires handle_new_user(), the way the admin-users function does.
   insert into auth.users (id, email) values
     (stray, 'stray@wo-portal.invalid'),
     (books, 'books@wo-portal.invalid'),
-    (boss,  'walter@wo-portal.invalid');
+    (boss,  'stale@wo-portal.invalid');
 
   perform assert((select role from profiles where id = stray) = 'none',
     'an uninvited sign-up lands on no role');
   perform assert((select role from profiles where id = books) = 'staff',
     'an invited sign-up takes the invite''s role');
-  perform assert((select role from profiles where id = boss) = 'owner',
-    'and the seeded invite makes walter the owner');
+  -- The one that matters most in this file: a role left lying about is not
+  -- handed to whoever turns up with the address an hour later.
+  perform assert((select role from profiles where id = boss) = 'none',
+    'a stale invite grants nothing');
+  perform assert(
+    (select consumed_at from invites where email = 'stale@wo-portal.invalid') is null,
+    'and is not silently consumed by the attempt');
+  perform assert(
+    not exists (select 1 from invites where role = 'owner' and consumed_at is null
+                 and created_at > now() - interval '1 hour'),
+    'the schema seeds no claimable owner invite');
   perform assert(
     (select consumed_at from invites where email = 'books@wo-portal.invalid') is not null,
     'the invite is consumed');
   perform assert(
     (select email from profiles where id = books) = 'books@wo-portal.invalid',
     'profiles.email mirrors the sign-in address');
+
+  -- The owner is made the way WO-LAUNCH.md step 1 makes them: by somebody who
+  -- already has the database, in one statement, with no invite in the middle.
+  update profiles set role = 'owner', full_name = 'Walter Ochenski' where id = boss;
 
   create temporary table people as select stray, books, boss;
   grant select on people to authenticated;

@@ -21,6 +21,12 @@
 // Screenshots land in tools/portal/shots/ when WO_SHOTS=1, which is how the
 // phone layout gets looked at.
 //
+// Give it the machine. Two headless Chromiums on a small box starve each
+// other, and what that looks like from here is a page that never finishes
+// rendering and a manifest icon that "isn't a valid image" — neither of which
+// is true. It picks a free port so two runs cannot collide outright, but a run
+// racing another for CPU will still report failures it should not.
+//
 // No Playwright: this container has the Chromium binary but not the npm
 // package, and Node 22 ships a WebSocket client, so the protocol is spoken
 // directly. That is about a hundred lines, and it is the only thing standing
@@ -134,10 +140,16 @@ class Page {
   }
 
   /** Poll a predicate rather than racing a fixed sleep. */
-  async until(expression, { timeout = 15000, label = expression } = {}) {
+  //
+  // With `value`, the expression's own result is returned rather than a
+  // boolean — so a caller can read several facts about the page at the exact
+  // moment the condition held, instead of asking again afterwards and racing
+  // whatever the page did next.
+  async until(expression, { timeout = 15000, label = expression, value = false } = {}) {
     const deadline = Date.now() + timeout;
     for (;;) {
-      if (await this.eval(`(() => { try { return Boolean(${expression}); } catch { return false; } })()`)) return true;
+      const got = await this.eval(`(() => { try { return (${expression}) || false; } catch { return false; } })()`);
+      if (got) return value ? got : true;
       if (Date.now() > deadline) throw new Error(`timed out waiting for ${label}`);
       await new Promise((r) => setTimeout(r, 150));
     }
@@ -163,7 +175,8 @@ class Page {
   }
 }
 
-function launch() {
+function launch(port) {
+  const debugPort = port + 400;
   return new Promise((resolve, reject) => {
     const child = execFile(CHROME, [
       '--headless=new', '--no-sandbox', '--disable-gpu', '--hide-scrollbars',
@@ -186,9 +199,24 @@ function launch() {
   });
 }
 
+/** Bind the first free port from PORT upward, so two runs cannot collide. */
+function listen(from) {
+  return new Promise((resolve, reject) => {
+    let port = from;
+    const attempt = () => {
+      server.once('error', (err) => {
+        if (err.code === 'EADDRINUSE' && port < from + 20) { port += 1; attempt(); }
+        else reject(err);
+      });
+      server.listen(port, '127.0.0.1', () => resolve(port));
+    };
+    attempt();
+  });
+}
+
 async function main() {
-  await new Promise((r) => server.listen(PORT, '127.0.0.1', r));
-  const { child, wsUrl } = await launch();
+  const port = await listen(PORT);
+  const { child, wsUrl } = await launch(port);
 
   // A page target of our own, so the about:blank one is left alone.
   const browser = await Page.open(wsUrl);
@@ -204,7 +232,7 @@ async function main() {
     width: WIDTH, height: HEIGHT, deviceScaleFactor: 2, mobile: true,
   });
 
-  const base = `http://localhost:${PORT}`;
+  const base = `http://localhost:${port}`;
   if (SHOTS) await mkdir(join(ROOT, 'tools/portal/shots'), { recursive: true });
 
   const shoot = async (name) => {
@@ -234,10 +262,17 @@ async function main() {
 
   // Signed out, a portal page must send you to the sign-in page rather than
   // rendering an empty shell of somebody else's data.
+  //
+  // Path and query are read in the SAME evaluation. Reading them in two calls
+  // is a race: the sign-in page is entitled to move on the moment it has a
+  // session, and the query string can be gone by the second call.
   await page.send('Page.navigate', { url: `${base}/portal/invoices/?stub=signedout` });
-  await page.until('location.pathname === "/portal/"', { label: 'the bounce to sign-in', timeout: 20000 });
+  const bounced = await page.until(
+    '(location.pathname === "/portal/") && location.href',
+    { label: 'the bounce to sign-in', timeout: 20000, value: true },
+  );
   ok(true, 'a portal page signed out bounces to the sign-in page');
-  ok(/next=/.test(await page.eval('location.search')), 'and remembers where you were going');
+  ok(/next=%2Fportal%2Finvoices/.test(bounced), `and remembers where you were going (${bounced.split('?')[1] || ''})`);
   page.drain();
 
   // --- every screen ---------------------------------------------------------

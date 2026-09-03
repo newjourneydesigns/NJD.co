@@ -1,70 +1,86 @@
 // ---------------------------------------------------------------------------
-// Admin — quick links, journeys, and the staff who sign in.
+// Admin — the setup a business touches rarely and deliberately.
 //
-// What is left here after Clients and Form Entries moved to pages of their own
-// is the setup a studio touches rarely and deliberately: the journey templates
-// a project is built from, and the staff accounts.
+// Four panels, in the order they are likely to be needed:
 //
-// Quick links are the exception and sit first for that reason: they are the one
-// thing on this page somebody opens Admin *for*, several times a week, rather
-// than twice a quarter. They own their own loading and reloading (quick-links.js)
-// instead of riding loadAll(), so adding one never re-renders the People table
-// somebody is halfway through searching.
+//   Business details    the letterhead and the rates (studio_settings)
+//   Invoice terms       how to pay, when it is due, sales tax (invoice_settings)
+//   Expense categories  what an expense can be, and which Schedule C line it
+//                       rolls up to (expense_categories)
+//   People              the sign-ins — owner only
 //
-// People here means *staff*. A client's sign-ins live on their own client
-// record, in its People panel — one place per company, next to the contacts
-// they belong with. The split is the whole navigation story: staff users are
-// under Admin, client users are under the client.
+// The first three are staff's: the bookkeeper is exactly the person who fixes
+// a category name or the payment instructions. People is the owner's alone,
+// and for the bookkeeper the panel is not on the page at all rather than shown
+// disabled — the function behind it refuses them anyway (admin-users.js), and
+// a button that cannot work is worse than no button.
 //
-// The one exception this page still owns out loud: a client-role account with
-// no client assigned belongs to no page at all, and would otherwise vanish
-// from every list while its owner signs in to an empty portal. Those are
-// flagged here, because Admin is where somebody goes when a login "doesn't
-// work".
-//
-// Accounts are created with a password already set, which is why this page
-// talks to a Netlify function rather than to Postgres: assigning somebody
-// else's password needs the service-role key, and that key can never be in a
-// browser. The client page's People panel rides the same plumbing — see
-// js/portal/accounts.js and netlify/functions/admin-users.js.
+// Categories are archived, never deleted: an expense from three years ago
+// still points at the line it was filed under, and April is not the month to
+// discover that it points at nothing.
 // ---------------------------------------------------------------------------
 
 import { supabase, errorMessage } from './client.js';
 import { bootstrap, renderError } from './shell.js';
 import {
-  el, mount, byId, toast, fmtDate, formModal, panelHead, table, stackedCell,
+  el, mount, byId, toast, busy, fmtDate, formModal, panelHead, table, stackedCell,
 } from './ui.js';
-import { passwordHandoff, welcomeHandoff } from './accounts.js';
-import { openPersonForm as openSharedPersonForm } from './person-form.js';
+import { parseMoney, formatMoney, formatRate } from './money.js';
+import { callAdminUsers, passwordFields, passwordHandoff, usernameOf } from './accounts.js';
+import { openPersonForm, roleLabel } from './person-form.js';
 import { filterPeople } from './people-search.js';
 import { sectionNav } from './section-nav.js';
-import { renderQuickLinks } from './quick-links.js';
-import {
-  KIND_ORDER, KIND_META, SEND_HOURS, resolvePrefs, prefRow,
-} from './notification-prefs.js';
+
+// Part II of Schedule C, as the form lists them. A category's line is one of
+// these; the report groups by it. Kept as a list rather than free text so two
+// categories cannot spell the same line two ways.
+const SCHEDULE_C_LINES = [
+  ['8', 'Advertising'],
+  ['9', 'Car and truck expenses'],
+  ['10', 'Commissions and fees'],
+  ['11', 'Contract labor'],
+  ['12', 'Depletion'],
+  ['13', 'Depreciation'],
+  ['14', 'Employee benefit programs'],
+  ['15', 'Insurance (other than health)'],
+  ['16a', 'Interest — mortgage'],
+  ['16b', 'Interest — other'],
+  ['17', 'Legal and professional services'],
+  ['18', 'Office expense'],
+  ['19', 'Pension and profit-sharing plans'],
+  ['20a', 'Rent — vehicles, machinery, equipment'],
+  ['20b', 'Rent — other business property'],
+  ['21', 'Repairs and maintenance'],
+  ['22', 'Supplies'],
+  ['23', 'Taxes and licenses'],
+  ['24a', 'Travel'],
+  ['24b', 'Deductible meals'],
+  ['25', 'Utilities'],
+  ['26', 'Wages'],
+  ['27a', 'Other expenses'],
+  ['30', 'Business use of home'],
+];
+
+function lineLabel(code) {
+  const entry = SCHEDULE_C_LINES.find(([value]) => value === code);
+  return entry ? `${entry[0]} · ${entry[1]}` : String(code || '—');
+}
 
 const state = {
-  // Only id and name, and only for the person modal's client picker — the
-  // clients screen owns the records themselves.
-  clients: [],
+  studio: null,
+  terms: null,
+  categories: [],
   people: [],
-  journeys: [],
-  // profile_clients rows. Managed on each client's People panel; read here
-  // only to tell a stray account from one that sees a client through a link.
-  memberships: [],
-  // notification_preferences rows for everybody. Admins may read and write
-  // anyone's, which is the point of the Emails button on each row — somebody
-  // who never opens their own settings can still have them set for them.
-  emailPrefs: [],
   // A just-assigned password, held only until the next render draws it once.
   passwordNotice: null,
 };
 
 // Each panel keeps its own node so one mutation does not rebuild the whole page
-// (and steal focus out of a <select> someone is still using).
+// (and steal focus out of a search box someone is still using).
 const panels = {
-  quickLinks: el('section', { class: 'panel' }),
-  journeys: el('section', { class: 'panel' }),
+  business: el('section', { class: 'panel' }),
+  terms: el('section', { class: 'panel' }),
+  categories: el('section', { class: 'panel' }),
   people: el('section', { class: 'panel' }),
 };
 
@@ -74,37 +90,34 @@ let ctx = null;
 // ---------------------------------------------------------------------------
 
 async function loadAll() {
-  const [clients, people, journeys, memberships, emailPrefs] = await Promise.all([
-    supabase.from('clients').select('id, name').order('name'),
-    supabase
+  const reads = [
+    supabase.from('studio_settings').select('*').eq('id', true).maybeSingle(),
+    supabase.from('invoice_settings').select('*').eq('id', true).maybeSingle(),
+    supabase.from('expense_categories').select('*').order('position').order('name'),
+  ];
+  if (ctx.isOwner) {
+    reads.push(supabase
       .from('profiles')
-      .select('id, email, full_name, phone, role, client_id, created_at')
-      .order('created_at'),
-    supabase
-      .from('journeys')
-      .select('*, journey_waypoints(count)')
-      .order('position'),
-    supabase.from('profile_clients').select('profile_id, client_id'),
-    supabase
-      .from('notification_preferences')
-      .select('profile_id, kind, enabled, send_hour'),
-  ]);
-
-  for (const result of [clients, people, journeys, memberships, emailPrefs]) {
-    if (result.error) throw result.error;
+      .select('id, email, full_name, role, phone, created_at')
+      .order('created_at'));
   }
 
-  state.clients = clients.data || [];
-  state.people = people.data || [];
-  state.journeys = journeys.data || [];
-  state.memberships = memberships.data || [];
-  state.emailPrefs = emailPrefs.data || [];
+  const [studio, terms, categories, people] = await Promise.all(reads);
+
+  for (const result of [studio, terms, categories, people]) {
+    if (result && result.error) throw result.error;
+  }
+
+  state.studio = studio.data || {};
+  state.terms = terms.data || {};
+  state.categories = categories.data || [];
+  state.people = people ? people.data || [] : [];
 }
 
-async function refresh() {
+async function refresh(render = renderAll) {
   try {
     await loadAll();
-    renderAll();
+    render();
   } catch (error) {
     toast(errorMessage(error), 'error');
   }
@@ -113,268 +126,554 @@ async function refresh() {
 // Shared bits
 // ---------------------------------------------------------------------------
 
-function waypointCount(journey) {
-  const agg = journey.journey_waypoints;
-  if (Array.isArray(agg)) return agg.length ? Number(agg[0].count) || 0 : 0;
-  if (agg && typeof agg === 'object') return Number(agg.count) || 0;
-  return 0;
+function detailRow(label, value) {
+  const lines = (Array.isArray(value) ? value : [value])
+    .map((line) => (line == null ? '' : String(line).trim()))
+    .filter(Boolean);
+  return el('div', { class: 'detail-row' }, [
+    el('dt', { class: 'detail-row__label', text: label }),
+    el('dd', { class: 'detail-row__value' }, [
+      lines.length
+        ? el('div', { class: 'detail-block' }, lines.map((line) => el('div', { text: line })))
+        : el('span', { class: 'progress__label', text: 'Not set' }),
+    ]),
+  ]);
 }
 
-// Journeys
+/** "8.25" → 825. Null for anything that is not a percentage. */
+function parseRate(input) {
+  const cleaned = String(input == null ? '' : input).replace(/[%\s]/g, '');
+  if (!cleaned) return 0;
+  const n = Number(cleaned);
+  if (!Number.isFinite(n) || n < 0 || n > 100) return null;
+  return Math.round(n * 100);
+}
+
+// Business details
 // ---------------------------------------------------------------------------
 
-function renderJourneys() {
-  const rows = state.journeys.map((journey) => el('tr', {}, [
-    el('td', {}, [
-      el('strong', { text: journey.name }),
-      journey.description
-        ? el('p', { class: 'progress__label', text: journey.description })
-        : null,
-    ]),
-    el('td', { text: String(waypointCount(journey)) }),
-    el('td', {}, [
-      journey.archived
-        ? el('span', { class: 'pill pill--amber', text: 'Archived' })
-        : el('span', { class: 'pill pill--green', text: 'In use' }),
-    ]),
-    el('td', {}, [
-      el('div', { class: 'btn-row' }, [
-        el('a', {
-          class: 'btn btn--ghost btn--tiny',
-          href: `/portal/admin/journey/?id=${encodeURIComponent(journey.id)}`,
-          text: 'Waypoints',
-        }),
-        el('button', {
-          class: 'btn btn--ghost btn--tiny',
-          type: 'button',
-          text: 'Edit',
-          onclick: () => openJourneyForm(journey),
-        }),
-      ]),
-    ]),
-  ]));
+function cityLine(row) {
+  const cityRegion = [row.city, row.region].filter(Boolean).join(', ');
+  return [cityRegion, row.postal_code].filter(Boolean).join(' ');
+}
 
-  mount(panels.journeys,
-    panelHead('Journeys', el('button', {
+function renderBusiness() {
+  const row = state.studio || {};
+
+  mount(panels.business,
+    panelHead('Business details', el('button', {
       class: 'btn btn--small',
       type: 'button',
-      text: 'Add journey',
-      onclick: () => openJourneyForm(null),
-    })),
-    el('p', {
-      class: 'notice notice--info',
-      text: 'A journey is a template of the waypoints a project usually has. '
-          + 'Applying one copies its waypoints onto a project, so editing a '
-          + 'journey later never disturbs work already under way.',
-    }),
-    state.journeys.length
-      ? table(['Journey', 'Waypoints', 'Status', ''], rows)
-      : el('p', {
-        class: 'empty',
-        text: 'No journeys yet. Add one and its waypoints become a starting '
-            + 'point for every project of that shape.',
-      }),
+      text: 'Edit',
+      onclick: editBusiness,
+    }), 'The letterhead on every invoice, and the rates the portal prices from.'),
+    el('dl', { class: 'detail-list' }, [
+      detailRow('Name', [row.business_name, row.entity_line]),
+      detailRow('Address', [row.address_line1, row.address_line2, cityLine(row)]),
+      detailRow('Phone', row.phone),
+      detailRow('Email', row.email),
+      detailRow('Website', row.website),
+      detailRow('Checks payable to', row.payee_name),
+      el('div', { class: 'detail-row' }, [
+        el('dt', { class: 'detail-row__label', text: 'Hourly rate' }),
+        el('dd', { class: 'detail-row__value' }, [
+          row.hourly_rate_cents
+            ? el('div', { text: `${formatMoney(row.hourly_rate_cents)} an hour` })
+            : el('span', {
+              class: 'progress__label',
+              text: 'Not set — "Bill hours" on an invoice refuses to price a line '
+                  + 'until there is one. A client can still carry a rate of their own.',
+            }),
+        ]),
+      ]),
+      el('div', { class: 'detail-row' }, [
+        el('dt', { class: 'detail-row__label', text: '1099 threshold' }),
+        el('dd', { class: 'detail-row__value' }, [
+          el('div', { text: formatMoney(row.nec_threshold_cents || 0) }),
+          el('div', {
+            class: 'progress__label',
+            text: 'A vendor flagged for a 1099 shows on the January report once '
+                + 'the year\'s payments to them reach this. $2,000 from 2026; '
+                + 'it was $600 before.',
+          }),
+        ]),
+      ]),
+    ]),
   );
 }
 
-async function openJourneyForm(journey) {
-  const editing = Boolean(journey);
+async function editBusiness() {
+  const row = state.studio || {};
 
   const result = await formModal({
-    title: editing ? 'Edit journey' : 'Add journey',
-    submitLabel: editing ? 'Save journey' : 'Add journey',
+    title: 'Business details',
+    submitLabel: 'Save details',
+    intro: 'Printed at the top of every invoice issued from now on. Invoices '
+         + 'already issued keep the letterhead they were issued with.',
+    fields: [
+      { name: 'business_name', label: 'Business name', type: 'text', required: true, value: row.business_name || '' },
+      {
+        name: 'entity_line',
+        label: 'Line under the name',
+        type: 'text',
+        value: row.entity_line || '',
+        placeholder: 'A Texas limited liability company',
+        hint: 'Optional. Printed under the name on documents.',
+      },
+      { name: 'address_line1', label: 'Address', type: 'text', value: row.address_line1 || '', autocomplete: 'address-line1' },
+      { name: 'address_line2', label: 'Address line 2', type: 'text', value: row.address_line2 || '', autocomplete: 'address-line2' },
+      { name: 'city', label: 'City', type: 'text', value: row.city || '', autocomplete: 'address-level2' },
+      { name: 'region', label: 'State', type: 'text', value: row.region || '', autocomplete: 'address-level1' },
+      { name: 'postal_code', label: 'ZIP', type: 'text', value: row.postal_code || '', inputmode: 'numeric', autocomplete: 'postal-code' },
+      { name: 'phone', label: 'Phone', type: 'tel', value: row.phone || '', autocomplete: 'tel' },
+      { name: 'email', label: 'Email', type: 'email', value: row.email || '', autocomplete: 'email', hint: 'Printed on the invoice. The portal never sends to it.' },
+      { name: 'website', label: 'Website', type: 'text', value: row.website || '', inputmode: 'url', autocapitalize: 'none' },
+      {
+        name: 'payee_name',
+        label: 'Checks payable to',
+        type: 'text',
+        value: row.payee_name || '',
+        hint: 'Printed in the how-to-pay block beside the payment details.',
+      },
+      {
+        name: 'hourly_rate',
+        label: 'Hourly rate',
+        type: 'text',
+        inputmode: 'decimal',
+        value: row.hourly_rate_cents ? (row.hourly_rate_cents / 100).toFixed(2) : '',
+        placeholder: '150.00',
+        hint: 'Dollars an hour. What "Bill hours" uses unless the client has a '
+            + 'negotiated rate.',
+      },
+      {
+        name: 'nec_threshold',
+        label: '1099-NEC threshold',
+        type: 'text',
+        inputmode: 'decimal',
+        required: true,
+        value: ((row.nec_threshold_cents == null ? 200000 : row.nec_threshold_cents) / 100).toFixed(2),
+        hint: 'Dollars. Change it when the IRS does, so the January report '
+            + 'follows the law of the year.',
+      },
+    ],
+    onSubmit: async (values) => {
+      let rate = null;
+      if (values.hourly_rate) {
+        rate = parseMoney(values.hourly_rate);
+        if (rate === null || rate <= 0) {
+          throw new Error('That hourly rate is not an amount. Leave it blank until there is one.');
+        }
+      }
+      const threshold = parseMoney(values.nec_threshold);
+      if (threshold === null || threshold < 0) {
+        throw new Error('That 1099 threshold is not an amount.');
+      }
+
+      // Text columns on studio_settings are NOT NULL with '' defaults, so a
+      // cleared box is written as '' rather than null.
+      const { error } = await supabase.from('studio_settings').update({
+        business_name: values.business_name,
+        entity_line: values.entity_line || '',
+        address_line1: values.address_line1 || '',
+        address_line2: values.address_line2 || '',
+        city: values.city || '',
+        region: values.region || '',
+        postal_code: values.postal_code || '',
+        phone: values.phone || '',
+        email: values.email || '',
+        website: values.website || '',
+        payee_name: values.payee_name || '',
+        hourly_rate_cents: rate,
+        nec_threshold_cents: threshold,
+      }).eq('id', true);
+      if (error) throw new Error(errorMessage(error));
+    },
+  });
+
+  if (result) {
+    toast('Business details saved.', 'ok');
+    await refresh(renderBusiness);
+  }
+}
+
+// Invoice terms
+// ---------------------------------------------------------------------------
+
+function renderTerms() {
+  const row = state.terms || {};
+  const days = row.net_days == null ? 15 : row.net_days;
+
+  mount(panels.terms,
+    panelHead('Invoice terms', el('button', {
+      class: 'btn btn--small',
+      type: 'button',
+      text: 'Edit',
+      onclick: editTerms,
+    }), 'What every invoice says about how and when to pay.'),
+    el('dl', { class: 'detail-list' }, [
+      el('div', { class: 'detail-row' }, [
+        el('dt', { class: 'detail-row__label', text: 'How to pay' }),
+        el('dd', { class: 'detail-row__value' }, [
+          row.payment_details
+            ? el('div', { class: 'detail-block' },
+              String(row.payment_details).split('\n').filter(Boolean)
+                .map((line) => el('div', { text: line.trim() })))
+            : el('span', {
+              class: 'progress__label',
+              text: 'Not set, so no invoice tells a client where to send the money. '
+                  + 'Worth two minutes.',
+            }),
+        ]),
+      ]),
+      el('div', { class: 'detail-row' }, [
+        el('dt', { class: 'detail-row__label', text: 'Due' }),
+        el('dd', { class: 'detail-row__value' }, [
+          el('div', { text: `Net ${days} — ${days} days after the invoice date, unless the client has terms of their own.` }),
+        ]),
+      ]),
+      el('div', { class: 'detail-row' }, [
+        el('dt', { class: 'detail-row__label', text: 'Sales tax' }),
+        el('dd', { class: 'detail-row__value' }, [
+          row.tax_rate_bp
+            ? el('div', { class: 'detail-block' }, [
+              el('div', { text: `${row.tax_label || 'Sales tax'} at ${formatRate(row.tax_rate_bp)}` }),
+              el('div', {
+                class: 'progress__label',
+                text: row.tax_registration
+                  ? `Permit ${row.tax_registration}. Charged only on invoice lines ticked as taxable.`
+                  : 'No permit number set — an invoice charging tax should carry one.',
+              }),
+            ])
+            : el('span', {
+              class: 'progress__label',
+              text: 'Not charged. Right for consulting and design work; set a rate '
+                  + 'here if the business bills anything taxable.',
+            }),
+        ]),
+      ]),
+      detailRow('Late payment note', row.late_note),
+    ]),
+  );
+}
+
+async function editTerms() {
+  const row = state.terms || {};
+
+  const result = await formModal({
+    title: 'Invoice terms',
+    submitLabel: 'Save terms',
+    intro: 'Applies to invoices raised from now on. The due date and the tax '
+         + 'rate are copied onto each invoice when it is raised, so a change '
+         + 'here never restates one already sent.',
+    fields: [
+      {
+        name: 'payment_details',
+        label: 'How to pay',
+        type: 'textarea',
+        rows: 4,
+        value: row.payment_details || '',
+        hint: 'One per line — who checks are payable to, ACH details, a Zelle '
+            + 'handle. Printed on every invoice. Bank details go here and '
+            + 'nowhere else.',
+      },
+      {
+        name: 'net_days',
+        label: 'Default terms (days)',
+        type: 'number',
+        value: row.net_days == null ? 15 : row.net_days,
+        required: true,
+        inputmode: 'numeric',
+        hint: 'Net 15 by default. A client can carry their own terms; an '
+            + 'invoice can always be edited.',
+      },
+      {
+        name: 'late_note',
+        label: 'Late payment note',
+        type: 'textarea',
+        rows: 2,
+        value: row.late_note || '',
+        hint: 'Optional. Only include something you are actually willing to enforce.',
+      },
+      {
+        name: 'tax_rate',
+        label: 'Sales tax rate (%)',
+        type: 'text',
+        inputmode: 'decimal',
+        value: row.tax_rate_bp ? formatRate(row.tax_rate_bp).replace('%', '') : '',
+        placeholder: '8.25',
+        hint: 'Leave empty if the business does not charge sales tax. What is '
+            + 'actually taxable is a question for the CPA, and it is ticked per '
+            + 'line on each invoice rather than per invoice.',
+      },
+      {
+        name: 'tax_label',
+        label: 'What to call it',
+        type: 'text',
+        value: row.tax_label || 'Sales tax',
+        hint: 'Printed on the invoice beside the rate.',
+      },
+      {
+        name: 'tax_registration',
+        label: 'Sales tax permit number',
+        type: 'text',
+        value: row.tax_registration || '',
+        hint: 'Printed on any invoice that charges tax, which is what the state '
+            + 'expects to see on one.',
+      },
+    ],
+    onSubmit: async (values) => {
+      const net = Number(values.net_days);
+      if (!Number.isInteger(net) || net < 0 || net > 365) {
+        throw new Error('Terms are a number of days, 0 to 365.');
+      }
+
+      const rate = parseRate(values.tax_rate);
+      if (rate === null) throw new Error('That tax rate is not a percentage.');
+
+      const { error } = await supabase.from('invoice_settings').update({
+        payment_details: values.payment_details || '',
+        net_days: net,
+        late_note: values.late_note || null,
+        tax_rate_bp: rate,
+        tax_label: values.tax_label || 'Sales tax',
+        tax_registration: values.tax_registration || null,
+      }).eq('id', true);
+      if (error) throw new Error(errorMessage(error));
+    },
+  });
+
+  if (result) {
+    toast('Terms saved.', 'ok');
+    await refresh(renderTerms);
+  }
+}
+
+// Expense categories
+// ---------------------------------------------------------------------------
+
+/** The flags a category carries, as words. */
+function categoryFlags(category) {
+  const flags = [];
+  if (category.needs_substantiation) flags.push('where & why');
+  if (category.needs_attendees) flags.push('who was there');
+  if (category.half_deductible) flags.push('50% deductible');
+  return flags.join(' · ');
+}
+
+/** A stable code for a new category: the name as a slug, made unique against
+ *  the ones already there. Internal — the form never shows it. */
+function codeFor(name) {
+  const base = String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+    || 'category';
+  const taken = new Set(state.categories.map((row) => row.code));
+  if (!taken.has(base)) return base;
+  let n = 2;
+  while (taken.has(`${base}_${n}`)) n += 1;
+  return `${base}_${n}`;
+}
+
+function categoryRow(category) {
+  const archived = Boolean(category.archived_at);
+
+  return el('tr', {}, [
+    el('td', {}, [
+      el('button', {
+        class: 'link-button',
+        type: 'button',
+        text: category.name,
+        'aria-label': `Edit ${category.name}`,
+        onclick: () => openCategoryForm(category),
+      }),
+      category.description
+        ? el('p', { class: 'progress__label', text: category.description })
+        : null,
+    ]),
+    el('td', { class: 'is-tight', text: lineLabel(category.schedule_c_line) }),
+    el('td', {}, [
+      archived ? el('span', { class: 'pill pill--amber', text: 'Archived' }) : null,
+      el('span', { class: 'progress__label', text: categoryFlags(category) || '' }),
+    ]),
+    el('td', { class: 'is-tight' }, [
+      el('button', {
+        class: 'btn btn--ghost btn--tiny',
+        type: 'button',
+        text: archived ? 'Restore' : 'Archive',
+        'aria-label': `${archived ? 'Restore' : 'Archive'} ${category.name}`,
+        onclick: busy(async () => {
+          try {
+            const { error } = await supabase
+              .from('expense_categories')
+              .update({ archived_at: archived ? null : new Date().toISOString() })
+              .eq('id', category.id);
+            if (error) throw error;
+            toast(archived ? 'Category restored.' : 'Category archived.', 'ok');
+            await refresh(renderCategories);
+          } catch (error) {
+            toast(errorMessage(error), 'error');
+          }
+        }, { label: archived ? 'Restoring…' : 'Archiving…' }),
+      }),
+    ]),
+  ]);
+}
+
+function renderCategories() {
+  const live = state.categories.filter((row) => !row.archived_at);
+  const archived = state.categories.filter((row) => row.archived_at);
+
+  mount(panels.categories,
+    panelHead('Expense categories', el('button', {
+      class: 'btn btn--small',
+      type: 'button',
+      text: 'Add category',
+      onclick: () => openCategoryForm(null),
+    }), 'What an expense can be filed under, and the Schedule C line each one '
+      + 'rolls up to. Archive one you no longer use — it stays on the '
+      + 'expenses already filed under it.'),
+    live.length
+      ? table(['Category', 'Schedule C', 'Asks for', ''], live.map(categoryRow))
+      : el('p', { class: 'empty', text: 'No categories. Add one before recording an expense.' }),
+    archived.length
+      ? el('details', { class: 'form-group' }, [
+        el('summary', {}, [el('span', { text: `Archived (${archived.length})` })]),
+        table(['Category', 'Schedule C', 'Asks for', ''], archived.map(categoryRow)),
+      ])
+      : null,
+  );
+}
+
+async function openCategoryForm(category) {
+  const editing = Boolean(category);
+  const nextPosition = state.categories.reduce((max, row) => Math.max(max, row.position || 0), 0) + 10;
+
+  const result = await formModal({
+    title: editing ? category.name : 'Add category',
+    submitLabel: editing ? 'Save category' : 'Add category',
     fields: [
       {
         name: 'name',
         label: 'Name',
         type: 'text',
         required: true,
-        value: editing ? journey.name : '',
-        placeholder: 'The Website Journey',
+        value: editing ? category.name : '',
+        placeholder: 'Software & subscriptions',
+      },
+      {
+        name: 'schedule_c_line',
+        label: 'Schedule C line',
+        type: 'select',
+        value: editing ? category.schedule_c_line : '27a',
+        options: SCHEDULE_C_LINES.map(([value, label]) => ({ value, label: `${value} · ${label}` })),
+        hint: 'Part II of Schedule C. The tax-year report groups by this.',
       },
       {
         name: 'description',
         label: 'Description',
         type: 'textarea',
         rows: 2,
-        value: editing ? journey.description || '' : '',
-        hint: 'For your eyes only — clients never see the template itself.',
+        value: editing ? category.description || '' : '',
+        hint: 'Shown under the name here and on the expense form, so the '
+            + 'bookkeeper files things the same way you would.',
       },
       {
-        name: 'archived',
-        label: 'Archived (hidden from the picker)',
+        name: 'needs_substantiation',
+        label: 'Ask where and why (travel, vehicle, meals, gifts)',
         type: 'checkbox',
-        value: editing ? journey.archived : false,
+        value: editing ? category.needs_substantiation : false,
+      },
+      {
+        name: 'needs_attendees',
+        label: 'Ask who was there (meals, gifts)',
+        type: 'checkbox',
+        value: editing ? category.needs_attendees : false,
+      },
+      {
+        name: 'half_deductible',
+        label: 'Deductible at 50% (business meals)',
+        type: 'checkbox',
+        value: editing ? category.half_deductible : false,
+      },
+      {
+        name: 'position',
+        label: 'Sort order',
+        type: 'number',
+        inputmode: 'numeric',
+        value: editing ? category.position : nextPosition,
+        hint: 'Lower sorts first on the expense form.',
       },
     ],
     onSubmit: async (values) => {
+      const position = Number(values.position);
       const patch = {
         name: values.name,
-        description: values.description || null,
-        archived: Boolean(values.archived),
+        schedule_c_line: values.schedule_c_line,
+        description: values.description || '',
+        needs_substantiation: Boolean(values.needs_substantiation),
+        needs_attendees: Boolean(values.needs_attendees),
+        half_deductible: Boolean(values.half_deductible),
+        position: Number.isFinite(position) ? Math.round(position) : nextPosition,
       };
 
       const query = editing
-        ? supabase.from('journeys').update(patch).eq('id', journey.id)
-        : supabase.from('journeys').insert({
-          ...patch,
-          position: state.journeys.length,
-        });
+        ? supabase.from('expense_categories').update(patch).eq('id', category.id)
+        : supabase.from('expense_categories').insert({ ...patch, code: codeFor(values.name) });
 
       const { error } = await query;
       if (error) throw new Error(errorMessage(error));
     },
-    onDelete: editing
-      ? async () => {
-        const { error } = await supabase.from('journeys').delete().eq('id', journey.id);
-        if (error) throw new Error(errorMessage(error));
-      }
-      : null,
-    deleteLabel: 'Delete journey',
-    // Worth spelling out: waypoints are copied onto projects, never linked,
-    // so nothing a client can see disappears with the template.
-    // Guarded like onDelete above, and for a reason that is easy to miss: this
-    // object is an argument, so the template literal runs at the call, not at
-    // the press. Unguarded, `journey.name` threw on Add journey — see the note
-    // in person-form.js.
-    confirmDelete: editing ? {
-      title: `Delete "${journey.name}"?`,
-      body: 'Projects already using it keep every waypoint — those are copies. '
-          + 'Only the template goes.',
-    } : undefined,
   });
 
   if (!result) return;
-
-  if (result === 'deleted') toast('Journey deleted.', 'ok');
-  else toast(editing ? 'Journey saved.' : 'Journey added.', 'ok');
-
-  await refresh();
+  toast(editing ? 'Category saved.' : 'Category added.', 'ok');
+  await refresh(renderCategories);
 }
 
-// Accounts
-// ---------------------------------------------------------------------------
-//
-// The plumbing — callAdminUsers, generatePassword, passwordFields — lives in
-// accounts.js, shared with the client page's "Give portal access" flow.
-
-// People — the staff
+// People — the sign-ins (owner only)
 // ---------------------------------------------------------------------------
 
-/** Everybody whose account opens every client. */
-function staffMembers() {
-  return state.people.filter((person) => person.role === 'admin');
-}
-
-/** Client-role accounts that can see nothing: no home client, no membership
- *  rows. They belong on a client page, but no client page will list them —
- *  so this page does, loudly, until somebody assigns the client. */
-function strayAccounts() {
-  return state.people.filter((person) => person.role === 'client'
-    && !person.client_id
-    && !state.memberships.some((row) => row.profile_id === person.id));
-}
-
-/** The form, wired to this page's data and refreshed afterwards. The form
- *  itself is person-form.js, shared with the client record. Creating from
- *  here presets the role to staff — a client account made on this page would
- *  be on the wrong page. */
-async function openPersonForm(person) {
-  const result = await openSharedPersonForm({
-    person,
-    clients: state.clients,
-    selfId: ctx.profile.id,
-    presetRole: 'admin',
-  });
+/** The form, wired to this page's data and refreshed afterwards. */
+async function editPerson(person) {
+  const result = await openPersonForm({ person, selfId: ctx.profile.id });
   if (!result) return;
 
   if (result.deleted) {
-    toast('Account deleted.', 'ok');
-    await refresh();
+    toast('Sign-in deleted.', 'ok');
+    await refresh(renderPeople);
     return;
   }
 
   if (result.handoff) state.passwordNotice = result.handoff;
-  // The save stood but a side write did not — say so, or the refresh below
-  // quietly shows fewer clients than were ticked.
-  if (result.warning) toast(result.warning, 'error');
-  // An account that was added rather than created announced itself as it went;
-  // there is no new account here to report.
-  if (!result.linkedExisting) toast(result.editing ? 'Person saved.' : 'Account created.', 'ok');
-  await refresh();
+  toast(result.editing ? 'Person saved.' : 'Sign-in created.', 'ok');
+  await refresh(renderPeople);
+}
+
+/** Just the password, for the phone call that starts "I can't get in". */
+async function setPassword(person) {
+  const username = usernameOf(person.email);
+  const result = await formModal({
+    title: `New password for ${person.full_name || username}`,
+    submitLabel: 'Set password',
+    intro: 'Takes effect immediately. Devices they are already signed in on '
+         + 'stay signed in until that session expires.',
+    fields: passwordFields(),
+    onSubmit: async (values) => {
+      await callAdminUsers({ action: 'set-password', user_id: person.id, password: values.password });
+    },
+  });
+  if (!result) return;
+
+  state.passwordNotice = { username, password: result.password };
+  toast('Password set.', 'ok');
+  renderPeople();
+}
+
+function rolePill(role) {
+  const tone = { owner: 'blue', staff: 'green', none: 'amber' }[role] || '';
+  return el('span', { class: tone ? `pill pill--${tone}` : 'pill', text: roleLabel(role) });
 }
 
 // The search box is built once and kept. Rebuilding it on every keystroke
 // would take the focus and the caret with it.
-// Which emails a person gets
-//
-// Rendered from notification-prefs.js rather than a list written here, so
-// adding a kind is one edit in one file and this screen picks it up. Somebody
-// with no saved rows is not shown a blank form: resolvePrefs() fills in the
-// defaults they are silently already on, because a settings screen showing
-// everything off while email keeps arriving is a bug report waiting to happen.
-async function openEmailPrefsForm(person) {
-  const isAdmin = person.role === 'admin';
-  const who = person.full_name || person.email || 'this person';
-  const current = resolvePrefs(
-    state.emailPrefs.filter((row) => row.profile_id === person.id),
-    { isAdmin },
-  );
-
-  // The staff-only kinds are absent for a client rather than shown disabled:
-  // the sender refuses them regardless, and a switch that does nothing is
-  // worse than no switch at all.
-  const kinds = KIND_ORDER.filter((kind) => current[kind].available);
-
-  const fields = [];
-  for (const kind of kinds) {
-    const meta = KIND_META[kind];
-    fields.push({
-      name: `${kind}__on`,
-      label: meta.title,
-      type: 'checkbox',
-      value: current[kind].enabled,
-      hint: meta.blurb,
-    });
-    if (meta.scheduled) {
-      fields.push({
-        name: `${kind}__hour`,
-        label: `${meta.title} — when`,
-        type: 'select',
-        value: String(current[kind].send_hour),
-        options: SEND_HOURS.map((option) => ({
-          value: String(option.value), label: option.label,
-        })),
-        hint: 'Central time. Nothing goes out when there is nothing to say.',
-      });
-    }
-  }
-
-  await formModal({
-    title: `Emails for ${who}`,
-    submitLabel: 'Save preferences',
-    intro: 'The two reports go out at the time you pick. The rest arrive when '
-      + 'the thing happens. Anything untouched here is the default they are '
-      + 'already on.',
-    fields,
-    onSubmit: async (values) => {
-      const rows = kinds.map((kind) => prefRow(person.id, kind, {
-        enabled: values[`${kind}__on`],
-        send_hour: Number(values[`${kind}__hour`]),
-      }));
-
-      const { error } = await supabase
-        .from('notification_preferences')
-        .upsert(rows, { onConflict: 'profile_id,kind' });
-      if (error) throw error;
-
-      toast(`Email preferences saved for ${who}.`, 'ok');
-    },
-  });
-
-  await refresh();
-}
-
 const peopleSearch = el('input', {
   type: 'search',
   id: 'people-search',
@@ -392,94 +691,110 @@ const strayNotice = el('div');
 const peopleRows = el('div');
 let peopleMounted = false;
 
-/** What a row can be found by: every column the table shows, so the box never
- *  says "no such person" about somebody sitting in plain sight. */
+/** What a row can be found by: every column the table shows. */
 function personFields(person) {
   return [
     person.full_name,
-    person.email,
-    person.phone,
+    usernameOf(person.email),
+    roleLabel(person.role),
     fmtDate(person.created_at),
   ];
 }
 
-function renderPeopleRows() {
-  const staff = staffMembers();
-  const query = peopleSearch.value;
-  const shown = filterPeople(staff, query, personFields);
+function personRow(person) {
+  const username = usernameOf(person.email);
+  const who = person.full_name || username || 'Unnamed';
+  const isSelf = person.id === ctx.profile.id;
 
-  if (!staff.length) {
+  return el('tr', {}, [
+    el('td', {}, [
+      el('button', {
+        class: 'link-button',
+        type: 'button',
+        text: who,
+        'aria-label': `Edit ${who}`,
+        onclick: () => editPerson(person),
+      }),
+      isSelf ? el('span', { class: 'progress__label', text: ' (you)' }) : null,
+    ]),
+    el('td', { class: 'is-tight' }, stackedCell([username, person.phone])),
+    el('td', { class: 'is-tight' }, [rolePill(person.role)]),
+    el('td', { class: 'is-tight', text: fmtDate(person.created_at) }),
+    el('td', { class: 'is-tight' }, [
+      el('button', {
+        class: 'btn btn--ghost btn--tiny',
+        type: 'button',
+        text: 'Set password',
+        'aria-label': `Set a new password for ${who}`,
+        onclick: () => setPassword(person),
+      }),
+    ]),
+  ]);
+}
+
+function renderPeopleRows() {
+  const query = peopleSearch.value;
+  const shown = filterPeople(state.people, query, personFields);
+
+  if (!state.people.length) {
     mount(peopleRows, el('p', {
       class: 'empty',
-      text: 'No staff accounts yet. Use “Add a person” to create one — you '
-          + 'set their password at the same time.',
+      text: 'No sign-ins yet. Use “Add a person” to create one — you set '
+          + 'their password at the same time.',
     }));
     return;
   }
 
   if (!shown.length) {
-    mount(peopleRows, el('p', {
-      class: 'empty',
-      text: `Nobody matches “${query.trim()}”.`,
-    }));
+    mount(peopleRows, el('p', { class: 'empty', text: `Nobody matches “${query.trim()}”.` }));
     return;
   }
 
   mount(peopleRows,
-    table(
-      ['Person', 'Contact', 'Joined', 'Emails'],
-      shown.map(personRow),
-      { className: 'table--people' },
-    ),
+    table(['Person', 'Username', 'Role', 'Since', ''], shown.map(personRow), { className: 'table--people' }),
     // Only worth saying while the list is being narrowed.
-    shown.length === staff.length
+    shown.length === state.people.length
       ? null
-      : el('p', {
-        class: 'progress__label',
-        text: `${shown.length} of ${staff.length} shown`,
-      }),
+      : el('p', { class: 'progress__label', text: `${shown.length} of ${state.people.length} shown` }),
   );
 }
 
-/** The accounts nobody's page will claim, each with its one-click way out of
- *  limbo — the modal, where assigning a client (or making them staff) moves
- *  them onto the right list. */
+/** Accounts with no role: they can sign in and see nothing. This is where
+ *  somebody goes when a login "doesn't work", so they are said out loud. */
 function renderStrays() {
-  const strays = strayAccounts();
+  const strays = state.people.filter((person) => person.role === 'none');
   if (!strays.length) {
     mount(strayNotice);
     return;
   }
 
-  mount(strayNotice, el('div', { class: 'notice notice--error' }, [
+  mount(strayNotice, el('div', { class: 'notice notice--warn' }, [
     el('strong', {
       text: strays.length === 1
-        ? 'One account can see nothing'
-        : `${strays.length} accounts can see nothing`,
+        ? 'One sign-in is not set up'
+        : `${strays.length} sign-ins are not set up`,
     }),
     el('p', {
       class: 'progress__label',
-      text: 'These sign in as clients but have no client assigned, so their '
-          + 'portal is empty — and no client page lists them. Assign the '
-          + 'client and they move to that client\'s People panel.',
+      text: 'These can sign in but see nothing, because no role was given. '
+          + 'Open one and pick a role — or delete it.',
     }),
     ...strays.map((person) => el('div', { class: 'btn-row' }, [
-      el('span', { text: person.full_name || person.email || 'Unnamed' }),
-      person.email && person.full_name
-        ? el('span', { class: 'progress__label', text: person.email })
-        : null,
+      el('span', { text: person.full_name || usernameOf(person.email) || 'Unnamed' }),
       el('button', {
         class: 'btn btn--ghost btn--tiny',
         type: 'button',
-        text: 'Assign a client',
-        'aria-label': `Assign a client to ${person.full_name || person.email || 'this account'}`,
-        onclick: () => openPersonForm(person),
+        text: 'Finish setup',
+        'aria-label': `Finish setting up ${person.full_name || usernameOf(person.email) || 'this sign-in'}`,
+        onclick: () => editPerson(person),
       }),
     ])),
   ]));
 }
 
 function renderPeople() {
+  if (!ctx.isOwner) return;
+
   if (!peopleMounted) {
     peopleMounted = true;
     peopleSearch.addEventListener('input', renderPeopleRows);
@@ -490,44 +805,22 @@ function renderPeople() {
           class: 'btn btn--small',
           type: 'button',
           text: 'Add a person',
-          onclick: () => openPersonForm(null),
+          onclick: () => editPerson(null),
         }),
-      ])),
-      el('p', {
-        class: 'progress__label',
-        text: 'The staff — accounts that open every client. Click a person to '
-            + 'edit anything about them, including a new password. A client\'s '
-            + 'own sign-ins live on their client page, under People.',
-      }),
+      ]), 'Who can sign in. Click a person to change their name, username, '
+        + 'role or password. Nothing is emailed — hand the details over yourself.'),
       peopleNotice,
       strayNotice,
       peopleRows,
     );
   }
 
-  // The one-time password panel, shown until the next render. It sits above the
-  // table because it is the only thing on this page that cannot be recovered by
-  // looking again.
+  // The one-time password panel, shown until the next render. It sits above
+  // the table because it is the only thing on this page that cannot be
+  // recovered by looking again.
   if (state.passwordNotice) {
     const notice = state.passwordNotice;
-    // This page presets new accounts to staff, but the Role select is free to
-    // change and the Client picker is right there — so a client account can be
-    // born here too, and when one is it gets the same welcome the client
-    // record hands over. Same rule in both places, or it is not a rule.
-    const company = notice.role !== 'admin' && notice.client_id
-      ? (state.clients.find((row) => row.id === notice.client_id) || {}).name
-      : null;
-
-    mount(peopleNotice,
-      passwordHandoff(notice.email, notice.password),
-      notice.created && company
-        ? welcomeHandoff({
-          name: notice.full_name,
-          clientName: company,
-          email: notice.email,
-          password: notice.password,
-        }).node
-        : null);
+    mount(peopleNotice, passwordHandoff(notice.username, notice.password));
     state.passwordNotice = null;
   } else {
     mount(peopleNotice);
@@ -537,39 +830,12 @@ function renderPeople() {
   renderPeopleRows();
 }
 
-function personRow(person) {
-  const who = person.full_name || person.email || 'Unnamed';
-
-  return el('tr', {}, [
-    el('td', {}, [
-      el('button', {
-        class: 'link-button',
-        type: 'button',
-        text: who,
-        'aria-label': `Edit ${who}`,
-        onclick: () => openPersonForm(person),
-      }),
-    ]),
-    // Email above phone, one column: the phone is what a client's Call and
-    // Text buttons dial, so it belongs where the studio checks its people.
-    el('td', { class: 'is-tight' }, stackedCell([person.email || '—', person.phone])),
-    el('td', { class: 'is-tight', text: fmtDate(person.created_at) }),
-    el('td', { class: 'is-tight' }, [
-      el('button', {
-        class: 'link-button',
-        type: 'button',
-        text: 'Emails',
-        'aria-label': `Email preferences for ${who}`,
-        onclick: () => openEmailPrefsForm(person),
-      }),
-    ]),
-  ]);
-}
-
 // ---------------------------------------------------------------------------
 
 function renderAll() {
-  renderJourneys();
+  renderBusiness();
+  renderTerms();
+  renderCategories();
   renderPeople();
 }
 
@@ -584,35 +850,31 @@ async function main() {
     return;
   }
 
+  const entries = [
+    { id: 'business', label: 'Business details', target: panels.business },
+    { id: 'terms', label: 'Invoice terms', target: panels.terms },
+    { id: 'categories', label: 'Expense categories', target: panels.categories },
+  ];
+  if (ctx.isOwner) entries.push({ id: 'people', label: 'People', target: panels.people });
+
   mount(byId('portal-root'),
     el('div', { class: 'page-head' }, [
       el('div', {}, [
         el('h1', { text: 'Admin' }),
         el('p', {
-          text: 'Shared links, journey templates and staff accounts. A '
-              + 'client\'s sign-ins live on their client page, under People.',
+          text: ctx.isOwner
+            ? 'The letterhead, the invoice terms, the expense categories and who can sign in.'
+            : 'The letterhead, the invoice terms and the expense categories.',
         }),
       ]),
     ]),
-    // Three panels is more than enough to lose the one you came for on a
-    // phone, and the client record already taught everyone where this bar lives.
-    sectionNav([
-      { id: 'quick-links', label: 'Quick links', target: panels.quickLinks },
-      { id: 'journeys', label: 'Journeys', target: panels.journeys },
-      { id: 'people', label: 'People', target: panels.people },
-    ]),
-    panels.quickLinks,
-    panels.journeys,
-    panels.people,
+    // Four panels is more than enough to lose the one you came for on a
+    // phone. The bar's targets must be direct children of #portal-root.
+    sectionNav(entries),
+    ...entries.map((entry) => entry.target),
   );
 
   renderAll();
-
-  // After the page is standing, and allowed to fail on its own: a shortcut list
-  // that will not load is not a reason for Admin to render as an error page.
-  renderQuickLinks(panels.quickLinks, ctx.profile.id).catch((error) => {
-    mount(panels.quickLinks, el('p', { class: 'notice notice--error', text: errorMessage(error) }));
-  });
 }
 
 main();

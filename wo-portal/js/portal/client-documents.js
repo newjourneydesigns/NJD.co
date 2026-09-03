@@ -1,70 +1,107 @@
 // ---------------------------------------------------------------------------
 // Documents panel on the client record page.
 //
-// The filing cabinet for one client: the signed paperwork, the tax forms, the
-// PDFs that need finding in a year. Each upload is attached either to the
-// client record itself or to one of their projects — that choice is the whole
-// feature — and the list shows every document either way, labelled with where
-// it lives. The project side of the same picture is the Documents tab, which
-// shows its project's files and, to staff, the client-filed ones.
+// The filing cabinet for one client: the W-9, the signed engagement letter,
+// the brand files, the PDFs that need finding in a year. One table
+// (`documents`), one private bucket (`client-documents`), staff-only in both
+// directions. Bytes live at <client_id>/<uuid>-<safeName> in the bucket; the
+// row is the index of them.
 //
-// Attachment decides who can see it. A project document lands on that
-// project's Documents tab, which the client reads too; a client document is
-// staff-only, like the contact sheet and the notes feed. The upload form says
-// so, because the difference is invisible at the moment of choosing.
+// Signed URLs are minted on click, never rendered into the page, so a stale
+// tab left open on a shared screen carries no working links. `download` on
+// the signed URL makes storage answer with Content-Disposition: attachment,
+// which both keeps the original filename and stops an uploaded .html from ever
+// executing on the storage origin.
 //
-// PDFs only, by design: this is for finished, important documents, and those
-// are PDFs. The project tab still takes anything — logos, copy and photos
-// keep flowing through it.
-//
-// Signed contracts land in this list the moment a client adopts one — the
-// signing function files them here, attached to the client — and they render
-// review-only, with a download and nothing else. That treatment is not
-// implemented twice: it rides in on DOC_SELECT and docRow() from documents.js,
-// which is exactly why both are imported from there rather than restated. See
-// that file's header for how a signed row is recognised without a query per
-// row.
+// No kinds, no approval flow, no attachment picker: a free-text label is the
+// whole taxonomy, because "W-9 2026" says more than "Other" ever did.
 // ---------------------------------------------------------------------------
 
 import { supabase, errorMessage } from './client.js';
-import { CLIENT_DOCUMENTS_BUCKET, DOCUMENTS_BUCKET } from './config.js';
-import { el, mount, toast, fmtBytes, titleCase } from './ui.js';
-import { safeName, MAX_UPLOAD_BYTES } from './files.js';
-import { DOC_KINDS, DOC_SELECT, docRow } from './documents.js';
+import { DOCUMENTS_BUCKET } from './config.js';
+import {
+  el, mount, toast, busy, fmtBytes, fmtDate, confirmModal, formModal,
+} from './ui.js';
+import { safeName, pickFile, isMissingObject, MAX_UPLOAD_BYTES } from './files.js';
 
-/** The file input's accept attribute is a hint a picker may ignore, so the
- *  rule is enforced here too: a PDF by declared type, or — some platforms
- *  leave type blank — by extension. */
-function isPdf(file) {
-  if (file.type) return file.type === 'application/pdf';
-  return /\.pdf$/i.test(file.name);
+// What the bucket accepts, by extension. This is the bucket's own allow-list
+// (supabase/schema.sql, client-documents) restated so the browser can say no
+// before the round trip — and so the upload's contentType is always one of
+// these. Storage refuses application/octet-stream outright, and a phone
+// picker leaves `file.type` blank often enough that the extension has to be
+// the fallback.
+const CONTENT_TYPES = {
+  pdf: 'application/pdf',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  heic: 'image/heic',
+  heif: 'image/heif',
+  webp: 'image/webp',
+  txt: 'text/plain',
+  csv: 'text/csv',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+};
+
+const ALLOWED_TYPES = new Set(Object.values(CONTENT_TYPES));
+
+/** The picker's filter: every allowed MIME type and every extension, because
+ *  iOS filters on the former and desktop browsers are happier with the latter. */
+export const DOCUMENT_ACCEPT = [
+  ...new Set(Object.values(CONTENT_TYPES)),
+  ...Object.keys(CONTENT_TYPES).map((ext) => `.${ext}`),
+].join(',');
+
+/**
+ * The content type to upload a file as, or null when the bucket would refuse
+ * it. The declared type wins when it is one we accept; otherwise the
+ * extension decides.
+ */
+export function documentContentType(file) {
+  const declared = String((file && file.type) || '').toLowerCase();
+  if (ALLOWED_TYPES.has(declared)) return declared;
+  const ext = String((file && file.name) || '').split('.').pop().toLowerCase();
+  return CONTENT_TYPES[ext] || null;
 }
 
-export async function renderClientDocuments(panel, ctx, client, projects) {
-  const listWrap = el('div', {}, [el('p', { class: 'skeleton', text: 'Loading documents…' })]);
-  const projectNames = new Map(projects.map((project) => [project.id, project.name]));
+const DOC_SELECT = '*, uploaded_by_profile:profiles!documents_uploaded_by_fkey(full_name, email)';
 
-  mount(panel, buildUpload(), listWrap);
+/** The byline. Staff can read every profile, so the embed normally resolves;
+ *  it comes back null for an uploader whose sign-in has since been removed. */
+function uploaderName(doc, ctx) {
+  const profile = doc.uploaded_by_profile;
+  if (profile && profile.full_name) return profile.full_name;
+  if (profile && profile.email) return profile.email.split('@')[0];
+  if (doc.uploaded_by && ctx && ctx.profile && doc.uploaded_by === ctx.profile.id) return 'You';
+  return '';
+}
+
+/**
+ * Draw the panel into `host` and keep it current. Resolves once the first
+ * load has finished; a failure in here costs this panel, not the record
+ * around it.
+ */
+export async function renderClientDocuments(host, ctx, client) {
+  const listWrap = el('div', {}, [el('p', { class: 'skeleton', text: 'Loading documents…' })]);
+
+  mount(host, buildUpload(), listWrap);
   await load();
 
   async function load() {
     let docs;
     try {
-      // One list, both attachment types: the client's own documents and every
-      // document on their projects. The ids come straight off rows this page
-      // already loaded, so interpolating them into the filter is safe.
-      let query = supabase.from('documents').select(DOC_SELECT);
-      const ids = projects.map((project) => project.id);
-      query = ids.length
-        ? query.or(`client_id.eq.${client.id},project_id.in.(${ids.join(',')})`)
-        : query.eq('client_id', client.id);
-
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('documents')
+        .select(DOC_SELECT)
+        .eq('client_id', client.id)
+        .order('created_at', { ascending: false });
       if (error) throw error;
       docs = data || [];
     } catch (error) {
-      // See documents.js: load() is in scope, so a retry beats asking the
-      // client to reload the whole page.
+      // load() is in scope, so a retry beats asking for the whole page again.
       toast(errorMessage(error), 'error');
       mount(listWrap, el('div', {}, [
         el('p', { class: 'notice notice--error', text: errorMessage(error, 'Could not load these documents.') }),
@@ -81,167 +118,207 @@ export async function renderClientDocuments(panel, ctx, client, projects) {
     if (!docs.length) {
       mount(listWrap, el('p', {
         class: 'empty',
-        text: 'Nothing filed yet. The signed agreement, the W-9, the PDFs you '
-            + 'will need to find in a year — this is where they live.',
+        text: 'Nothing filed yet. The W-9, the signed engagement letter, the '
+            + 'files you will need to find in a year — this is where they live.',
       }));
       return;
     }
 
-    mount(listWrap, el('div', { class: 'doc-list' },
-      docs.map((doc) => docRow(doc, ctx, load, { attachment: attachmentPill(doc) }))));
-  }
-
-  /** Where the document is filed, as the first thing its row says. Project
-   *  rows link through to the tab the client sees. */
-  function attachmentPill(doc) {
-    if (doc.client_id) {
-      return el('span', { class: 'pill pill--blue', text: 'Client' });
-    }
-    return el('a', {
-      class: 'pill',
-      href: `/portal/project/?id=${encodeURIComponent(doc.project_id)}#documents`,
-      text: projectNames.get(doc.project_id) || 'Project',
-    });
+    mount(listWrap, el('div', { class: 'doc-list' }, docs.map((doc) => docRow(doc, ctx, load))));
   }
 
   // Upload
   // -------------------------------------------------------------------------
 
+  /**
+   * One button, then one question. The picker opens straight from the tap —
+   * a file input on the page would be a second control to explain — and the
+   * label is asked for afterwards, with the filename in the title so the
+   * question is about a file the person has just chosen rather than one they
+   * are about to.
+   */
   function buildUpload() {
-    const fileInput = el('input', {
-      type: 'file',
-      id: 'client-doc-file',
-      name: 'file',
-      accept: 'application/pdf,.pdf',
-    });
+    const button = el('button', {
+      class: 'btn btn--small',
+      type: 'button',
+      text: 'Add a document',
+      onclick: busy(async () => {
+        const file = await pickFile({ accept: DOCUMENT_ACCEPT });
+        if (!file) return;
 
-    const attachSelect = el('select', { id: 'client-doc-attach', name: 'attach' }, [
-      el('option', { value: 'client', text: `This client — ${client.name}` }),
-      ...projects.map((project) => el('option', {
-        value: project.id,
-        text: `Project — ${project.name}`,
-      })),
-    ]);
-
-    const kindSelect = el('select', { id: 'client-doc-kind', name: 'kind' },
-      DOC_KINDS.map((kind) => el('option', {
-        value: kind,
-        text: titleCase(kind),
-        // The things filed here are overwhelmingly the signed ones.
-        selected: kind === 'contract',
-      })));
-
-    const button = el('button', { class: 'btn btn--small', type: 'submit', text: 'Upload' });
-    const status = el('p', { class: 'progress__label', hidden: true });
-
-    const form = el('form', { class: 'upload upload--filing' }, [
-      el('div', { class: 'form-field' }, [
-        el('label', { for: 'client-doc-file', text: 'Choose a PDF' }),
-        fileInput,
-      ]),
-      el('div', { class: 'form-field' }, [
-        el('label', { for: 'client-doc-attach', text: 'Attach to' }),
-        attachSelect,
-      ]),
-      el('div', { class: 'form-field' }, [
-        el('label', { for: 'client-doc-kind', text: 'Kind' }),
-        kindSelect,
-      ]),
-      el('div', {}, [
-        el('div', { class: 'btn-row' }, [button]),
-        status,
-      ]),
-      // Everything the form has to say, said once, under all of it. A hint
-      // inside any one column makes that cell taller than its neighbours and
-      // knocks the bottom-aligned row out of line, so the columns hold a
-      // label and a control each and nothing else (.upload__note spans them).
-      el('span', {
-        class: 'progress__label upload__note',
-        text: `PDFs only for now, up to ${fmtBytes(MAX_UPLOAD_BYTES)}. `
-            + 'A project document shows on that project\'s Documents tab, which '
-            + `${client.name} can read. A client document stays staff-only.`,
-      }),
-    ]);
-
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-
-      const file = fileInput.files && fileInput.files[0];
-      if (!file) {
-        toast('Choose a PDF first.', 'error');
-        fileInput.focus();
-        return;
-      }
-
-      if (!isPdf(file)) {
-        toast(`${file.name} is not a PDF. Only PDFs are filed here for now.`, 'error');
-        return;
-      }
-
-      if (file.size > MAX_UPLOAD_BYTES) {
-        toast(
-          `${file.name} is ${fmtBytes(file.size)} — the limit is ${fmtBytes(MAX_UPLOAD_BYTES)}.`,
-          'error',
-        );
-        return;
-      }
-
-      const toClient = attachSelect.value === 'client';
-      const bucket = toClient ? CLIENT_DOCUMENTS_BUCKET : DOCUMENTS_BUCKET;
-      // The first path segment is what the storage policies check, so it has
-      // to be the id of the thing the document is attached to.
-      const folder = toClient ? client.id : attachSelect.value;
-      const path = `${folder}/${crypto.randomUUID()}-${safeName(file.name)}`;
-
-      button.disabled = true;
-      button.textContent = 'Uploading…';
-      status.hidden = false;
-      status.textContent = `Uploading ${file.name} (${fmtBytes(file.size)})…`;
-
-      try {
-        const upload = await supabase.storage
-          .from(bucket)
-          .upload(path, file, { contentType: file.type || 'application/pdf' });
-        if (upload.error) throw upload.error;
-
-        status.textContent = 'Saving…';
-
-        const { error } = await supabase.from('documents').insert({
-          client_id: toClient ? client.id : null,
-          project_id: toClient ? null : attachSelect.value,
-          name: file.name,
-          storage_path: path,
-          kind: kindSelect.value,
-          size_bytes: file.size,
-          mime_type: file.type || 'application/pdf',
-          uploaded_by: ctx.profile.id,
-          needs_approval: false,
-        });
-
-        // An object with no row is invisible in the UI but still bills for
-        // storage forever, so clean up before surfacing the failure.
-        if (error) {
-          try {
-            await supabase.storage.from(bucket).remove([path]);
-          } catch (cleanupError) {
-            // Nothing useful to tell the user here; the insert error is the story.
-          }
-          throw error;
+        if (file.size > MAX_UPLOAD_BYTES) {
+          toast(
+            `${file.name} is ${fmtBytes(file.size)} — the limit is ${fmtBytes(MAX_UPLOAD_BYTES)}.`,
+            'error',
+          );
+          return;
         }
 
-        form.reset();
-        toast('Uploaded', 'ok');
-        await load();
-      } catch (error) {
-        toast(errorMessage(error), 'error');
-      } finally {
-        button.disabled = false;
-        button.textContent = 'Upload';
-        status.hidden = true;
-        status.textContent = '';
-      }
+        const contentType = documentContentType(file);
+        if (!contentType) {
+          toast(
+            `${file.name} is not a kind of file that can be filed here. PDFs, `
+            + 'photos, text, CSV, Word and Excel files are.',
+            'error',
+          );
+          return;
+        }
+
+        const result = await formModal({
+          title: `File ${file.name}`,
+          submitLabel: 'Upload',
+          intro: `${fmtBytes(file.size)}, filed under ${client.name}.`,
+          fields: [{
+            name: 'label',
+            label: 'Label',
+            type: 'text',
+            placeholder: 'W-9 2026',
+            hint: 'What it is, in your words. Shown beside the filename in the list.',
+          }],
+          onSubmit: (values) => upload(file, contentType, values.label),
+        });
+
+        if (result) {
+          toast('Uploaded', 'ok');
+          await load();
+        }
+      }, { label: 'Choosing…' }),
     });
 
-    return form;
+    return el('div', { class: 'upload' }, [
+      el('div', { class: 'btn-row' }, [button]),
+      el('span', {
+        class: 'progress__label upload__note',
+        text: `One file at a time, up to ${fmtBytes(MAX_UPLOAD_BYTES)}: PDFs, photos, `
+            + 'text, CSV, Word and Excel. Only staff can see what is filed here.',
+      }),
+    ]);
   }
+
+  /**
+   * Object first, row second. An object with no row is invisible in the UI
+   * but still bills for storage forever, so a failed insert removes what was
+   * just uploaded before surfacing the failure. Throws with a human sentence,
+   * which formModal shows without closing.
+   */
+  async function upload(file, contentType, label) {
+    // The first path segment is the client id, which is how the folder can be
+    // swept when the client is deleted. randomUUID needs a secure context,
+    // which https and localhost both are.
+    const path = `${client.id}/${crypto.randomUUID()}-${safeName(file.name)}`;
+
+    const uploaded = await supabase.storage
+      .from(DOCUMENTS_BUCKET)
+      .upload(path, file, { contentType });
+    if (uploaded.error) throw new Error(errorMessage(uploaded.error));
+
+    const { error } = await supabase.from('documents').insert({
+      client_id: client.id,
+      name: file.name,
+      storage_path: path,
+      label: String(label || '').trim() || null,
+      size_bytes: file.size,
+      mime_type: contentType,
+      uploaded_by: ctx.profile.id,
+    });
+
+    if (error) {
+      try {
+        await supabase.storage.from(DOCUMENTS_BUCKET).remove([path]);
+      } catch (cleanupError) {
+        // Nothing useful to tell the person here; the insert error is the story.
+      }
+      throw new Error(errorMessage(error));
+    }
+  }
+}
+
+// Rows
+// ---------------------------------------------------------------------------
+
+/** One document: what it is, how big, when, by whom — and download or delete. */
+function docRow(doc, ctx, reload) {
+  const who = uploaderName(doc, ctx);
+
+  const meta = el('p', { class: 'doc-row__meta' }, [
+    doc.label ? el('span', { class: 'pill pill--blue pill--wrap', text: doc.label }) : null,
+    doc.size_bytes ? el('span', { text: fmtBytes(doc.size_bytes) }) : null,
+    el('span', { text: `Added ${fmtDate(doc.created_at)}` }),
+    who ? el('span', { text: who }) : null,
+  ]);
+
+  return el('div', { class: 'doc-row' }, [
+    el('div', {}, [
+      el('p', { class: 'doc-row__name', text: doc.name }),
+      meta,
+    ]),
+    el('div', { class: 'btn-row' }, [
+      downloadButton(doc),
+      deleteButton(doc, reload),
+    ]),
+  ]);
+}
+
+function downloadButton(doc) {
+  return el('button', {
+    class: 'btn btn--ghost btn--small',
+    type: 'button',
+    text: 'Download',
+    'aria-label': `Download ${doc.name}`,
+    onclick: busy(async () => {
+      try {
+        // Sixty seconds is long enough to click and short enough that a link
+        // copied out of the network tab is worthless by lunchtime.
+        const { data, error } = await supabase.storage
+          .from(DOCUMENTS_BUCKET)
+          .createSignedUrl(doc.storage_path, 60, { download: doc.name });
+        if (error) throw error;
+
+        const link = el('a', { href: data.signedUrl, download: doc.name, rel: 'noopener' });
+        document.body.append(link);
+        link.click();
+        link.remove();
+      } catch (error) {
+        toast(
+          isMissingObject(error)
+            ? `${doc.name} is no longer in storage. Delete the row and file it again.`
+            : errorMessage(error),
+          'error',
+        );
+      }
+    }, { label: 'Opening…' }),
+  });
+}
+
+function deleteButton(doc, reload) {
+  return el('button', {
+    class: 'btn btn--danger btn--small',
+    type: 'button',
+    text: 'Delete',
+    'aria-label': `Delete ${doc.name}`,
+    onclick: busy(async () => {
+      const ok = await confirmModal({
+        title: `Delete ${doc.name}?`,
+        body: 'The file is removed from storage as well. This cannot be undone.',
+        confirmLabel: 'Delete document',
+        tone: 'danger',
+      });
+      if (!ok) return;
+
+      try {
+        // Object first — the row holds the only copy of the path. A missing
+        // object must not strand the row that points at it.
+        const removal = await supabase.storage.from(DOCUMENTS_BUCKET).remove([doc.storage_path]);
+        if (removal.error && !isMissingObject(removal.error)) throw removal.error;
+
+        const { error } = await supabase.from('documents').delete().eq('id', doc.id);
+        if (error) throw error;
+
+        toast('Deleted', 'ok');
+        await reload();
+      } catch (error) {
+        toast(errorMessage(error), 'error');
+      }
+    }, { label: 'Deleting…' }),
+  });
 }

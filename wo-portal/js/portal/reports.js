@@ -1,959 +1,486 @@
 // ---------------------------------------------------------------------------
-// The reports.
+// The reports: one tax year, and the files to hand over with it.
 //
-// Six of them, and between them they answer everything a small studio and its
-// accountant need: is the business making money, what is it worth, do the books
-// add up, who owes us, which clients are actually worth having, and who needs a
-// 1099 in January.
+// A one-person LLC files a Schedule C, on a cash basis, for a calendar year.
+// Everything the preparer asks for is derivable from three tables — what
+// came in (payments), what went out (expenses, by Schedule C line) and what
+// was still owed at the year's end (invoices) — so this page is one year at
+// a time, chosen from a picker rather than typed as two dates: "which year
+// are you filing" is the actual question, and a pair of dates is four
+// chances to get it slightly wrong.
 //
-// Two things are worth knowing about how they are built.
+// Four sections under a jump bar: the summary the return is filled from,
+// the same year by client and by month, and the 1099-NEC list. And four
+// CSVs, because the point of keeping books is eventually to hand them to
+// somebody else. There is no print pack: the CSVs import, and the summary
+// on screen prints as any page does.
 //
-// Every report is assembled from ledger_balances() — one function, called with
-// different windows. A profit and loss is the income and expense accounts over
-// a period; a balance sheet is everything else, cumulative, plus two equity
-// figures worked out rather than posted. Having one source means the balance
-// sheet and the profit and loss can never disagree about a number, which is the
-// classic way a hand-rolled reporting layer goes wrong.
-//
-// And every report can be exported as CSV, because the point of keeping books
-// is eventually to hand them to somebody else.
+// Every sum is made in reports-model.js, where node --test can hold it to
+// account; this file loads rows and draws them. The loaders are its own and
+// name only the columns they read — the invoices, expenses and clients
+// screens each keep theirs, by agreement.
 // ---------------------------------------------------------------------------
 
+import { supabase, errorMessage } from './client.js';
 import { bootstrap, renderError } from './shell.js';
-import { el, mount, byId, toast, fmtDate, panelHead, table } from './ui.js';
-import { formatMoney } from './sow-fees.js';
+import {
+  el, mount, byId, toast, figure, figureRow, panelHead, table, stackedCell, filterField,
+} from './ui.js';
+import { formatMoney } from './money.js';
+import { isoToday } from './doc-common.js';
 import { downloadCsv } from './csv.js';
-import { invoiceLabel } from './invoice-catalog.js';
+import { sectionNav } from './section-nav.js';
 import {
-  AGING_BUCKETS,
-  accountLabel,
-  agingReport,
-  balanceSheet,
+  DEFAULT_NEC_THRESHOLD_CENTS,
   byClient,
-  dayBefore,
-  fiscalYearStart,
-  formatSigned,
-  memberName,
-  monthSpans,
-  monthlyProfitAndLoss,
-  ownerCapital,
-  profitAndLoss,
-  trialBalance,
-  vendorTotals,
-} from './ledger-catalog.js';
-import { downloadPack, loadPack, printPack } from './ledger-export.js';
-import {
-  loadBalances,
-  loadCashIncome,
-  loadClientLines,
-  loadExpenses,
-  loadOpenInvoices,
-  loadOwners,
-  loadSettings,
-  loadVendors,
-} from './ledger-data.js';
-
-const REPORTS = [
-  { key: 'pl', label: 'Profit & loss', blurb: 'What the studio earned, what it cost, what is left.' },
-  { key: 'months', label: 'By month', blurb: 'The same report a column at a time — where the year moved.' },
-  { key: 'balance', label: 'Balance sheet', blurb: 'What it owns, what it owes, and the difference.' },
-  { key: 'trial', label: 'Trial balance', blurb: 'Every account and both columns — the proof the books add up.' },
-  { key: 'aging', label: 'Who owes us', blurb: 'Outstanding invoices, by how late they are.' },
-  { key: 'clients', label: 'By client', blurb: 'What each one was worth after what they cost.' },
-  { key: 'owners', label: 'Owner capital', blurb: 'What each member put in, took out and holds — the schedule a K-1 is built from.' },
-  { key: '1099', label: '1099s', blurb: 'Contractors over the threshold, and whose W-9 is missing.' },
-];
+  byMonth,
+  contractorsCsv,
+  expensesCsv,
+  invoicesCsv,
+  paymentsCsv,
+  taxYearSummary,
+  vendors1099,
+  yearChoices,
+  yearOf,
+} from './reports-model.js';
 
 const state = {
-  report: 'pl',
-  basis: 'accrual',
-  from: '',
-  to: '',
-  settings: null,
-  period: [],
-  toDate: [],
-  thisYear: [],
-  cashIncome: [],
-  invoices: [],
-  clientLines: [],
+  year: '',
+  years: [],
+  threshold: DEFAULT_NEC_THRESHOLD_CENTS,
+  clients: [],
+  categories: [],
   vendors: [],
+  invoices: [],
+  payments: [],
   expenses: [],
-  months: [],
-  byMonth: {},
-  owners: [],
-  loading: false,
 };
 
-const body = el('div', {});
-const controls = el('div', { class: 'filters' });
-
-function todayIso() {
-  const now = new Date();
-  return [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-  ].join('-');
-}
+// The four panels are built once and refilled on every change of year, so
+// the jump bar's targets never move.
+const panels = {
+  summary: el('section', { class: 'panel' }),
+  clients: el('section', { class: 'panel' }),
+  months: el('section', { class: 'panel' }),
+  contractors: el('section', { class: 'panel' }),
+};
 
 // Loading
 // ---------------------------------------------------------------------------
 
+function unwrap(result) {
+  if (result.error) throw new Error(errorMessage(result.error));
+  return result.data || [];
+}
+
+async function loadClients() {
+  return unwrap(await supabase.from('clients').select('id, name, legal_name').order('name'));
+}
+
+/** Archived categories included: an expense booked to one in March is still
+ *  on that Schedule C line in April. */
+async function loadCategories() {
+  return unwrap(await supabase
+    .from('expense_categories')
+    .select('id, code, name, schedule_c_line, half_deductible, position, archived_at')
+    .order('position')
+    .order('name'));
+}
+
+/** Archived vendors included, for the same reason: a contractor let go in
+ *  June still gets a 1099 in January. */
+async function loadVendors() {
+  return unwrap(await supabase
+    .from('vendors')
+    .select('id, name, email, phone, address, files_1099, tax_id_on_file, archived_at')
+    .order('name'));
+}
+
 /**
- * Only what the chosen report needs.
- *
- * A balance sheet does not need the invoice list and the ageing report does not
- * need three windows of balances. Fetching everything on every change would be
- * simpler and would make each switch four round trips slower than it has to be.
+ * Every invoice. The receivable at a year's end is "raised by then, less
+ * paid by then", which needs invoices from before the year as well as in
+ * it, and paid_at can fall in a later year than issued_on — so no date
+ * bound. Never the snapshot.
  */
-async function loadFor(report) {
-  const fyStart = fiscalYearStart(state.to,
-    state.settings && state.settings.fiscal_year_start_month);
+const INVOICE_COLUMNS = `
+  id, client_id, number, status, issued_on, due_on, project_name, purchase_order,
+  subtotal_cents, tax_cents, total_cents, paid_cents, paid_at, created_at
+`;
 
-  if (report === 'pl') {
-    const [period, cash] = await Promise.all([
-      loadBalances({ from: state.from, to: state.to }),
-      state.basis === 'cash'
-        ? loadCashIncome({ from: state.from, to: state.to })
-        : Promise.resolve([]),
-    ]);
-    state.period = period;
-    state.cashIncome = cash;
-    return;
-  }
-
-  if (report === 'months') {
-    // One window per month of the financial year so far. Twelve small queries
-    // rather than one big one, because ledger_balances() answers for a range
-    // and a month-by-month answer is twelve ranges — and they go together, so
-    // the wait is one round trip long, not twelve.
-    const spans = monthSpans(state.to,
-      state.settings && state.settings.fiscal_year_start_month);
-    const balances = await Promise.all(
-      spans.map((span) => loadBalances({ from: span.from, to: span.to })),
-    );
-    state.months = spans;
-    state.byMonth = Object.fromEntries(spans.map((span, i) => [span.key, balances[i]]));
-    return;
-  }
-
-  if (report === 'balance') {
-    const [toDate, thisYear] = await Promise.all([
-      loadBalances({ to: state.to }),
-      loadBalances({ from: fyStart, to: state.to }),
-    ]);
-    state.toDate = toDate;
-    state.thisYear = thisYear;
-    return;
-  }
-
-  if (report === 'trial') {
-    state.toDate = await loadBalances({ to: state.to });
-    return;
-  }
-
-  if (report === 'aging') {
-    const [invoices, balances] = await Promise.all([
-      loadOpenInvoices(),
-      loadBalances({ to: state.to }),
-    ]);
-    state.invoices = invoices;
-    state.toDate = balances;
-    return;
-  }
-
-  if (report === 'owners') {
-    // Capital is a since-the-books-opened figure, so it reads to the date and
-    // not across a window: what somebody holds today is every contribution
-    // they have ever made less every draw. The profit being allocated is the
-    // financial year's, which is the period a K-1 covers.
-    const [owners, toDate, thisYear] = await Promise.all([
-      loadOwners({ includeFormer: true }),
-      loadBalances({ to: state.to }),
-      loadBalances({ from: fyStart, to: state.to }),
-    ]);
-    state.owners = owners;
-    state.toDate = toDate;
-    state.thisYear = thisYear;
-    return;
-  }
-
-  if (report === 'clients') {
-    state.clientLines = await loadClientLines({ from: state.from, to: state.to });
-    return;
-  }
-
-  if (report === '1099') {
-    const [vendors, expenses] = await Promise.all([
-      loadVendors({ includeArchived: true }),
-      loadExpenses({ from: `${state.to.slice(0, 4)}-01-01`, to: `${state.to.slice(0, 4)}-12-31` }),
-    ]);
-    state.vendors = vendors;
-    state.expenses = expenses;
-  }
+async function loadInvoices() {
+  return unwrap(await supabase
+    .from('invoices')
+    .select(INVOICE_COLUMNS)
+    .order('issued_on', { ascending: true })
+    .order('created_at', { ascending: true }));
 }
 
-async function reload() {
-  state.loading = true;
-  mount(body, el('p', { class: 'skeleton', text: 'Working it out…' }));
+/** Every payment up to the year's end: the year's own are gross receipts,
+ *  the earlier ones settle earlier invoices in the receivable figure. */
+const PAYMENT_COLUMNS = `
+  id, invoice_id, client_id, received_on, amount_cents, method, reference, notes, created_at
+`;
 
-  try {
-    await loadFor(state.report);
-  } catch (error) {
-    mount(body, el('p', { class: 'notice notice--error', text: error.message }));
-    state.loading = false;
-    return;
-  }
-
-  state.loading = false;
-  render();
+async function loadPayments(year) {
+  return unwrap(await supabase
+    .from('payments')
+    .select(PAYMENT_COLUMNS)
+    .lte('received_on', `${year}-12-31`)
+    .order('received_on', { ascending: true })
+    .order('created_at', { ascending: true }));
 }
 
-// Shared bits of a report
+/** The year's expenses, each with the ids of its receipts for the count. */
+const EXPENSE_COLUMNS = `
+  id, spent_on, vendor_id, vendor_name, category_id, amount_cents, description,
+  method, reference, client_id, billable, billed_invoice_id,
+  place, business_purpose, attendees, created_at,
+  receipts:expense_receipts(id)
+`;
+
+async function loadExpenses(year) {
+  return unwrap(await supabase
+    .from('expenses')
+    .select(EXPENSE_COLUMNS)
+    .gte('spent_on', `${year}-01-01`)
+    .lte('spent_on', `${year}-12-31`)
+    .order('spent_on', { ascending: true })
+    .order('created_at', { ascending: true }));
+}
+
+/** The 1099-NEC threshold the owner set in Admin, in cents. */
+async function loadThreshold() {
+  const result = await supabase
+    .from('studio_settings')
+    .select('nec_threshold_cents')
+    .eq('id', true)
+    .maybeSingle();
+  if (result.error) throw new Error(errorMessage(result.error));
+  const value = result.data ? Number(result.data.nec_threshold_cents) : 0;
+  return value > 0 ? value : DEFAULT_NEC_THRESHOLD_CENTS;
+}
+
+/** What does not change with the year. */
+async function loadStatic() {
+  const [clients, categories, vendors, invoices, threshold] = await Promise.all([
+    loadClients(), loadCategories(), loadVendors(), loadInvoices(), loadThreshold(),
+  ]);
+  Object.assign(state, {
+    clients, categories, vendors, invoices, threshold,
+  });
+}
+
+/** What does. */
+async function loadYear(year) {
+  const [payments, expenses] = await Promise.all([loadPayments(year), loadExpenses(year)]);
+  Object.assign(state, { payments, expenses });
+}
+
+// Shared bits
 // ---------------------------------------------------------------------------
 
-/** A named block of accounts with a subtotal. Every report is made of these. */
-function section(title, rows, total, { strong = false } = {}) {
-  return el('div', { class: 'report__section' }, [
-    el('h3', { text: title }),
-    rows.length
-      ? el('table', { class: 'table report__table' }, [
-        el('tbody', {}, [
-          ...rows.map((row) => el('tr', {}, [
-            el('td', {}, [
-              el('a', {
-                class: 'report__account',
-                href: `/portal/admin/ledger/entries/?account=${encodeURIComponent(row.account_id)}`,
-                text: accountLabel(row),
-              }),
-            ]),
-            el('td', { class: 'is-numeric', text: formatSigned(row.balance) }),
-          ])),
-          el('tr', { class: strong ? 'report__total report__total--strong' : 'report__total' }, [
-            el('td', { text: `Total ${title.toLowerCase()}` }),
-            el('td', { class: 'is-numeric', text: formatSigned(total) }),
-          ]),
-        ]),
-      ])
-      : el('p', { class: 'empty', text: 'Nothing here in this period. Widen the dates, or clear the filters.' }),
-  ]);
+function plural(count, one, many = `${one}s`) {
+  return `${count} ${count === 1 ? one : many}`;
 }
 
-/** A standalone figure between sections — gross profit, net profit, the check. */
-function figureLine(label, value, tone) {
-  return el('p', {
-    class: tone ? `report__figure report__figure--${tone}` : 'report__figure',
-  }, [
+function money(cents) {
+  return el('td', { class: 'is-numeric', text: formatMoney(cents) });
+}
+
+/** A one-line figure between sections — a subtotal that belongs to no
+ *  table. `tone` colours the number: 'good', 'bad', or nothing. */
+function reportFigure(label, value, tone) {
+  return el('p', { class: tone ? `report__figure report__figure--${tone}` : 'report__figure' }, [
     el('span', { text: label }),
-    el('strong', { text: formatSigned(value) }),
+    el('strong', { text: value }),
   ]);
 }
 
-// The reports
+function totalRow(label, cells) {
+  return el('tr', { class: 'report__total' }, [el('td', { text: label }), ...cells.map(money)]);
+}
+
+// The tax year summary
 // ---------------------------------------------------------------------------
 
-function renderProfitAndLoss() {
-  const cash = state.basis === 'cash' ? state.cashIncome : null;
-  const pl = profitAndLoss(state.period, cash);
-
-  return el('div', { class: 'report' }, [
-    el('p', { class: 'progress__label',
-      text: state.basis === 'cash'
-        ? 'Cash basis: revenue is counted in the month the money arrived, split '
-          + 'across the accounts its invoice was for. Costs are recorded when they '
-          + 'are paid, so they read the same on both bases.'
-        : 'Accrual basis: revenue is counted when the work was invoiced, whether '
-          + 'or not it has been paid. This is what the ledger actually holds.' }),
-
-    section('Revenue', pl.revenue, pl.revenueTotal),
-    section('Cost of sales', pl.costOfSales, pl.costTotal),
-    figureLine('Gross profit', pl.grossProfit, pl.grossProfit < 0 ? 'bad' : null),
-    pl.grossMargin === null
-      ? null
-      : el('p', { class: 'progress__label',
-        text: `A gross margin of ${(pl.grossMargin * 100).toFixed(1)}%.` }),
-
-    section('Operating expenses', pl.operating, pl.operatingTotal),
-    figureLine('Operating profit', pl.operatingProfit, pl.operatingProfit < 0 ? 'bad' : null),
-
-    pl.otherIncome.length ? section('Other income', pl.otherIncome, pl.otherIncomeTotal) : null,
-    pl.otherExpense.length ? section('Other costs', pl.otherExpense, pl.otherExpenseTotal) : null,
-
-    figureLine('Net profit', pl.netProfit, pl.netProfit < 0 ? 'bad' : 'good'),
-  ]);
-}
-
-/**
- * The year, a column at a time.
- *
- * Wide by nature, so it scrolls inside its own container rather than taking
- * the page sideways — the one thing §7.12 will not have. The account name
- * column is what a reader needs kept in view, so it is the sticky one.
- */
-function renderByMonth() {
-  const spread = monthlyProfitAndLoss(state.months, state.byMonth);
-
-  if (!spread.months.length) {
-    return el('div', { class: 'report' }, [
-      el('p', { class: 'empty', text: 'No months in this financial year yet.' }),
-    ]);
-  }
-
-  const headings = ['', ...spread.months.map((m) => m.label), 'Year'];
-
-  const bodyRows = [];
-  spread.groups.forEach((group) => {
-    bodyRows.push(el('tr', { class: 'report__group' }, [
-      el('td', { text: group.title }),
-      ...group.totals.map((value) => el('td', { class: 'is-numeric', text: formatSigned(value) })),
-      el('td', { class: 'is-numeric', text: formatSigned(group.total) }),
-    ]));
-
-    group.rows.forEach((row) => {
-      bodyRows.push(el('tr', {}, [
-        el('td', {}, [
-          el('a', {
-            class: 'report__account',
-            href: `/portal/admin/ledger/entries/?account=${encodeURIComponent(row.account_id)}`,
-            text: accountLabel(row),
-          }),
-        ]),
-        ...row.values.map((value) => el('td', { class: 'is-numeric', text: formatSigned(value) })),
-        el('td', { class: 'is-numeric', text: formatSigned(row.total) }),
-      ]));
-    });
-  });
-
-  spread.figures.forEach((figure) => {
-    bodyRows.push(el('tr', {
-      class: figure.key === 'netProfit'
-        ? 'report__total report__total--strong'
-        : 'report__total',
-    }, [
-      el('td', { text: figure.label }),
-      ...figure.values.map((value) => el('td', { class: 'is-numeric', text: formatSigned(value) })),
-      el('td', { class: 'is-numeric', text: formatSigned(figure.total) }),
-    ]));
-  });
-
-  return el('div', { class: 'report' }, [
-    el('p', { class: 'progress__label',
-      text: 'Accrual basis, month by month across this financial year — revenue '
-        + 'counted when it was invoiced. This is the shape a seasonal dip or a '
-        + 'cost that quietly doubled shows up in, which a single-period report '
-        + 'cannot say. Scroll it sideways for the later months.' }),
-    table(headings, bodyRows, { wide: true }),
-  ]);
-}
-
-/**
- * Each member's capital account.
- *
- * The schedule a K-1 is built from, and the one report that could not exist
- * while capital was pooled into a single owner's account. Read to the date
- * rather than across a window, because what somebody holds is every
- * contribution they have ever made less every draw they have ever taken.
- *
- * The profit share is shown and deliberately not posted: allocating profit to
- * member capital is a year-end entry a preparer makes, and a report that
- * quietly made it would put a figure in the books nobody chose.
- */
-function renderOwners() {
-  const bs = balanceSheet(state.toDate, state.thisYear);
-  const cap = ownerCapital(state.owners, state.toDate, bs.netProfit);
-
-  if (!cap.rows.length) {
-    return el('div', { class: 'report' }, [
-      el('p', { class: 'empty',
-        text: 'Nobody is recorded as a member yet, so there is no capital to split.' }),
-    ]);
-  }
-
-  const rows = cap.rows.map((row) => el('tr', {}, [
-    el('td', {}, [
-      el('span', { class: 'sow-cell__name', text: row.name }),
-      // The portal calls them Trip and Vic; the books call them what a tax
-      // document calls them. Showing both keeps the report readable by the
-      // people in it as well as by their preparer.
-      row.member.profiles && row.member.profiles.full_name !== row.name
-        ? el('span', { class: 'sow-cell__desc', text: row.member.profiles.full_name })
-        : null,
-      row.member.ended_on
-        ? el('span', { class: 'sow-cell__desc', text: `Left ${fmtDate(row.member.ended_on)}` })
-        : null,
-    ]),
-    el('td', { class: 'is-numeric', text: `${row.pct.toFixed(2)}%` }),
-    el('td', { class: 'is-numeric', text: formatSigned(row.contributed) }),
-    el('td', { class: 'is-numeric', text: formatSigned(row.drawn) }),
-    el('td', { class: 'is-numeric', text: formatSigned(row.share) }),
-    el('td', { class: 'is-numeric', text: formatSigned(row.capital) }),
-  ]));
-
-  rows.push(el('tr', { class: 'report__total report__total--strong' }, [
-    el('td', { text: 'Total' }),
-    el('td', { class: 'is-numeric', text: `${(cap.totalBp / 100).toFixed(2)}%` }),
-    el('td', { class: 'is-numeric', text: formatSigned(cap.contributed) }),
-    el('td', { class: 'is-numeric', text: formatSigned(cap.drawn) }),
-    el('td', { class: 'is-numeric', text: formatSigned(bs.netProfit - cap.rounding) }),
-    el('td', { class: 'is-numeric', text: formatSigned(cap.capital) }),
-  ]));
-
-  return el('div', { class: 'report' }, [
-    el('p', { class: 'progress__label',
-      text: `Every member's own capital account as at ${fmtDate(state.to)}, with this `
-        + 'financial year’s profit split by the share each of them owns. Contributions '
-        + 'and draws are since the books opened; the profit share is shown here and '
-        + 'is not posted — allocating it to capital is a year-end entry your '
-        + 'preparer makes.' }),
-
-    table(['Member', 'Share', 'Put in', 'Taken out', 'Share of profit', 'Capital'],
-      rows, { wide: true }),
-
-    cap.balanced
-      ? null
-      : el('p', { class: 'notice notice--warn',
-        text: `The ownership shares come to ${(cap.totalBp / 100).toFixed(2)}%, not 100%. `
-          + 'A split that does not tie is a set of K-1s that does not tie — fix the '
-          + 'percentages under Owners before this goes anywhere near a return.' }),
-
-    cap.rounding
-      ? el('p', { class: 'progress__label',
-        text: `${formatMoney(Math.abs(cap.rounding))} of profit does not divide into whole `
-          + 'cents across these shares. Your preparer decides who absorbs it; this report '
-          + 'will not quietly hand it to anybody.' })
-      : null,
-  ]);
-}
-
-function renderBalanceSheet() {
-  const bs = balanceSheet(state.toDate, state.thisYear);
-
-  return el('div', { class: 'report' }, [
-    el('p', { class: 'progress__label',
-      text: `Everything the studio owned and owed as at ${fmtDate(state.to)}.` }),
-
-    section('Current assets', bs.currentAssets,
-      bs.currentAssets.reduce((t, r) => t + r.balance, 0)),
-    bs.fixedAssets.length
-      ? section('Fixed assets', bs.fixedAssets, bs.fixedAssets.reduce((t, r) => t + r.balance, 0))
-      : null,
-    figureLine('Total assets', bs.assetsTotal, null),
-
-    section('Current liabilities', bs.currentLiabilities,
-      bs.currentLiabilities.reduce((t, r) => t + r.balance, 0)),
-    bs.longTermLiabilities.length
-      ? section('Long-term liabilities', bs.longTermLiabilities,
-        bs.longTermLiabilities.reduce((t, r) => t + r.balance, 0))
-      : null,
-    figureLine('Total liabilities', bs.liabilitiesTotal, null),
-
-    el('div', { class: 'report__section' }, [
-      el('h3', { text: 'Equity' }),
-      el('table', { class: 'table report__table' }, [
-        el('tbody', {}, [
-          ...bs.equity.map((row) => el('tr', {}, [
-            el('td', { text: accountLabel(row) }),
-            el('td', { class: 'is-numeric', text: formatSigned(row.balance) }),
-          ])),
-          // Neither of these is an account. Both are worked out — see the note
-          // on balanceSheet() in ledger-catalog.js.
-          el('tr', {}, [
-            el('td', {}, [
-              el('span', { text: 'Retained earnings' }),
-              el('span', { class: 'sow-cell__desc', text: 'Kept from earlier years' }),
-            ]),
-            el('td', { class: 'is-numeric', text: formatSigned(bs.retained) }),
-          ]),
-          el('tr', {}, [
-            el('td', {}, [
-              el('span', { text: 'Profit this financial year' }),
-              el('span', { class: 'sow-cell__desc', text: 'Not yet rolled into the above' }),
-            ]),
-            el('td', { class: 'is-numeric', text: formatSigned(bs.netProfit) }),
-          ]),
-          el('tr', { class: 'report__total' }, [
-            el('td', { text: 'Total equity' }),
-            el('td', { class: 'is-numeric', text: formatSigned(bs.equityTotal) }),
-          ]),
-        ]),
-      ]),
-    ]),
-
-    el('p', {
-      class: bs.balanced ? 'notice notice--ok' : 'notice notice--error',
-      text: bs.balanced
-        ? `Assets equal liabilities plus equity, at ${formatMoney(bs.assetsTotal)}. `
-          + 'The balance sheet balances.'
-        : `This does not balance — assets are out by ${formatMoney(Math.abs(bs.difference))}. `
-          + 'That is a problem with the books rather than with this report.',
-    }),
-  ]);
-}
-
-function renderTrialBalance() {
-  const tb = trialBalance(state.toDate);
-
-  return el('div', { class: 'report' }, [
-    el('p', { class: 'progress__label',
-      text: 'Every account with any movement, both columns, as at '
-          + `${fmtDate(state.to)}. This is the report an accountant asks for first.` }),
-    table(['Code', 'Account', 'Debit', 'Credit'],
+/** One Schedule C line: its categories, the full amount and the deductible
+ *  amount side by side. Meals are the only line where the two differ, and
+ *  showing both columns on every line is what makes that visible. */
+function lineSection(line) {
+  const rows = line.categories.map((category) => el('tr', {}, [
+    el('td', {}, stackedCell([
+      category.name,
       [
-        ...tb.rows.map((row) => el('tr', {}, [
-          el('td', { text: row.code }),
-          el('td', { text: row.name }),
-          el('td', { class: 'is-numeric', text: row.debits ? formatMoney(row.debits) : '' }),
-          el('td', { class: 'is-numeric', text: row.credits ? formatMoney(row.credits) : '' }),
-        ])),
-        el('tr', { class: 'report__total' }, [
-          el('td', { text: '' }),
-          el('td', { text: 'Total' }),
-          el('td', { class: 'is-numeric', text: formatMoney(tb.debits) }),
-          el('td', { class: 'is-numeric', text: formatMoney(tb.credits) }),
-        ]),
-      ]),
-    el('p', {
-      class: tb.balanced ? 'notice notice--ok' : 'notice notice--error',
-      text: tb.balanced
-        ? 'Debits equal credits. The books are internally consistent.'
-        : `Out by ${formatMoney(Math.abs(tb.difference))}, which should not be possible — `
-          + 'the database refuses an entry that does not balance.',
-    }),
-  ]);
-}
-
-/**
- * Who owes us, and the cross-check that makes it trustworthy.
- *
- * The total here is built from the invoices; Accounts receivable in the ledger
- * is the same fact counted the other way. They should be identical, and saying
- * so on the report is what turns "here is a list" into "here is a list you can
- * rely on".
- */
-function renderAging() {
-  const report = agingReport(state.invoices, state.to);
-  const ar = state.toDate.find((row) => row.system_key === 'accounts_receivable');
-  const control = ar ? ar.balance : 0;
-  const agrees = control === report.total;
-
-  const rows = report.clients.map((client) => el('tr', {}, [
-    el('td', {}, [
-      el('span', { class: 'sow-cell__name', text: client.name }),
-      el('span', { class: 'sow-cell__desc',
-        text: client.rows.map((r) => `INV ${invoiceLabel(r.invoice.number)}`).join(', ') }),
-    ]),
-    ...AGING_BUCKETS.map((bucket) => el('td', {
-      class: 'is-numeric',
-      text: client[bucket.key] ? formatMoney(client[bucket.key]) : '',
-    })),
-    el('td', { class: 'is-numeric', text: formatMoney(client.total) }),
+        plural(category.count, 'item'),
+        category.half_deductible ? '50% deductible' : '',
+      ].filter(Boolean).join(' · '),
+    ])),
+    money(category.total_cents),
+    money(category.deductible_cents),
   ]));
 
-  return el('div', { class: 'report' }, [
-    report.clients.length
-      ? table(['Client', ...AGING_BUCKETS.map((b) => b.label), 'Total'],
-        [
-          ...rows,
-          el('tr', { class: 'report__total' }, [
-            el('td', { text: 'Total' }),
-            ...AGING_BUCKETS.map((bucket) => el('td', {
-              class: 'is-numeric',
-              text: report.totals[bucket.key] ? formatMoney(report.totals[bucket.key]) : '',
-            })),
-            el('td', { class: 'is-numeric', text: formatMoney(report.total) }),
-          ]),
-        ])
-      : el('p', { class: 'empty', text: 'Nobody owes the studio anything. ' }),
-
-    el('p', {
-      class: agrees ? 'progress__label' : 'notice notice--warn',
-      text: agrees
-        ? 'This agrees with the Accounts receivable balance in the ledger.'
-        : `The ledger says ${formatMoney(control)} is owed and these invoices come to `
-          + `${formatMoney(report.total)}. The gap is usually an invoice issued before `
-          + 'the books were started, or a payment recorded against the wrong one.',
-    }),
+  return el('div', { class: 'report__section' }, [
+    el('h3', { text: line.label }),
+    table(['Category', 'Amount', 'Deductible'], [
+      ...rows,
+      totalRow(`Line ${line.schedule_c_line} total`, [line.total_cents, line.deductible_cents]),
+    ], { className: 'report__table' }),
   ]);
 }
 
-function renderByClient() {
-  const rows = byClient(state.clientLines);
+function renderSummary() {
+  const s = taxYearSummary({
+    payments: state.payments,
+    invoices: state.invoices,
+    expenses: state.expenses,
+    categories: state.categories,
+    year: state.year,
+  });
 
-  if (!rows.length) {
-    return el('p', { class: 'empty', text: 'Nothing has been posted against a client yet.' });
-  }
-
-  return el('div', { class: 'report' }, [
-    el('p', { class: 'progress__label',
-      text: 'Revenue less the costs recorded against each client. A cost only '
-          + 'appears here if it was tagged with the client when it was recorded.' }),
-    table(['Client', 'Revenue', 'Costs', 'Profit', 'Margin'],
-      rows.map((row) => el('tr', {}, [
-        el('td', { text: row.name }),
-        el('td', { class: 'is-numeric', text: formatSigned(row.revenue) }),
-        el('td', { class: 'is-numeric', text: formatSigned(row.cost) }),
-        el('td', { class: 'is-numeric', text: formatSigned(row.profit) }),
-        el('td', { class: 'is-numeric',
-          text: row.margin === null ? '—' : `${(row.margin * 100).toFixed(0)}%` }),
-      ]))),
+  const figures = figureRow([
+    figure('Gross receipts', formatMoney(s.gross_receipts_cents), 'Payments received in the year'),
+    figure('Deductible expenses', formatMoney(s.deductible_total_cents),
+      s.expenses_total_cents === s.deductible_total_cents
+        ? `${plural(s.expense_count, 'expense')}`
+        : `${formatMoney(s.expenses_total_cents)} as spent, meals at 50%`),
+    figure('Net', formatMoney(s.net_cents), 'Gross receipts less deductible expenses',
+      s.net_cents < 0 ? 'bad' : null),
+    figure('Receivable at year end', formatMoney(s.receivable_at_year_end_cents),
+      s.receivable_at_year_end_count
+        ? `${plural(s.receivable_at_year_end_count, 'invoice')} still owed on Dec 31`
+        : 'Nothing was owed on Dec 31'),
   ]);
+  figures.classList.add('figure-row--four');
+
+  mount(panels.summary,
+    panelHead(`Tax year ${state.year}`, null,
+      'Cash basis, calendar year: what Schedule C asks for, in the order it asks. '
+      + 'Income is what was actually received; expenses are grouped by the line they '
+      + 'go on, with business meals shown in full and at the 50% that is deductible.'),
+    figures,
+    reportFigure('Sales tax collected on invoices paid this year',
+      formatMoney(s.sales_tax_collected_cents)),
+    s.unreceipted_count
+      ? el('p', { class: 'notice notice--warn' }, [
+        `${plural(s.unreceipted_count, 'expense')} in ${state.year} `
+        + `${s.unreceipted_count === 1 ? 'has' : 'have'} no receipt on file. `,
+        el('a', { href: '/portal/expenses/', text: 'Add them from Expenses.' }),
+      ])
+      : null,
+    el('h3', { text: 'Expenses by Schedule C line' }),
+    s.by_line.length
+      ? el('div', {}, [
+        ...s.by_line.map(lineSection),
+        reportFigure('Total expenses, as spent', formatMoney(s.expenses_total_cents)),
+        reportFigure('Total deductible', formatMoney(s.deductible_total_cents)),
+      ])
+      : el('p', { class: 'empty', text: `No expenses recorded for ${state.year}.` }),
+  );
 }
 
-function render1099() {
-  const year = state.to.slice(0, 4);
-  const rows = vendorTotals(state.expenses, state.vendors, year);
-  const reportable = rows.filter((row) => row.reportable);
-  const missing = rows.filter((row) => row.missingTaxId);
+// By client
+// ---------------------------------------------------------------------------
 
-  return el('div', { class: 'report' }, [
-    el('p', { class: 'progress__label',
-      text: `Everyone paid in ${year}. Anyone unincorporated paid $600 or more for `
-          + 'services needs a 1099-NEC, and the deadline is January 31st.' }),
+function renderClients() {
+  const rows = byClient({
+    invoices: state.invoices,
+    payments: state.payments,
+    expenses: state.expenses,
+    clients: state.clients,
+    year: state.year,
+  });
 
+  const totals = rows.reduce((sum, row) => ({
+    invoiced: sum.invoiced + row.invoiced,
+    received: sum.received + row.received,
+    expenses: sum.expenses + row.expenses,
+    outstanding: sum.outstanding + row.outstanding,
+  }), {
+    invoiced: 0, received: 0, expenses: 0, outstanding: 0,
+  });
+
+  mount(panels.clients,
+    panelHead('By client', null,
+      `What each client was invoiced in ${state.year}, what they actually paid, what was `
+      + 'spent on their behalf, and what they still owe on that year\'s invoices.'),
     rows.length
-      ? table(['Vendor', `Paid in ${year}`, 'Needs a 1099', 'W-9'],
-        rows.map((row) => el('tr', {}, [
+      ? table(['Client', 'Invoiced', 'Received', 'Expenses', 'Outstanding'], [
+        ...rows.map((row) => el('tr', {}, [
+          el('td', { text: row.client }),
+          money(row.invoiced),
+          money(row.received),
+          money(row.expenses),
+          money(row.outstanding),
+        ])),
+        totalRow('Total', [totals.invoiced, totals.received, totals.expenses, totals.outstanding]),
+      ])
+      : el('p', { class: 'empty', text: `Nothing was invoiced, received or spent for a client in ${state.year}.` }),
+  );
+}
+
+// By month
+// ---------------------------------------------------------------------------
+
+function renderMonths() {
+  const rows = byMonth({ payments: state.payments, expenses: state.expenses, year: state.year });
+  const received = rows.reduce((sum, row) => sum + row.received, 0);
+  const spent = rows.reduce((sum, row) => sum + row.spent, 0);
+
+  mount(panels.months,
+    panelHead('By month', null,
+      'Where the year moved: what came in and what went out, a month at a time. '
+      + 'Expenses here are as spent, before the meals limit.'),
+    table(['Month', 'Received', 'Spent', 'Net'], [
+      ...rows.map((row) => el('tr', {}, [
+        el('td', { text: `${row.label} ${state.year}` }),
+        money(row.received),
+        money(row.spent),
+        money(row.net),
+      ])),
+      totalRow(`Total ${state.year}`, [received, spent, received - spent]),
+    ]),
+  );
+}
+
+// 1099 contractors
+// ---------------------------------------------------------------------------
+
+function renderContractors() {
+  const rows = vendors1099({
+    expenses: state.expenses,
+    vendors: state.vendors,
+    year: state.year,
+    thresholdCents: state.threshold,
+  });
+  const reportable = rows.filter((row) => row.reportable);
+  const missing = rows.filter((row) => row.missing_tax_id);
+
+  mount(panels.contractors,
+    panelHead('1099 contractors', null,
+      `Everyone paid in ${state.year}, against the ${formatMoney(state.threshold)} 1099-NEC `
+      + 'threshold set in Admin. A form is due for each contractor flagged on the Vendors '
+      + 'panel who was paid that much or more; the deadline is January 31st.'),
+    rows.length
+      ? table(['Vendor', `Paid in ${state.year}`, 'Threshold', 'Needs a 1099', 'W-9'],
+        rows.map((row) => el('tr', { class: row.vendor.archived_at ? 'is-archived' : null }, [
           el('td', { text: row.vendor.name }),
-          el('td', { class: 'is-numeric', text: formatMoney(row.paid) }),
+          money(row.total_cents),
+          el('td', {}, [
+            row.over_threshold
+              ? el('span', { class: 'pill pill--amber', text: 'Over' })
+              : el('span', { class: 'progress__label', text: 'Under' }),
+          ]),
           el('td', {}, [
             row.reportable
               ? el('span', { class: 'pill pill--amber', text: 'Yes' })
               : el('span', { class: 'progress__label',
-                text: row.vendor.files_1099 ? 'Under the threshold' : 'No' }),
+                text: row.files_1099 ? 'Under the threshold' : 'Not a contractor' }),
           ]),
           el('td', {}, [
-            row.vendor.files_1099
+            row.files_1099
               ? el('span', {
-                class: row.vendor.tax_id_on_file ? 'pill pill--green' : 'pill pill--red',
-                text: row.vendor.tax_id_on_file ? 'On file' : 'Missing',
+                class: row.tax_id_on_file ? 'pill pill--green' : 'pill pill--red',
+                text: row.tax_id_on_file ? 'On file' : 'Missing',
               })
               : el('span', { class: 'progress__label', text: '—' }),
           ]),
         ])))
-      : el('p', { class: 'empty', text: 'No vendor spend recorded for this year.' }),
-
+      : el('p', { class: 'empty', text: `No vendor spend recorded for ${state.year}.` }),
     missing.length
       ? el('p', { class: 'notice notice--error',
-        text: `${missing.length} contractor${missing.length === 1 ? '' : 's'} `
-            + `over the threshold with no W-9 on file. Collect ${missing.length === 1
-              ? 'it' : 'them'} now — chasing a W-9 in January, from somebody who no `
-            + 'longer works with you, is the hardest version of this job.' })
+        text: `${plural(missing.length, 'contractor')} over the threshold with no W-9 on file. `
+          + `Collect ${missing.length === 1 ? 'it' : 'them'} now — chasing a W-9 in January, `
+          + 'from somebody who no longer works with you, is the hardest version of this job.' })
       : el('p', { class: 'progress__label',
-        text: `${reportable.length} 1099${reportable.length === 1 ? '' : 's'} to file `
-            + `for ${year}, and every W-9 is on file.` }),
-  ]);
-}
-
-function render() {
-  const views = {
-    pl: renderProfitAndLoss,
-    months: renderByMonth,
-    balance: renderBalanceSheet,
-    trial: renderTrialBalance,
-    aging: renderAging,
-    clients: renderByClient,
-    owners: renderOwners,
-    1099: render1099,
-  };
-
-  mount(body, views[state.report]());
+        text: `${plural(reportable.length, '1099')} to file for ${state.year}`
+          + `${reportable.length ? ', and every W-9 is on file.' : '.'}` }),
+  );
 }
 
 // Export
 // ---------------------------------------------------------------------------
 
-function exportCsv() {
-  const stamp = `${state.from || 'start'}-to-${state.to}`;
+function saveCsv(build) {
+  const file = build();
+  downloadCsv(file.filename, file.headers, file.rows);
+  toast(`Saved ${file.filename} — ${plural(file.rows.length, 'row')}.`, 'ok');
+}
 
-  if (state.report === 'pl') {
-    const pl = profitAndLoss(state.period, state.basis === 'cash' ? state.cashIncome : null);
-    const rows = [];
-    const push = (heading, set) => set.forEach((row) => rows.push(
-      [heading, row.code, row.name, (row.balance / 100).toFixed(2)],
-    ));
-    push('Revenue', pl.revenue);
-    push('Cost of sales', pl.costOfSales);
-    rows.push(['', '', 'Gross profit', (pl.grossProfit / 100).toFixed(2)]);
-    push('Operating expenses', pl.operating);
-    rows.push(['', '', 'Operating profit', (pl.operatingProfit / 100).toFixed(2)]);
-    push('Other income', pl.otherIncome);
-    push('Other costs', pl.otherExpense);
-    rows.push(['', '', 'Net profit', (pl.netProfit / 100).toFixed(2)]);
-    downloadCsv(`njd-profit-and-loss-${state.basis}-${stamp}.csv`,
-      ['Section', 'Code', 'Account', 'Amount'], rows);
-    return;
-  }
+function csvButtons() {
+  const button = (text, build) => el('button', {
+    class: 'btn btn--ghost btn--small', type: 'button', text, onclick: () => saveCsv(build),
+  });
 
-  if (state.report === 'months') {
-    const spread = monthlyProfitAndLoss(state.months, state.byMonth);
-    const rows = [];
-
-    spread.groups.forEach((group) => {
-      rows.push([group.title, '', 'Total',
-        ...group.totals.map((v) => (v / 100).toFixed(2)),
-        (group.total / 100).toFixed(2)]);
-      group.rows.forEach((row) => rows.push([group.title, row.code, row.name,
-        ...row.values.map((v) => (v / 100).toFixed(2)),
-        (row.total / 100).toFixed(2)]));
-    });
-    spread.figures.forEach((figure) => rows.push(['', '', figure.label,
-      ...figure.values.map((v) => (v / 100).toFixed(2)),
-      (figure.total / 100).toFixed(2)]));
-
-    downloadCsv(`njd-profit-and-loss-by-month-${state.to.slice(0, 4)}.csv`,
-      ['Section', 'Code', 'Account', ...spread.months.map((m) => m.label), 'Year'],
-      rows);
-    return;
-  }
-
-  if (state.report === 'owners') {
-    const bs = balanceSheet(state.toDate, state.thisYear);
-    const cap = ownerCapital(state.owners, state.toDate, bs.netProfit);
-    downloadCsv(`njd-owner-capital-${state.to}.csv`,
-      ['Member', 'Portal name', 'Share %', 'Put in', 'Taken out',
-       'Share of profit', 'Capital'],
-      cap.rows.map((row) => [
-        row.name,
-        (row.member.profiles && row.member.profiles.full_name) || '',
-        row.pct.toFixed(2),
-        (row.contributed / 100).toFixed(2),
-        (row.drawn / 100).toFixed(2),
-        (row.share / 100).toFixed(2),
-        (row.capital / 100).toFixed(2),
-      ]));
-    return;
-  }
-
-  if (state.report === 'balance') {
-    const bs = balanceSheet(state.toDate, state.thisYear);
-    const rows = [];
-    const push = (heading, set) => set.forEach((row) => rows.push(
-      [heading, row.code, row.name, (row.balance / 100).toFixed(2)],
-    ));
-    push('Current assets', bs.currentAssets);
-    push('Fixed assets', bs.fixedAssets);
-    push('Current liabilities', bs.currentLiabilities);
-    push('Long-term liabilities', bs.longTermLiabilities);
-    push('Equity', bs.equity);
-    rows.push(['Equity', '', 'Retained earnings', (bs.retained / 100).toFixed(2)]);
-    rows.push(['Equity', '', 'Profit this year', (bs.netProfit / 100).toFixed(2)]);
-    downloadCsv(`njd-balance-sheet-${state.to}.csv`,
-      ['Section', 'Code', 'Account', 'Amount'], rows);
-    return;
-  }
-
-  if (state.report === 'trial') {
-    const tb = trialBalance(state.toDate);
-    downloadCsv(`njd-trial-balance-${state.to}.csv`,
-      ['Code', 'Account', 'Debit', 'Credit'],
-      tb.rows.map((row) => [row.code, row.name,
-        (row.debits / 100).toFixed(2), (row.credits / 100).toFixed(2)]));
-    return;
-  }
-
-  if (state.report === 'aging') {
-    const report = agingReport(state.invoices, state.to);
-    downloadCsv(`njd-receivables-${state.to}.csv`,
-      ['Client', 'Invoice', 'Issued', 'Due', 'Days late', 'Outstanding'],
-      report.clients.flatMap((client) => client.rows.map((row) => [
-        client.name,
-        `INV ${invoiceLabel(row.invoice.number)}`,
-        row.invoice.issued_on || '',
-        row.invoice.due_on || '',
-        row.days,
-        (row.outstanding / 100).toFixed(2),
-      ])));
-    return;
-  }
-
-  if (state.report === 'clients') {
-    downloadCsv(`njd-by-client-${stamp}.csv`,
-      ['Client', 'Revenue', 'Costs', 'Profit', 'Margin'],
-      byClient(state.clientLines).map((row) => [
-        row.name,
-        (row.revenue / 100).toFixed(2),
-        (row.cost / 100).toFixed(2),
-        (row.profit / 100).toFixed(2),
-        row.margin === null ? '' : `${(row.margin * 100).toFixed(1)}%`,
-      ]));
-    return;
-  }
-
-  const year = state.to.slice(0, 4);
-  downloadCsv(`njd-1099-${year}.csv`,
-    ['Vendor', 'Email', `Paid in ${year}`, 'Reportable', 'W-9 on file'],
-    vendorTotals(state.expenses, state.vendors, year).map((row) => [
-      row.vendor.name,
-      row.vendor.email || '',
-      (row.paid / 100).toFixed(2),
-      row.reportable ? 'yes' : 'no',
-      row.vendor.tax_id_on_file ? 'yes' : 'no',
-    ]));
+  return el('div', { class: 'btn-row' }, [
+    button('Invoices CSV', () => invoicesCsv({
+      invoices: state.invoices, clients: state.clients, year: state.year,
+    })),
+    button('Payments CSV', () => paymentsCsv({
+      payments: state.payments, invoices: state.invoices, clients: state.clients, year: state.year,
+    })),
+    button('Expenses CSV', () => expensesCsv({
+      expenses: state.expenses,
+      categories: state.categories,
+      vendors: state.vendors,
+      clients: state.clients,
+      year: state.year,
+    })),
+    button('1099 CSV', () => contractorsCsv({
+      rows: vendors1099({
+        expenses: state.expenses,
+        vendors: state.vendors,
+        year: state.year,
+        thresholdCents: state.threshold,
+      }),
+      year: state.year,
+    })),
+  ]);
 }
 
 // Controls
 // ---------------------------------------------------------------------------
 
-/**
- * Which controls a report actually uses.
- *
- * A balance sheet is as-at a date and has no start; a 1099 summary is a whole
- * calendar year and has neither. Showing a "from" box that changes nothing is
- * how a screen teaches people not to trust its controls.
- */
-function buildControls() {
-  const needsFrom = ['pl', 'clients'].includes(state.report);
-  const needsBasis = state.report === 'pl';
-
-  const picker = el('select', {
-    id: 'report-kind',
-    onchange: async (event) => {
-      state.report = event.target.value;
-      const url = new URL(window.location.href);
-      url.searchParams.set('report', state.report);
-      window.history.replaceState({}, '', url);
-      buildControls();
-      await reload();
-    },
-  }, REPORTS.map((row) => el('option', {
-    value: row.key, text: row.label, selected: row.key === state.report,
-  })));
-
-  const from = el('input', {
-    type: 'date', id: 'report-from', value: state.from,
-    onchange: async (event) => { state.from = event.target.value; await reload(); },
-  });
-
-  const to = el('input', {
-    type: 'date', id: 'report-to', value: state.to,
-    onchange: async (event) => { state.to = event.target.value; await reload(); },
-  });
-
-  const basis = el('select', {
-    id: 'report-basis',
-    onchange: async (event) => { state.basis = event.target.value; await reload(); },
-  }, [
-    el('option', { value: 'accrual', text: 'Accrual — when invoiced', selected: state.basis === 'accrual' }),
-    el('option', { value: 'cash', text: 'Cash — when paid', selected: state.basis === 'cash' }),
-  ]);
-
-  mount(controls,
-    el('div', { class: 'form-field' }, [
-      el('label', { for: 'report-kind', text: 'Report' }), picker,
-    ]),
-    needsFrom
-      ? el('div', { class: 'form-field' }, [
-        el('label', { for: 'report-from', text: 'From' }), from,
-      ])
-      : null,
-    el('div', { class: 'form-field' }, [
-      // The by-month spread reads the whole financial year this date falls in,
-      // so "As at" would misdescribe it.
-      el('label', { for: 'report-to',
-        // eslint-disable-next-line no-nested-ternary
-        text: needsFrom ? 'To' : (state.report === 'months' ? 'Year through' : 'As at') }),
-      to,
-    ]),
-    needsBasis
-      ? el('div', { class: 'form-field' }, [
-        el('label', { for: 'report-basis', text: 'Basis' }), basis,
-      ])
-      : null,
-  );
+function renderAll() {
+  renderSummary();
+  renderClients();
+  renderMonths();
+  renderContractors();
 }
 
-// The year-end pack
-// ---------------------------------------------------------------------------
+async function changeYear(year) {
+  state.year = year;
+  const url = new URL(window.location.href);
+  url.searchParams.set('year', year);
+  window.history.replaceState({}, '', url);
 
-/**
- * One financial year, assembled the way a preparer wants it.
- *
- * The year is offered as a list rather than as two date boxes, because "which
- * year are you filing" is the actual question and a pair of dates is four
- * chances to get it slightly wrong. The financial year start is respected, so a
- * studio on a July year gets July-to-June.
- */
-function packPanel() {
-  const thisYear = Number(todayIso().slice(0, 4));
-  const startMonth = (state.settings && state.settings.fiscal_year_start_month) || 1;
-
-  const years = [thisYear, thisYear - 1, thisYear - 2, thisYear - 3];
-
-  const picker = el('select', { id: 'pack-year' },
-    years.map((year) => el('option', {
-      value: String(year),
-      // A financial year that straddles two calendar years should say so.
-      text: startMonth === 1 ? String(year) : `${year}–${year + 1}`,
-      // Last year is the one being filed for most of the time this is used.
-      selected: year === thisYear - 1,
-    })));
-
-  const status = el('p', { class: 'progress__label', hidden: true });
-
-  // A financial year runs from its start date to the day before the same date
-  // a year later, which is right whether it starts in January or in July.
-  function range() {
-    const year = Number(picker.value);
-    const month = String(startMonth).padStart(2, '0');
-    return {
-      from: `${year}-${month}-01`,
-      to: dayBefore(`${year + 1}-${month}-01`),
-    };
+  for (const panel of Object.values(panels)) {
+    mount(panel, el('p', { class: 'skeleton', text: 'Working it out…' }));
   }
 
-  let fileCount = 0;
-
-  async function withPack(label, run) {
-    const { from, to } = range();
-    status.hidden = false;
-    status.className = 'progress__label';
-    status.textContent = `Pulling ${from} to ${to} together…`;
-
-    try {
-      const pack = await loadPack({ from, to });
-      await run(pack);
-      status.className = 'notice notice--ok';
-      status.textContent = label(pack);
-    } catch (error) {
-      status.className = 'notice notice--error';
-      status.textContent = error.message;
+  try {
+    await loadYear(year);
+  } catch (error) {
+    toast(errorMessage(error), 'error');
+    for (const panel of Object.values(panels)) {
+      mount(panel, el('p', { class: 'notice notice--error', text: errorMessage(error) }));
     }
+    return;
   }
 
-  return el('section', { class: 'panel' }, [
-    panelHead('Year-end pack for your accountant',
-      el('div', { class: 'btn-row' }, [
-        el('button', {
-          class: 'btn btn--small',
-          type: 'button',
-          text: 'Print / save as PDF',
-          onclick: () => withPack(
-            () => 'Pack built. Save it as a PDF from the print dialog.',
-            (pack) => printPack(pack),
-          ),
-        }),
-        el('button', {
-          class: 'btn btn--ghost btn--small',
-          type: 'button',
-          text: 'Download the CSVs',
-          onclick: () => withPack(
-            (pack) => `${fileCount} files downloaded for `
-              + `${String(pack.to).slice(0, 4)}. Send the folder as it is.`,
-            async (pack) => { fileCount = await downloadPack(pack); },
-          ),
-        }),
-      ]),
-      'Everything a CPA asks for, for one financial year: the trial balance, both '
-      + 'bases of the profit and loss, the balance sheet, the full general ledger, '
-      + 'what was owed at year end, fixed asset additions, owner\'s draws and the '
-      + '1099 list. The PDF is to read; the CSVs are to import.'),
-    el('div', { class: 'filters' }, [
-      el('div', { class: 'form-field' }, [
-        el('label', { for: 'pack-year', text: 'Financial year' }),
-        picker,
-      ]),
-    ]),
-    status,
+  renderAll();
+}
+
+function buildControls() {
+  const picker = el('select', {
+    id: 'report-year',
+    onchange: (event) => { changeYear(event.target.value); },
+  }, state.years.map((year) => el('option', {
+    value: year, text: year, selected: year === state.year,
+  })));
+
+  return el('div', { class: 'filters' }, [
+    filterField('report-year', 'Tax year', picker),
+    el('div', { class: 'filters__end' }, [csvButtons()]),
   ]);
 }
 
@@ -961,56 +488,45 @@ async function main() {
   const ctx = await bootstrap({ requireAdmin: true });
   if (!ctx) return;
 
-  const params = new URLSearchParams(window.location.search);
-  const wanted = params.get('report');
-  if (REPORTS.some((row) => row.key === wanted)) state.report = wanted;
+  const today = isoToday();
+  state.years = yearChoices(today);
+  state.year = yearOf(today);
+
+  // A shared link or the dashboard's "see which" arrives with the year.
+  const wanted = new URLSearchParams(window.location.search).get('year');
+  if (wanted && state.years.includes(wanted)) state.year = wanted;
 
   try {
-    state.settings = await loadSettings();
+    await loadStatic();
+    await loadYear(state.year);
   } catch (error) {
     renderError(error);
     return;
   }
 
-  state.basis = (state.settings && state.settings.default_basis) || 'accrual';
-  state.to = todayIso();
-  state.from = fiscalYearStart(state.to,
-    state.settings && state.settings.fiscal_year_start_month);
-
-  const current = () => REPORTS.find((row) => row.key === state.report) || REPORTS[0];
-
-  const panel = el('section', { class: 'panel' }, [
-    panelHead('Reports', el('button', {
-      class: 'btn btn--ghost btn--small',
-      type: 'button',
-      text: 'Export CSV',
-      onclick: () => {
-        if (state.loading) {
-          toast('Still working the numbers out — try again in a moment.', 'error');
-          return;
-        }
-        exportCsv();
-      },
-    }), current().blurb),
-    controls,
-    body,
-  ]);
-
   mount(byId('portal-root'),
-    el('p', { class: 'breadcrumb' }, [el('a', { href: '/portal/admin/ledger/', text: '← Ledger' })]),
     el('div', { class: 'page-head' }, [
       el('div', {}, [
         el('h1', { text: 'Reports' }),
-        el('p', { text: 'Everything an accountant asks for, and the two numbers a '
-                      + 'studio owner actually steers by.' }),
+        el('p', { text: 'One tax year at a time, and the files to hand to whoever prepares the return.' }),
       ]),
     ]),
-    panel,
-    packPanel(),
+    buildControls(),
+    // The jump bar pins under the header; the panels must be direct children
+    // of #portal-root for its scroll-spy to measure them.
+    sectionNav([
+      { id: 'summary', label: 'Tax year', target: panels.summary },
+      { id: 'clients', label: 'By client', target: panels.clients },
+      { id: 'months', label: 'By month', target: panels.months },
+      { id: 'contractors', label: '1099s', target: panels.contractors },
+    ]),
+    panels.summary,
+    panels.clients,
+    panels.months,
+    panels.contractors,
   );
 
-  buildControls();
-  await reload();
+  renderAll();
 }
 
 main();

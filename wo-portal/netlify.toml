@@ -1,0 +1,153 @@
+# wo-portal — read by the Netlify project whose base directory is "wo-portal".
+# This folder is that project's web root: publish = "." means the files are
+# served exactly as committed. Nothing outside the folder is ever deployed by
+# this project, and nothing in it is deployed by anything else.
+
+[build]
+  publish = "."
+  # Hand-written HTML with no build step and no dependencies to install: the
+  # portal talks to Supabase from the browser using a vendored client, and the
+  # one serverless function has no imports. The empty command is still declared
+  # so Netlify never tries to auto-detect a framework build that doesn't exist.
+  command = ""
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# The root of this origin is the portal. There is no marketing site here.
+[[redirects]]
+  from = "/"
+  to = "/portal/"
+  status = 301
+
+# The publish directory is the web root, so everything below would otherwise be
+# a live URL. force = true is load-bearing on every one of these: without it
+# Netlify serves an existing static file and never consults the redirect.
+#
+# A Netlify splat matches the REST OF A PATH, not a filename suffix, so
+# "/*.md" is not a pattern that works — the root documents are listed one by
+# one. ADD A LINE HERE WHENEVER YOU ADD A DOC AT THE REPO ROOT.
+
+# The test harness: the schema assertions, the browser fixtures, the scripts.
+[[redirects]]
+  from = "/tools/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+# The function's source. Netlify still picks it up from disk — this only stops
+# it being served as a file. The function itself is /.netlify/functions/*,
+# with the dot, which this pattern does not match.
+[[redirects]]
+  from = "/netlify/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+# The database schema with every policy annotated. Postgres enforces it fine
+# without the annotations being public reading.
+[[redirects]]
+  from = "/supabase/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/README.md"
+  to = "/404.html"
+  status = 404
+  force = true
+
+# The launch runbook: environment variable names, dashboard settings, the
+# lockout recovery SQL. No secrets, but written for one reader.
+[[redirects]]
+  from = "/WO-LAUNCH.md"
+  to = "/404.html"
+  status = 404
+  force = true
+
+# Not at the root, and not caught by anything above: /js/* is served so the
+# portal's modules load, which makes this vendoring note readable too.
+[[redirects]]
+  from = "/js/vendor/README.md"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Cross-Origin-Opener-Policy = "same-origin"
+    # Netlify sets HSTS on its own once Force HTTPS is on, but only
+    # `max-age=31536000` — no includeSubDomains, which Lighthouse flags as a
+    # weak policy. Setting it here overrides that.
+    #
+    # NOT `preload`. That is a one-way door: it means submitting the domain to
+    # hstspreload.org, after which every subdomain must serve HTTPS forever and
+    # removal takes months to propagate through browser releases. A decision
+    # to make deliberately, not a default to inherit.
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # An internal tool for two people. Nothing here is for a search engine.
+    X-Robots-Tag = "noindex, nofollow"
+    # ONE policy for the whole origin, deliberately. Two [[headers]] rules that
+    # both match a request and both set Content-Security-Policy are a trap:
+    # depending on how the CDN combines them the browser can end up enforcing
+    # both, and two policies apply as an intersection — the stricter one wins
+    # every directive. A portal page would then be denied the Supabase host it
+    # needs, and the failure only shows up in production.
+    #
+    # No 'unsafe-inline' anywhere. The portal has no inline scripts (each page
+    # ends in a single <script type="module" src>), builds all DOM through the
+    # el() helper, and sets styles only via CSSOM properties, which CSP does
+    # not police. script-src is 'self' only because the Supabase client is
+    # vendored into js/vendor/ rather than pulled off a CDN.
+    #
+    # What each widened directive is for:
+    #   connect-src  the Supabase project: REST, auth and storage over https.
+    #                Pinned to the real project ref. No wss: — the portal opens
+    #                no realtime channel. UPDATE THIS if the project ever moves.
+    #   img-src      data: for the inline SVG icons; blob: for the receipt and
+    #                document previews the browser builds from a picked file
+    #                before it is uploaded.
+    #   font-src     'self' only — Inter is self-hosted at /assets/fonts.
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://gkzhspoqokjjnvhziivt.supabase.co; form-action 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+
+# Marks, icons and the font never change under the same name — a new mark is
+# a new filename — so they can be cached for a year.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# CSS/JS filenames are not content-hashed (no build step), so they must
+# revalidate — otherwise a cached stylesheet can pair with new HTML. The
+# hand-bumped ?v= on each <link> and <script> is the belt; this is the braces.
+# Netlify's ETags make it cheap: unchanged files return 304.
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Portal pages are a shell around one person's data. Caching that shell buys
+# nothing (the interesting bytes all arrive over XHR) and a copy left in the
+# browser cache of a shared machine is a small privacy leak, so: no-store.
+# The portal's own CSS and JS are covered by the /css/* and /js/* rules above;
+# they hold no client data and should stay cacheable.
+#
+# This rule sets no Content-Security-Policy — the single origin-wide policy
+# above already covers it. See the comment there for why there is only one.
+# Cache-Control appears in no other rule matching /portal/*, so there is
+# nothing for it to collide with.
+[[headers]]
+  for = "/portal/*"
+  [headers.values]
+    Cache-Control = "no-store"

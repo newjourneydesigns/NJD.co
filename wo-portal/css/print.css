@@ -1,19 +1,20 @@
 /* ==========================================================================
-   New Journey Designs — print.css
+   Walter Ochenski LLC — print.css
 
    Loaded last on the portal pages. Two jobs:
 
    1. Make an ordinary Ctrl+P of any portal page produce paper rather than
-      screen furniture — no sticky header, no tab bar, no buttons, no toasts.
-   2. Carry the branded project document that js/portal/export.js builds. That
-      container is display:none on screen and only ever appears here, so
-      building it shifts nothing and never flashes.
+      screen furniture — no sticky header, no section nav, no buttons, no
+      toasts.
+   2. Carry the invoice that js/portal/invoice-print.js builds. That container
+      is display:none on screen and only ever appears here, so building it
+      shifts nothing and never flashes.
 
    Everything composes from the tokens in styles.css. Lengths are in points
    because this output is measured in millimetres, not pixels.
    ========================================================================== */
 
-/* On screen the export container takes up no space at all. Stated outside the
+/* On screen the print container takes up no space at all. Stated outside the
    media query — and again in portal.css — so a failed load of this file can
    never drop it into the middle of the live page. */
 .print-doc { display: none; }
@@ -26,29 +27,28 @@
     /* The browser's own print header — the date in one top corner, the
        document title beside it — is drawn into whichever top margin boxes the
        stylesheet leaves unclaimed while the dialog's "Headers and footers" box
-       is ticked. Stamped over a document's letterhead it reads as clutter, so
-       all three boxes are claimed empty: the browser only writes its defaults
-       into boxes with no author content, which is also why the SOW's own
-       footer below already displaces the URL and page count. content: ""
-       rather than content: none, because none generates no box at all and the
-       browser default moves straight back in. Stated once here — margin boxes
-       cascade onto the named sow page the way any page property does. The
-       bottom boxes of this generic page are left unclaimed on purpose: on a
-       printed dashboard or client page the URL and page number earn their
-       place, and the branded documents override them anyway. Engines without
-       margin-box support ignore all of this and keep their dialog's toggle. */
+       is ticked. Stamped over a letterhead it reads as clutter, so all three
+       boxes are claimed empty: the browser only writes its defaults into boxes
+       with no author content. content: "" rather than content: none, because
+       none generates no box at all and the browser default moves straight
+       back in. Stated once here — margin boxes cascade onto the named page
+       the way any page property does. The bottom boxes of this generic page
+       are left unclaimed on purpose: on a printed dashboard or client page the
+       URL and page number earn their place, and the branded document overrides
+       them anyway. Engines without margin-box support ignore all of this and
+       keep their dialog's toggle. */
     @top-left { content: ""; }
     @top-center { content: ""; }
     @top-right { content: ""; }
   }
 
-  /* The scope of work is a contract, so it gets the page setup a contract
-     is expected to have: US Letter, one-inch margins. A named page rather than
-     a second @page rule, because @page is document-wide and the project export
-     next door wants the tighter margins it already has. Engines without named
-     page support fall back to the block above, which is a sane document rather
-     than a broken one. */
-  @page sow {
+  /* The branded document gets the page setup a business document is expected
+     to have: US Letter, one-inch margins. A named page rather than a second
+     @page rule, because @page is document-wide and an ordinary printed portal
+     page keeps the tighter margins above. Engines without named page support
+     fall back to the block above, which is a sane document rather than a
+     broken one. */
+  @page doc {
     size: letter;
     margin: 1in;
 
@@ -58,31 +58,30 @@
        *content* box that body text also flows into, and it printed straight
        through the last two lines of any page that filled up.
 
-       The party name is a custom property rather than a literal because it is
-       configuration — it changes on the day the studio becomes an LLC.
-       js/portal/sow-print.js sets --sow-party on the root element for the
-       duration of the dialog. The empty fallback means a page printed without
-       it gets no footer rather than the word "undefined". */
+       The text is a custom property rather than a literal because it is
+       configuration: the business name and the invoice reference.
+       js/portal/print-dialog.js sets --doc-party on the root element for the
+       duration of the dialog (the name is that module's, kept as is so the
+       shared dialog code and this sheet cannot drift apart). The empty
+       fallback means a page printed without it gets no footer rather than the
+       word "undefined". */
     @bottom-left {
-      content: var(--sow-party, "");
+      content: var(--doc-party, "");
       font-size: 8.5pt;
-      color: #595959;
+      color: var(--color-gray);
     }
 
     @bottom-right {
       content: "Page " counter(page);
       font-size: 8.5pt;
-      color: #595959;
+      color: var(--color-gray);
     }
   }
 
-  .sow-doc { page: sow; }
+  .doc-page { page: doc; }
 
-  /* Chrome nobody wants on paper, on every portal page. The quick-add button's
-     own <button> is covered by the rule below, but the box it floats in is
-     position: fixed — and a fixed box is how a blank last page happens. */
+  /* Chrome nobody wants on paper, on every portal page. */
   .portal-header,
-  .portal-fab,
   .section-nav,
   .toast-stack,
   .modal,
@@ -92,9 +91,9 @@
   button,
   .btn { display: none !important; }
 
-  /* When the export container is present it *is* the document: everything else
-     on the page is the same information in screen clothing. :has() lets the
-     stylesheet notice it without export.js having to touch the live page. */
+  /* When the print container is present it *is* the document: everything
+     else on the page is the same information in screen clothing. :has() lets
+     the stylesheet notice it without the print module touching the live page. */
   body:has(.print-doc) > *:not(.print-doc) { display: none !important; }
 
   body,
@@ -126,30 +125,31 @@
     text-decoration: underline;
   }
 
+  /* The letterhead: the mark, then the name with the address and the ways to
+     reach the business stacked under it, then the document's kind pushed to
+     the right. */
   .print-head {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 10pt;
     padding-bottom: 8pt;
     margin-bottom: 20pt;
     border-bottom: 2pt solid var(--color-orange);
   }
 
-  .print-head__mark { width: 34pt; height: 34pt; }
+  .print-head__mark { width: 34pt; height: 34pt; flex: 0 0 auto; }
 
   .print-head__wordmark {
-    margin: 0;
+    margin: 0 0 1pt;
     font-size: 13pt;
     font-weight: 800;
     letter-spacing: -0.02em;
   }
 
-  .print-head__site {
+  .print-head__line {
     margin: 0;
     font-size: 8.5pt;
-    font-weight: 600;
-    letter-spacing: .1em;
-    text-transform: uppercase;
+    line-height: 1.35;
     color: var(--color-gray);
   }
 
@@ -159,12 +159,6 @@
     line-height: 1.15;
     font-weight: 800;
     letter-spacing: -0.02em;
-  }
-
-  .print-summary {
-    margin: 0 0 12pt;
-    color: var(--color-gray);
-    max-width: 42em;
   }
 
   .print-facts {
@@ -188,91 +182,19 @@
 
   .print-fact dd { margin: 0; font-weight: 700; }
 
-  .print-progress {
-    margin: 0 0 18pt;
-    font-weight: 700;
-    color: var(--color-orange-deep);
-  }
-
   .print-section { margin: 0 0 16pt; }
 
-  .print-section__title {
-    margin: 0 0 8pt;
-    padding-bottom: 4pt;
-    font-size: 10pt;
-    font-weight: 700;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    color: var(--color-gray);
-    border-bottom: .75pt solid var(--color-line);
-    /* A heading stranded at the foot of a page belongs to nothing. */
-    break-after: avoid;
-  }
-
-  .print-none { margin: 0; color: var(--color-gray); }
-
-  /* A waypoint split across two sheets loses its status line, which is the
-     part the reader came for. */
-  .print-wp {
-    break-inside: avoid;
-    margin: 0 0 6pt;
-    padding: 2pt 0 2pt 10pt;
-    border-left: 2pt solid var(--color-line);
-  }
-
-  .print-wp__title { margin: 0; font-weight: 700; }
-  .print-wp__meta { margin: 1pt 0 0; font-size: 9pt; color: var(--color-gray); }
-  .print-wp__desc { margin: 3pt 0 0; color: var(--color-gray); }
-
-  .print-link { break-inside: avoid; margin: 0 0 9pt; }
-  .print-link__title { margin: 0; font-weight: 700; }
-  .print-link__desc { margin: 1pt 0 0; color: var(--color-gray); }
-  .print-link__url { margin: 1pt 0 0; font-size: 9.5pt; word-break: break-all; }
-
-  .print-doc-row {
-    break-inside: avoid;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 2pt 16pt;
-    padding: 4pt 0;
-    border-bottom: .75pt solid var(--color-line);
-  }
-
-  .print-doc-row__name { margin: 0; font-weight: 700; }
-  .print-doc-row__meta { margin: 0; font-size: 9pt; color: var(--color-gray); }
-
-  .print-foot {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4pt 18pt;
-    margin-top: 20pt;
-    padding-top: 8pt;
-    font-size: 9pt;
-    color: var(--color-gray);
-    border-top: 2pt solid var(--color-orange);
-    break-inside: avoid;
-  }
-
-  .print-foot p { margin: 0; }
-
-  /* The scope of work document
+  /* The document vocabulary
      ------------------------------------------------------------------------
-     Its own vocabulary rather than reusing the project export's, because the
-     two documents are not the same kind of thing: one is a progress report and
-     the other is signed. Headings are numbered and brand orange, tables carry
-     the deliverables, schedule, fees and care plan, and both parties get a
-     signature block.
+     Headings are brand orange, tables carry the charges, and the party block
+     says who is being billed. Named .doc-* rather than after any one
+     document so a second printable — a statement, a receipt — wears the
+     same clothes. */
 
-     The master agreement (js/portal/msa-print.js) is the other signed
-     document, and it prints in this same vocabulary on this same named page —
-     which is deliberate: the SOW and the MSA arrive in the same envelope, and
-     they should look like two chapters of one thing. */
+  .doc-page { font-size: 10.5pt; }
 
-  .sow-doc { font-size: 10.5pt; }
-
-  /* The SOW reference, pushed to the right of the letterhead. */
-  .sow-head__ref {
+  /* The document's kind, pushed to the right of the letterhead. */
+  .doc-head__ref {
     margin: 0 0 0 auto;
     font-size: 9pt;
     font-weight: 700;
@@ -281,17 +203,17 @@
     color: var(--color-gray);
   }
 
-  .sow-title { font-size: 20pt; margin-bottom: 2pt; }
+  .doc-title { font-size: 20pt; margin-bottom: 2pt; }
 
-  .sow-subtitle {
+  .doc-subtitle {
     margin: 0 0 14pt;
     font-size: 12pt;
     font-weight: 600;
     color: var(--color-gray);
   }
 
-  /* Who is contracting with whom, side by side. */
-  .sow-parties {
+  /* Who the document is addressed to. */
+  .doc-parties {
     display: flex;
     flex-wrap: wrap;
     gap: 12pt 32pt;
@@ -299,9 +221,9 @@
     break-inside: avoid;
   }
 
-  .sow-party { flex: 1 1 40%; }
+  .doc-party { flex: 1 1 40%; }
 
-  .sow-party__role {
+  .doc-party__role {
     margin: 0 0 2pt;
     font-size: 8pt;
     font-weight: 600;
@@ -310,26 +232,15 @@
     color: var(--color-gray);
   }
 
-  .sow-party__name { margin: 0; font-weight: 700; }
-  .sow-party__meta { margin: 0; font-size: 9.5pt; color: var(--color-gray); }
+  .doc-party__name { margin: 0; font-weight: 700; }
+  .doc-party__meta { margin: 0; font-size: 9.5pt; color: var(--color-gray); }
 
-  .sow-facts { margin-bottom: 10pt; }
+  .doc-facts { margin-bottom: 10pt; }
 
-  /* The sentence that makes the document mean anything: which master agreement
-     it incorporates. Set apart so it is not skimmed past. */
-  .sow-msa {
-    margin: 0 0 16pt;
-    padding: 8pt 10pt;
-    background: var(--color-orange-tint);
-    border-left: 2pt solid var(--color-orange);
-    font-size: 9.5pt;
-    break-inside: avoid;
-  }
+  /* Section headings are the brand orange. */
+  .doc-section { margin-bottom: 14pt; }
 
-  /* Section headings are the brand orange the Word template used. */
-  .sow-section { margin-bottom: 14pt; }
-
-  .sow-section__title {
+  .doc-section__title {
     margin: 0 0 6pt;
     padding-bottom: 3pt;
     font-size: 11pt;
@@ -337,55 +248,36 @@
     letter-spacing: -0.01em;
     color: var(--color-orange);
     border-bottom: .75pt solid var(--color-line);
+    /* A heading stranded at the foot of a page belongs to nothing. */
     break-after: avoid;
   }
 
-  .sow-p { margin: 0 0 6pt; }
+  .doc-p { margin: 0 0 6pt; }
 
-  .sow-note {
+  .doc-note {
     margin: 6pt 0 0;
     font-size: 9pt;
     color: var(--color-gray);
   }
 
-  .sow-list { margin: 0 0 4pt; padding-left: 14pt; }
-  .sow-list li { margin-bottom: 3pt; }
-
-  /* Numbered clauses — "2.3 Out-of-scope work." in bold, running on into the
-     text. The lead-in is not a heading: the agreements cite these by number
-     mid-sentence, so it has to read as part of the paragraph it introduces. */
-  .sow-clause { margin: 0 0 6pt; }
-  .sow-clause__lead { font-weight: 700; }
-
-  /* Numerals come from the snapshot, not from the list, so the counter is
-     switched off rather than trusted — see orderedList() in sow-print.js. */
-  .sow-olist { margin: 0 0 4pt; padding-left: 0; list-style: none; }
-  .sow-olist li {
-    margin-bottom: 3pt;
-    padding-left: 20pt;
-    text-indent: -20pt;
-  }
-  .sow-olist__num {
-    display: inline-block;
-    width: 20pt;
-    text-indent: 0;
-  }
+  .doc-bullets { margin: 0 0 4pt; padding-left: 14pt; }
+  .doc-bullets li { margin-bottom: 3pt; }
 
   /* Tables
      ------------------------------------------------------------------------
-     A header row that repeats on every sheet, because a fee column with no
-     heading on page two is a column of unexplained numbers. */
+     A header row that repeats on every sheet, because an amount column with
+     no heading on page two is a column of unexplained numbers. */
 
-  .sow-table {
+  .doc-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 9.5pt;
   }
 
-  .sow-table thead { display: table-header-group; }
-  .sow-table tr { break-inside: avoid; }
+  .doc-table thead { display: table-header-group; }
+  .doc-table tr { break-inside: avoid; }
 
-  .sow-table th {
+  .doc-table th {
     text-align: left;
     padding: 4pt 6pt 4pt 0;
     font-size: 8pt;
@@ -396,91 +288,36 @@
     border-bottom: .75pt solid var(--color-line);
   }
 
-  .sow-table td {
+  .doc-table td {
     padding: 5pt 6pt 5pt 0;
     vertical-align: top;
     border-bottom: .75pt solid var(--color-line);
   }
 
-  .sow-table th:last-child,
-  .sow-table td:last-child { padding-right: 0; }
+  .doc-table th:last-child,
+  .doc-table td:last-child { padding-right: 0; }
 
-  .sow-table__num,
-  th.sow-table__num {
+  .doc-table__num,
+  th.doc-table__num {
     text-align: right;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
   }
 
-  .sow-table__mid { white-space: nowrap; }
+  .doc-table__mid { white-space: nowrap; }
 
-  .sow-cell__name { display: block; font-weight: 700; }
-  .sow-cell__desc { display: block; color: var(--color-gray); }
+  .doc-cell__name { display: block; font-weight: 700; }
+  .doc-cell__desc { display: block; color: var(--color-gray); }
 
-  /* Fees. The deposit and balance are what the client acts on, so they are the
-     rows that carry weight. */
-  .sow-row--discount td { color: var(--color-gray); }
-  .sow-row--total td { font-weight: 700; border-top: 1.5pt solid var(--color-line); }
-  .sow-row--split td { font-weight: 700; }
-  .sow-row--split td:last-child { color: var(--color-orange-deep); }
+  /* The rows under the lines. */
+  .doc-tr--muted td { color: var(--color-gray); }
+  .doc-tr--total td { font-weight: 700; border-top: 1.5pt solid var(--color-line); }
 
-  /* Signatures
-     ------------------------------------------------------------------------
-     Never split across a page break: half a signature block is worse than one
-     on a sheet of its own. */
-  /* Two columns whose rules line up with each other, whatever the party names
-     do. A flex row will not manage that: "Walter Ochenski d/b/a New Journey
-     Designs" wraps to two lines where "Acme Roofing LLC" takes one, and every
-     rule below it in that column then sits lower than its opposite number — on
-     a signature block, which is read as a pair, that looks like a mistake.
-     A subgrid makes both columns share one set of row heights, so the
-     signature, name, title and date lines are level by construction rather
-     than by a min-height guessed against the longest name anyone expects. */
-  .sow-sign {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0 32pt;
-    margin-top: 10pt;
-    break-inside: avoid;
-  }
-
-  .sow-sign__col {
-    display: grid;
-    /* role, party, then four rule-and-label pairs. */
-    grid-row: span 10;
-    grid-template-rows: subgrid;
-  }
-
-  .sow-sign__role {
-    margin: 0 0 2pt;
-    font-size: 8pt;
-    font-weight: 600;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    color: var(--color-gray);
-  }
-
-  .sow-sign__party { margin: 0 0 14pt; font-weight: 700; align-self: end; }
-
-  .sow-sign__rule {
-    border-bottom: .75pt solid var(--color-charcoal);
-    height: 0;
-    align-self: end;
-  }
-
-  .sow-sign__label {
-    margin: 2pt 0 14pt;
-    font-size: 8pt;
-    color: var(--color-gray);
-  }
-
-  .sow-sign__col > .sow-sign__label:last-child { margin-bottom: 0; }
-
-  /* The document closes with the party line and the reference once, on the last
-     page. The @page margin box above carries them on every sheet; this is what
-     an engine without margin-box support is left with, and it is why the
+  /* The document closes with the party line and the reference once, on the
+     last page. The @page margin box above carries them on every sheet; this is
+     what an engine without margin-box support is left with, and it is why the
      information is in the flow at all rather than only in the margin. */
-  .sow-end {
+  .doc-end {
     display: flex;
     flex-wrap: wrap;
     gap: 4pt 12pt;
@@ -492,68 +329,41 @@
     break-inside: avoid;
   }
 
-  .sow-end p { margin: 0; }
-
-  /* The agreement's closing sentence is a sentence, not one of the short
-     reference chips beside it, so it takes the whole row. */
-  .sow-end__note { flex-basis: 100%; }
+  .doc-end p { margin: 0; }
 
   /* The invoice document
      ------------------------------------------------------------------------
-     Almost entirely the scope of work's vocabulary, on purpose: the two go to
-     the same client from the same studio and should look like it. The
-     letterhead, the party blocks, the section headings and the tables are all
-     the same rules, which also means a change to the brand is one change.
+     What is invoice-only is short, because there is exactly one thing an
+     invoice has that a plainer document does not: a number somebody has to
+     act on. */
 
-     What is invoice-only is here, and it is short — because there is exactly
-     one thing an invoice has that the other document does not, and that is a
-     number somebody has to act on. */
+  .inv-doc { page: doc; }
 
-  .inv-doc { page: sow; }
-
-  /* A tighter vertical rhythm than the scope of work's.
-     ------------------------------------------------------------------------
-     The two documents share their spacing rules, and those rules are tuned for
-     a contract — several pages, where generous leading between sections is what
-     makes it readable. An invoice is the opposite shape: one table and two
-     paragraphs, and the thing that matters is that it lands on one sheet. A
-     deposit invoice that runs to two pages, the second holding only "how to
-     pay", is a document that looks like it went wrong.
-
-     So the margins come in for this document only. Nothing here changes a type
-     size in the body — it is space between blocks, which is where a short
-     document can afford to give some back. */
+  /* A tight vertical rhythm. An invoice is one table and two paragraphs, and
+     the thing that matters is that it lands on one sheet: a two-page invoice
+     whose second page holds only "how to pay" looks like it went wrong. So
+     the margins come in for this document. Nothing here changes a type size
+     in the body — it is space between blocks. */
   .inv-doc .print-head { margin-bottom: 11pt; }
-  .inv-doc .sow-title { font-size: 18pt; }
-  .inv-doc .sow-subtitle { margin-bottom: 6pt; }
-  .inv-doc .sow-parties { margin-bottom: 6pt; }
-  .inv-doc .sow-msa { margin-bottom: 9pt; padding: 6pt 10pt; }
-  .inv-doc .sow-section { margin-bottom: 7pt; }
+  .inv-doc .doc-title { font-size: 18pt; }
+  .inv-doc .doc-subtitle { margin-bottom: 6pt; }
+  .inv-doc .doc-parties { margin-bottom: 6pt; }
+  .inv-doc .doc-section { margin-bottom: 7pt; }
 
-  /* The fact grid wraps to three rows at a 6.5in column whatever is in it, so
-     the saving here is the space between the rows rather than the rows
-     themselves. A dense block of five labelled facts does not need contract
-     leading to be read. */
-  .inv-doc .sow-facts {
+  .inv-doc .doc-facts {
     gap: 5pt 26pt;
     padding: 5pt 0;
     margin-bottom: 6pt;
   }
-  .inv-doc .sow-p { margin-bottom: 4pt; }
+  .inv-doc .doc-p { margin-bottom: 4pt; }
 
-  /* The closing strip sits tight to the content here rather than floating 18pt
-     below it. On a contract that space is breathing room; on a one-page invoice
-     it is the difference between a document and a document with a second sheet
-     carrying nothing but a rule and a party name.
+  /* The closing strip sits tight to the content rather than floating 18pt
+     below it. It is not simply dropped: margin boxes are a Chromium feature,
+     and in Firefox this strip is the only footer the document has. */
+  .inv-doc .doc-end { margin-top: 6pt; padding-top: 4pt; }
 
-     It is not simply dropped, tempting as that is — the same three facts are in
-     the @page margin box above, but margin boxes are a Chromium feature, and in
-     Firefox this strip is the only footer the document has. */
-  .inv-doc .sow-end { margin-top: 6pt; padding-top: 4pt; }
-
-  /* An address is read as a block, not as prose, and the contract's 1.5 leading
-     makes four short lines take the room of six. */
-  .inv-doc .sow-party__meta { line-height: 1.35; }
+  /* An address is read as a block, not as prose. */
+  .inv-doc .doc-party__meta { line-height: 1.35; }
 
   /* The amount due, in the fact list at the top. An invoice whose total can
      only be found by reading to the end of a table is an invoice that gets
@@ -565,9 +375,9 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Three columns rather than the fee table's two: description, the working
-     behind the number, and the number. The middle one is often empty — a flat
-     line has no quantity worth printing — so it is given only what it needs. */
+  /* Three columns: description, the working behind the number, and the
+     number. The middle one is often empty — a flat line has no quantity worth
+     printing — so it is given only what it needs. */
   .inv-table td:nth-child(2),
   .inv-table th:nth-child(2) {
     width: 22%;
@@ -575,8 +385,8 @@
     color: var(--color-gray);
   }
 
-  /* The row the whole document exists for. Heavier than the SOW's deposit line
-     because there is nothing under it competing for the eye. */
+  /* The row the whole document exists for. Heavier than the subtotal because
+     there is nothing under it competing for the eye. */
   .inv-row--due td {
     padding-top: 7pt;
     font-size: 12pt;
@@ -587,8 +397,8 @@
 
   .inv-row--due td:last-child { color: var(--color-orange-deep); }
 
-  /* Bank details and the rest. Set apart from the terms paragraph above it
-     because it is the part that gets copied out rather than read. */
+  /* Bank details and the rest. Set apart from the note above it because it
+     is the part that gets copied out rather than read. */
   .inv-pay {
     margin-top: 6pt;
     padding: 8pt 10pt;
@@ -600,14 +410,14 @@
   .inv-pay__line {
     margin: 0;
     font-size: 9.5pt;
-    /* Account numbers and sort codes are read a digit at a time. */
+    /* Account numbers and routing numbers are read a digit at a time. */
     font-variant-numeric: tabular-nums;
   }
 
-  /* The terms and the account details are one instruction. Split across a page
-     break — two lines at the foot of page one, the account number overleaf —
-     is how somebody pays the wrong way, or not at all. The block is short and
-     never grows past a few lines, so keeping it whole costs nothing.
+  /* The terms and the account details are one instruction. Split across a
+     page break — two lines at the foot of page one, the account number
+     overleaf — is how somebody pays the wrong way, or not at all. The block is
+     short and never grows past a few lines, so keeping it whole costs nothing.
 
      The charges table deliberately does *not* get this: an invoice with forty
      lines has to be allowed to break somewhere. */
@@ -616,89 +426,4 @@
   /* A single line stranded from its paragraph reads as a printing fault on a
      document about money. */
   .inv-doc p { orphans: 2; widows: 2; }
-
-  /* The year-end accounts pack
-     ------------------------------------------------------------------------
-     A different kind of document from the invoice and the scope of work above:
-     nobody signs it, and it is read by somebody who reads forty of them a
-     season. So it is dense, every statement starts on its own page, and the
-     numbers are tabular so a column can be scanned rather than added up. */
-
-  .pack-doc { font-size: 9.5pt; }
-
-  .pack-subtitle {
-    margin: 0 0 18pt;
-    font-size: 10.5pt;
-    color: #595959;
-  }
-
-  /* One statement per page. A preparer works through these a sheet at a time,
-     and a balance sheet that starts two thirds of the way down the page after
-     a profit and loss is a document that gets re-printed. The first has no
-     break before it, or the pack opens on a blank sheet. */
-  .pack-section { break-before: page; break-inside: auto; }
-  .pack-section:first-of-type { break-before: auto; }
-
-  .pack-section__title {
-    margin: 0 0 8pt;
-    font-size: 13pt;
-    border-bottom: 1pt solid #222;
-    padding-bottom: 4pt;
-  }
-
-  .pack-note {
-    margin: 0 0 10pt;
-    font-size: 9pt;
-    color: #595959;
-  }
-
-  .pack-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-
-  .pack-table td,
-  .pack-table th {
-    padding: 3pt 0;
-    vertical-align: top;
-  }
-
-  .pack-table th {
-    text-align: left;
-    font-size: 8.5pt;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    color: #595959;
-    border-bottom: .5pt solid #d9d9d9;
-  }
-
-  /* Every column after the first is a figure. */
-  .pack-table td:not(:first-child),
-  .pack-table th:not(:first-child) {
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    padding-left: 12pt;
-  }
-
-  .pack-table .report__total td {
-    font-weight: 700;
-    border-top: .5pt solid #222;
-    border-bottom: 0;
-  }
-
-  /* An account name under its section heading. */
-  .pack-indent { padding-left: 12pt; }
-
-  /* The detail tables — receivables, asset additions, the 1099 list — are
-     allowed to run long and to break, unlike the summaries above them. */
-  .pack-table--detail { font-size: 9pt; }
-  .pack-table--detail tr { break-inside: avoid; }
-
-  .pack-list { margin: 0 0 10pt; padding-left: 16pt; }
-  .pack-list li { margin-bottom: 4pt; }
-
-  /* Headings never end a page alone, on any statement in the pack. */
-  .pack-doc h2, .pack-doc h3 { break-after: avoid; }
-  .pack-doc p { orphans: 2; widows: 2; }
 }

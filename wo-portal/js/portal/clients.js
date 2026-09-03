@@ -5,15 +5,11 @@
 // *to* a client happens on the record behind it (js/portal/client-detail.js):
 // the list's job is to get you there in one search and one tap, whether you
 // remember the business name, the person you spoke to, or half of an email
-// address. The one thing you can do from here is reach somebody — the contact
-// column's emails and numbers are the same tap targets the record offers
-// (js/portal/contact-actions.js), because a call is not a reason to open a
-// record first.
-//
-// It used to be a panel on Admin, under the form entries and above the
-// journeys. That put the most-visited table on the site three scrolls down a
-// page about accounts and templates. Its own nav item and its own URL is the
-// difference between "where was that" and going straight there.
+// address. Two things can be done from here without opening a record: reach
+// somebody — the contact column's emails and numbers are the same tap targets
+// the record offers (js/portal/contact-actions.js) — and see who owes money,
+// because "who still has to pay us" is asked while looking at the list, not
+// while looking at a client.
 //
 // Staff only.
 // ---------------------------------------------------------------------------
@@ -21,21 +17,18 @@
 import { supabase, errorMessage } from './client.js';
 import { bootstrap, renderError } from './shell.js';
 import {
-  el, mount, byId, toast, titleCase,
+  el, mount, byId, toast, statusPill,
   table, filterField,
 } from './ui.js';
-import { openClientForm, openClientDuplicateForm } from './client-form.js';
+import { formatMoney } from './money.js';
+import { openClientForm, CLIENT_STATUS_OPTIONS } from './client-form.js';
 import { tapAction, emailAction, phoneAction } from './contact-actions.js';
 
-// Where a client sits with the studio, in the order a record moves through it.
-// Matches the options on the client form (js/portal/client-form.js).
-const STATUS_OPTIONS = [
-  { value: 'lead', label: 'Lead' },
-  { value: 'active', label: 'Active' },
-  { value: 'past', label: 'Past' },
-];
-
-const state = { clients: [] };
+const state = {
+  clients: [],
+  // client_id → cents still owed across their issued and sent invoices.
+  outstanding: new Map(),
+};
 
 const filters = { query: '', status: '' };
 
@@ -43,21 +36,43 @@ const filters = { query: '', status: '' };
 // ---------------------------------------------------------------------------
 
 async function loadClients() {
-  // Still one query. The embedded projects serve two columns at once: their
-  // count, and the names the contact column's email action offers when it
-  // asks which project a mail is about (js/portal/contact-actions.js).
   const { data, error } = await supabase
     .from('clients')
-    .select('*, projects(id, name, status, starts_on, created_at)')
+    .select('*')
     .order('name');
 
   if (error) throw error;
   state.clients = data || [];
 }
 
+/**
+ * What each client still owes: total less paid, over invoices that are out
+ * with them. A local read of `invoices` (client_id, total_cents, paid_cents,
+ * status) rather than an import from the invoices modules — three columns
+ * and a filter is not worth a dependency on a file mid-rewrite. Drafts are
+ * not owed yet, void ones never were, and paid ones are done, so only
+ * issued and sent count.
+ */
+async function loadOutstanding() {
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('client_id, total_cents, paid_cents')
+    .in('status', ['issued', 'sent']);
+
+  if (error) throw error;
+
+  const owed = new Map();
+  for (const row of data || []) {
+    const due = (Number(row.total_cents) || 0) - (Number(row.paid_cents) || 0);
+    if (due <= 0) continue;
+    owed.set(row.client_id, (owed.get(row.client_id) || 0) + due);
+  }
+  state.outstanding = owed;
+}
+
 async function refresh() {
   try {
-    await loadClients();
+    await Promise.all([loadClients(), loadOutstanding()]);
     render();
   } catch (error) {
     toast(errorMessage(error), 'error');
@@ -93,7 +108,7 @@ const statusPicker = el('select', {
   },
 }, [
   el('option', { value: '', text: 'All statuses' }),
-  ...STATUS_OPTIONS.map((option) => el('option', { value: option.value, text: option.label })),
+  ...CLIENT_STATUS_OPTIONS.map((option) => el('option', { value: option.value, text: option.label })),
 ]);
 
 const rowsHost = el('div');
@@ -113,32 +128,22 @@ function clearFilters() {
 }
 
 /** "I remember something about them" is what searching a client list means, so
- *  the business name, the person, the email and the phone all match. */
+ *  the business name, the legal name, the person, the email and the phone all
+ *  match. */
 function matches(client) {
   if (filters.status && (client.status || 'active') !== filters.status) return false;
 
   const query = filters.query.trim().toLowerCase();
   if (!query) return true;
 
-  return [client.name, client.contact_name, client.contact_email, client.contact_phone]
-    .some((field) => String(field || '').toLowerCase().includes(query));
+  return [
+    client.name, client.legal_name, client.contact_name,
+    client.contact_email, client.contact_phone,
+  ].some((field) => String(field || '').toLowerCase().includes(query));
 }
 
 // Rendering
 // ---------------------------------------------------------------------------
-
-function statusPill(status) {
-  const tone = { active: 'green', lead: 'amber' }[status] || '';
-  return el('span', {
-    class: tone ? `pill pill--${tone}` : 'pill',
-    text: titleCase(status || 'active'),
-  });
-}
-
-/** The embedded projects, as an array even for a client that has none. */
-function clientProjects(client) {
-  return Array.isArray(client.projects) ? client.projects : [];
-}
 
 /** How to reach them: the same tap targets the client record shows, opening
  *  the same sheets — an email drafts itself, a number offers the call or the
@@ -152,12 +157,10 @@ function contactCell(client) {
 
   const taps = [
     who.email
-      ? tapAction(who.email, `Email ${who.name || client.name}`,
-        () => emailAction(who, client, clientProjects(client)))
+      ? tapAction(who.email, `Email ${who.name || client.name}`, () => emailAction(who))
       : null,
     who.phone
-      ? tapAction(who.phone, `Call or text ${who.name || client.name}`,
-        () => phoneAction(who, client, clientProjects(client)))
+      ? tapAction(who.phone, `Call or text ${who.name || client.name}`, () => phoneAction(who))
       : null,
   ].filter(Boolean);
 
@@ -165,13 +168,19 @@ function contactCell(client) {
   return [el('div', { class: 'contact-stack' }, taps)];
 }
 
+/** Money owed, or a dash. Zero is shown as nothing rather than $0.00: a
+ *  column of zeros makes the one real figure hard to find. */
+function outstandingCell(client) {
+  const owed = state.outstanding.get(client.id) || 0;
+  return el('td', { class: 'is-numeric', text: owed > 0 ? formatMoney(owed) : '—' });
+}
+
 function renderRows() {
   const visible = state.clients.filter(matches);
 
-  // The record carries the whole CRM now, but the table stays a list you can
-  // scan: who, how to reach them, where they stand. The name is the way in —
-  // that cell is always visible, where the actions column is the first thing
-  // to slide off the edge of a narrow screen.
+  // A list you can scan: who, how to reach them, what they owe, where they
+  // stand. The name is the way in — that cell is always visible, where the
+  // last column is the first thing to slide off the edge of a narrow screen.
   const rows = visible.map((client) => el('tr', {}, [
     el('td', {}, [
       el('a', {
@@ -183,28 +192,8 @@ function renderRows() {
         : null,
     ]),
     el('td', {}, contactCell(client)),
-    el('td', {}, [statusPill(client.status)]),
-    el('td', { text: String(clientProjects(client).length) }),
-    // Two actions in one cell, so each one says whose row it is: "Edit" read
-    // out on its own, forty times down a list, tells a screen reader nothing.
-    el('td', {}, [
-      el('div', { class: 'btn-row' }, [
-        el('button', {
-          class: 'btn btn--ghost btn--tiny',
-          type: 'button',
-          text: 'Edit',
-          'aria-label': `Edit ${client.name}`,
-          onclick: () => showClientForm(client),
-        }),
-        el('button', {
-          class: 'btn btn--ghost btn--tiny',
-          type: 'button',
-          text: 'Duplicate',
-          'aria-label': `Duplicate ${client.name}`,
-          onclick: () => duplicateClient(client),
-        }),
-      ]),
-    ]),
+    outstandingCell(client),
+    el('td', {}, [statusPill(client.status || 'active')]),
   ]));
 
   // Both numbers only while a filter is on, so an unfiltered list never reads
@@ -216,7 +205,7 @@ function renderRows() {
   mount(rowsHost,
     count,
     visible.length
-      ? table(['Client', 'Contact', 'Status', 'Projects', ''], rows)
+      ? table(['Client', 'Contact', 'Outstanding', 'Status'], rows)
       : el('p', {
         class: 'empty',
         text: 'Nothing matches that search. Try fewer letters, or clear the filters.',
@@ -249,8 +238,7 @@ function render() {
     mount(panel,
       el('p', {
         class: 'empty',
-        text: 'No clients yet. Add one here — or start a project from Projects '
-            + 'and create the client on the same form.',
+        text: 'No clients yet. Add one here — an invoice needs a client to bill.',
       }),
     );
     return;
@@ -261,20 +249,16 @@ function render() {
 }
 
 /** The shared form (js/portal/client-form.js) does the editing and the toasts;
- *  this page only has to redraw its table afterwards. */
-async function showClientForm(client) {
-  const result = await openClientForm(client);
-  if (result) await refresh();
-  return result;
-}
-
-/** Start a new client from an existing one — the second location, the sister
- *  company, the landlord who sends four buildings' worth of work under four
- *  names. The same form, prefilled; the copy is created only when it is
- *  submitted, and lands next to its original once the list re-sorts by name. */
-async function duplicateClient(client) {
-  const result = await openClientDuplicateForm(client);
-  if (result) await refresh();
+ *  a new client is opened straight away, because the next thing after adding
+ *  one is almost always filing something under it or raising an invoice. */
+async function addClient() {
+  const result = await openClientForm(null);
+  if (!result) return;
+  if (result.id) {
+    window.location.href = `/portal/client/?id=${encodeURIComponent(result.id)}`;
+    return;
+  }
+  await refresh();
 }
 
 // ---------------------------------------------------------------------------
@@ -284,7 +268,7 @@ async function main() {
   if (!ctx) return;
 
   try {
-    await loadClients();
+    await Promise.all([loadClients(), loadOutstanding()]);
   } catch (error) {
     renderError(error);
     return;
@@ -295,14 +279,14 @@ async function main() {
       el('div', {}, [
         el('h1', { text: 'Clients' }),
         el('p', { text: 'Everyone on the books. Open a name for their record — '
-                      + 'projects, contacts, documents and notes.' }),
+                      + 'invoices, expenses, documents, contacts and notes.' }),
       ]),
       el('div', { class: 'page-head__actions' }, [
         el('button', {
           class: 'btn btn--small',
           type: 'button',
           text: 'Add client',
-          onclick: () => showClientForm(null),
+          onclick: () => addClient(),
         }),
       ]),
     ]),

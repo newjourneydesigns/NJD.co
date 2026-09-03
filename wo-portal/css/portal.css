@@ -2954,8 +2954,8 @@ a.record-row__name:focus-visible {
 .send-field__why,
 .send-check__label,
 .send-check__why,
-.sow-cell__name,
-.sow-cell__desc,
+.row-cell__name,
+.row-cell__desc,
 .settings-row__text,
 .fee-discount__why,
 .picker-row .check,
@@ -3461,9 +3461,9 @@ a.record-row__name:focus-visible {
 .table tr.is-archived { opacity: .6; }
 
 /* Used by both screens for the second line inside a table cell. */
-.sow-cell__name { display: block; font-weight: var(--weight-emphasis); }
+.row-cell__name { display: block; font-weight: var(--weight-emphasis); }
 
-.sow-cell__desc {
+.row-cell__desc {
   display: block;
   font-size: var(--text-sm);
   color: var(--color-ink-soft);
@@ -3923,7 +3923,7 @@ a.record-row__name:focus-visible {
    unscannable — and the browser, seeing they *can* wrap, hands their width to
    whichever neighbouring cell has the longest sentence in it. */
 .table td.is-tight { white-space: nowrap; }
-.table td.is-tight .sow-cell__desc { white-space: normal; }
+.table td.is-tight .row-cell__desc { white-space: normal; }
 
 /* Below 640px the table is stacked cards, which are narrow and scroll
    nowhere — release the no-wrap rather than push past the card edge. */
@@ -4730,9 +4730,9 @@ a.record-row__name:focus-visible {
   margin-bottom: var(--space-3);
 }
 
-.doc-review__doc .sow-party { flex: 1 1 14rem; min-width: 0; }
+.doc-review__doc .doc-party { flex: 1 1 14rem; min-width: 0; }
 
-.doc-review__doc .sow-party__role {
+.doc-review__doc .doc-party__role {
   margin: 0 0 var(--space-1);
   font-size: var(--text-xs);
   font-weight: var(--weight-emphasis);
@@ -4741,8 +4741,8 @@ a.record-row__name:focus-visible {
   color: var(--color-gray);
 }
 
-.doc-review__doc .sow-party__name { margin: 0; font-weight: var(--weight-strong); }
-.doc-review__doc .sow-party__meta {
+.doc-review__doc .doc-party__name { margin: 0; font-weight: var(--weight-strong); }
+.doc-review__doc .doc-party__meta {
   margin: 0;
   font-size: var(--text-base);
   color: var(--color-gray);
@@ -4855,8 +4855,8 @@ a.record-row__name:focus-visible {
 }
 
 .doc-review__doc .sow-table__mid { white-space: nowrap; }
-.doc-review__doc .sow-cell__name { display: block; font-weight: var(--weight-strong); }
-.doc-review__doc .sow-cell__desc { display: block; color: var(--color-gray); }
+.doc-review__doc .row-cell__name { display: block; font-weight: var(--weight-strong); }
+.doc-review__doc .row-cell__desc { display: block; color: var(--color-gray); }
 
 .doc-review__doc .sow-row--discount td { color: var(--color-gray); }
 .doc-review__doc .sow-row--total td {

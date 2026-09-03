@@ -1,87 +1,98 @@
 // ---------------------------------------------------------------------------
-// What the studio spends, and who it spends it with.
+// What the business spends, and who it spends it with.
 //
-// Recording an expense is the one bookkeeping habit that has to be frictionless
-// or it does not happen, and an expense that does not get recorded is a
-// deduction the studio pays tax on for no reason. So this form is short: a
-// date, an amount, what it was for, what paid for it. Everything else — the
-// client it belongs to, the receipt, whether it gets billed back — is optional
-// and sits below the fold.
+// Recording an expense is the one bookkeeping habit that has to be
+// frictionless or it does not happen, and an expense that does not get
+// recorded is a deduction the business pays tax on for no reason. So the form
+// is short: a date, an amount, who it went to, what it was for. Everything
+// else — the client it belongs to, whether it gets billed back, the where and
+// why the IRS asks for on a meal — is optional and sits behind a summary line.
 //
-// An expense here is recorded when it is paid, which is a deliberate
-// simplification: this studio pays a card and a bank account, not a payables
-// run. It is also why the cash-basis and accrual-basis reports agree on costs.
-// A genuine accrual is still possible as a journal entry against 2000 Accounts
-// payable, for the rare case that needs it.
+// Three panels on one page, with a jump bar between them: the expenses
+// themselves, the subscriptions that land every month, and the vendors those
+// go to. Every write goes through expenses-data.js; every sum goes through
+// expenses-model.js, where node --test can hold it to account.
 //
 // The receipt is worth the extra step. A deduction without one is a deduction
 // that does not survive an audit, and photographing it now costs nothing.
 // ---------------------------------------------------------------------------
 
-import { supabase, errorMessage } from './client.js';
+import { errorMessage } from './client.js';
 import { bootstrap, renderError } from './shell.js';
-import { el, mount, byId, toast, formModal, fmtDate, fmtBytes, panelHead, table, confirmModal } from './ui.js';
-import { shouldAutoOpen } from './quick-add-model.js';
-import { formatMoney, parseMoney } from './sow-fees.js';
+import {
+  el, mount, byId, toast, busy, formModal, confirmModal, modalShell,
+  fmtDate, panelHead, table, figure, figureRow, filterField,
+} from './ui.js';
+import { icon } from './icons.js';
+import { formatMoney } from './money.js';
+import { isoToday } from './doc-common.js';
 import { downloadCsv } from './csv.js';
+import { pickFile } from './files.js';
+import { sectionNav } from './section-nav.js';
 import {
-  pickFile, safeName, shrinkImage, makeThumbnail, MAX_UPLOAD_BYTES,
-} from './files.js';
-import {
-  CASH_SUBTYPES,
-  MILEAGE_ACCOUNT_CODE,
   PAYMENT_METHODS,
-  accountLabel,
-  defaultMethodFor,
+  RECEIPT_ACCEPT,
+  categoryOptions,
+  expensePatch,
+  filterExpenses,
+  formatSigned,
   matchVendor,
-  memberName,
   methodLabel,
-  personName,
-  mileageAmount,
-  mileageRateLabel,
+  monthName,
+  MONTH_NAMES,
+  receiptMime,
+  receiptsOf,
   recentValues,
+  recurringPatch,
   recurringStatus,
+  scheduleCLabel,
   substantiationGaps,
-} from './ledger-catalog.js';
+  sumCents,
+  vendorNameOf,
+  vendorTotals,
+  yearOptions,
+} from './expenses-model.js';
 import {
   addReceipt,
+  archiveVendor,
   deleteExpense,
   deleteReceipt,
   deleteRecurring,
-  loadAccounts,
+  loadCategories,
   loadClients,
+  loadEarliestYear,
   loadExpenses,
-  loadOwners,
-  loadProjects,
+  loadNecThreshold,
+  loadReceipts,
   loadRecurring,
-  loadSettings,
   loadVendors,
+  receiptUrl,
+  recordRecurring,
+  resolveVendor,
+  restoreVendor,
   saveExpense,
   saveRecurring,
   saveVendor,
-} from './ledger-data.js';
-
-const RECEIPT_BUCKET = 'expense-receipts';
+} from './expenses-data.js';
 
 const state = {
   profileId: null,
-  accounts: [],
+  categories: [],
   vendors: [],
   clients: [],
-  projects: [],
   expenses: [],
   recurring: [],
-  owners: [],
-  settings: null,
-  from: '',
-  to: '',
+  necThreshold: 0,
+  earliestYear: null,
+  // The list filters. The year decides what is loaded; the rest narrow it in
+  // the browser, so typing in the search box never waits on the network.
+  year: '',
+  month: '',
+  categoryId: '',
+  clientId: '',
+  vendorId: '',
   search: '',
-  accountId: '',
-  // Who entered it. "Anyone" by default, which is the opposite of the drive
-  // log's default and deliberately so: a mileage log is filed per person, and
-  // the expense ledger is the studio's whole spend. The filter is here for
-  // "what did Vic put through last month", not for privacy.
-  enteredBy: '',
+  showArchivedVendors: false,
 };
 
 const panels = {
@@ -90,152 +101,65 @@ const panels = {
   vendors: el('section', { class: 'panel' }),
 };
 
+const figuresBox = el('div', {});
 const expenseTable = el('div', {});
 const recurringTable = el('div', {});
 const vendorTable = el('div', {});
 
-function todayIso() {
-  const now = new Date();
+// The three filter selects whose option lists move as vendors and categories
+// are added. Kept so a re-render can repopulate them without rebuilding the
+// bar — which would take the cursor out of the search box mid-word.
+const filterSelects = {};
+
+function currentYear() {
+  return Number(isoToday().slice(0, 4));
+}
+
+function categoryById(id) {
+  return state.categories.find((row) => row.id === id) || null;
+}
+
+function activeVendors() {
+  return state.vendors.filter((row) => !row.archived_at);
+}
+
+function clientOptions(blankLabel) {
   return [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-  ].join('-');
-}
-
-function yearStart() {
-  return `${todayIso().slice(0, 4)}-01-01`;
-}
-
-function spendAccounts() {
-  return state.accounts.filter((row) => !row.archived_at && row.type === 'expense');
-}
-
-/**
- * The category list, in the order a chart of accounts is read and with each
- * account's own description attached.
- *
- * Cost of sales first because those are the costs a job creates, then the
- * overheads, then anything below the line. A flat alphabetical list of forty
- * accounts is how a cost ends up in a different place every month.
- */
-function categoryOptions() {
-  const order = { cost_of_sales: 0, expense: 1, other_expense: 2 };
-  const heading = {
-    cost_of_sales: 'Cost of the work',
-    expense: 'Running the studio',
-    other_expense: 'Below the line',
-  };
-
-  return spendAccounts()
-    .slice()
-    .sort((a, b) => (order[a.subtype] - order[b.subtype]) || a.code.localeCompare(b.code))
-    .map((account) => ({
-      value: account.id,
-      label: `${heading[account.subtype]} — ${accountLabel(account)}`
-           + (account.needs_substantiation ? ' (needs the story)' : ''),
-    }));
-}
-
-function cashAccounts() {
-  return state.accounts.filter((row) => (
-    !row.archived_at && CASH_SUBTYPES.includes(row.subtype)
-  ));
-}
-
-/**
- * The capital accounts a personally-borne cost can be credited to — one per
- * member, named for the member rather than for the account.
- *
- * No bank or card moved when a member pays out of their own pocket, so
- * crediting one would misstate a balance the reconciliation has to prove. It
- * is their capital account that grows, and *whose* is the whole point: a
- * pooled credit moves one member's stake in the studio onto everybody's.
- */
-function memberAccounts() {
-  return state.owners
-    .map((member) => {
-      const account = state.accounts.find((a) => (
-        a.id === member.contributions_account_id && !a.archived_at
-      ));
-      return account ? { account, member } : null;
-    })
-    .filter(Boolean);
-}
-
-function payFromAccounts() {
-  return [...cashAccounts(), ...memberAccounts().map((row) => row.account)];
-}
-
-// What the form remembers between visits
-// ---------------------------------------------------------------------------
-//
-// One studio, one card, forty expenses a year against it. Asking "what paid
-// for it" from a blank select every single time is asking a question whose
-// answer has not changed since March.
-
-const PREFS_KEY = 'njd.ledger.expense.prefs';
-
-function rememberPrefs(patch) {
-  try {
-    window.localStorage.setItem(PREFS_KEY, JSON.stringify({ ...lastPrefs(), ...patch }));
-  } catch {
-    // Private mode, a full quota, a browser that says no. The memory is a
-    // nicety and its absence costs one extra tap.
-  }
-}
-
-/** Whatever was last used, shaped the same however little came back — a
- *  convenience is not worth an exception on the way to opening a form. */
-function lastPrefs() {
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(PREFS_KEY) || '{}');
-    if (!parsed || typeof parsed !== 'object') return {};
-    return {
-      paidFrom: typeof parsed.paidFrom === 'string' ? parsed.paidFrom : null,
-      method: typeof parsed.method === 'string' ? parsed.method : null,
-    };
-  } catch {
-    return {};
-  }
-}
-
-/** The account to open "what paid for it" on: the one used last, while it is
- *  still an account money can come out of. Never a guess at somebody else's
- *  capital account, which is a statement about who bore a cost. */
-function rememberedPayFrom() {
-  const { paidFrom } = lastPrefs();
-  if (!paidFrom) return '';
-  return cashAccounts().some((account) => account.id === paidFrom) ? paidFrom : '';
-}
-
-/** The paid-from option list, with each member's own line saying in words
- *  what picking it means. */
-function payFromOptions() {
-  return [
-    ...cashAccounts().map((a) => ({ value: a.id, label: accountLabel(a) })),
-    ...memberAccounts().map(({ account, member }) => ({
-      value: account.id,
-      label: `${memberName(member)} — paid personally`,
-    })),
+    { value: '', label: blankLabel },
+    ...state.clients.map((client) => ({ value: client.id, label: client.name })),
   ];
 }
 
+/** Every supplier the books have heard of, saved or typed once, for the
+ *  vendor box's datalist. Saved names first, in the casing they were saved. */
+function vendorSuggestions() {
+  const seen = new Set();
+  const out = [];
+  [...activeVendors().map((v) => v.name), ...recentValues(state.expenses, 'vendor_name')]
+    .forEach((name) => {
+      const key = String(name || '').trim().toLowerCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      out.push(name);
+    });
+  return out;
+}
+
 async function loadAll() {
-  const [accounts, vendors, clients, projects, settings, expenses, recurring, owners] =
+  const [categories, vendors, clients, expenses, recurring, necThreshold, earliestYear] =
     await Promise.all([
-      loadAccounts(),
+      loadCategories({ includeArchived: true }),
       loadVendors({ includeArchived: true }),
       loadClients(),
-      loadProjects(),
-      loadSettings(),
-      loadExpenses({ from: state.from || null, to: state.to || null }),
+      loadExpenses({ year: state.year }),
       loadRecurring(),
-      loadOwners(),
+      loadNecThreshold(),
+      loadEarliestYear(),
     ]);
 
-  Object.assign(state,
-    { accounts, vendors, clients, projects, settings, expenses, recurring, owners });
+  Object.assign(state, {
+    categories, vendors, clients, expenses, recurring, necThreshold, earliestYear,
+  });
 }
 
 async function refresh(render) {
@@ -252,55 +176,28 @@ async function refresh(render) {
 // ---------------------------------------------------------------------------
 
 /**
- * The expense form.
+ * The expense form: the whole shape formModal needs — fields, sections and
+ * the watcher that drives one from another — because the three are one
+ * design and reading them apart is how they drift.
  *
- * Six questions on the screen and nine more behind two summary lines — and
- * not one of the fifteen dropped. What changed is who answers them: the
- * vendor names its own category, the account that paid names its own method,
- * the substantiation block opens itself when the category is one the IRS asks
- * about, and the miles box appears only for the account that means miles.
- *
- * The version before this put all fifteen in one flat column, on the argument
- * that a field which materialises when you pick a category is a field people
- * learn to avoid. That argument was right about *materialising* and wrong
- * about the remedy: fifteen boxes between a lunch receipt and Record it
- * produced exactly one hand-typed expense in the life of the ledger. Nothing
- * here appears out of nowhere — the sections are on the screen from the start,
- * named, and say on their own summary line what is waiting inside. They open
- * themselves rather than existing conditionally.
- *
- * The category list is grouped so that a cost of sales and an overhead are
- * visibly different kinds of thing, and every option carries its account's own
- * description, so "what belongs in this one" is answered where the choice is
- * made.
- *
- * Returns the whole shape formModal needs — fields, sections, and the watcher
- * that drives one from another — because the three are one design and reading
- * them apart is how they drift.
+ * Six questions in the open and the rest behind two summary lines. The
+ * vendor names its own category (vendors.default_category_id), and the
+ * substantiation section opens itself when the category is one the IRS asks
+ * about. Nothing here appears out of nowhere: the sections are on the screen
+ * from the start, named, and say on their own summary line what is waiting.
  */
 function expenseForm(row = {}) {
-  const rate = (state.settings && state.settings.mileage_rate_cents) || 70;
-  const editing = Boolean(row.id);
-
-  // Every supplier the ledger has ever heard of, saved or typed once as a
-  // one-off. This is the field that used to be two — a select of saved vendors
-  // and a text box under it captioned "Only read when no vendor is picked
-  // above" — which is a precedence rule nobody should be reading at a counter.
-  const vendorNames = [
-    ...state.vendors.filter((v) => !v.archived_at).map((v) => v.name),
-    ...recentValues(state.expenses, 'vendor_name', { limit: 10 }),
-  ];
-
   const openingVendor = row.vendor_id
-    ? (state.vendors.find((v) => v.id === row.vendor_id) || {}).name || ''
-    : row.vendor_name || '';
+    ? ((state.vendors.find((v) => v.id === row.vendor_id) || {}).name || '')
+    : (row.vendor_name || '');
 
   return {
     groups: [
       {
         key: 'story',
-        label: 'The who, what and where',
-        hint: 'Checking…',
+        label: 'Where, why and who',
+        hint: 'Optional for most categories.',
+        open: Boolean(row.place || row.business_purpose || row.attendees),
       },
       {
         key: 'extras',
@@ -311,42 +208,39 @@ function expenseForm(row = {}) {
     ],
 
     fields: [
-      { name: 'spent_on', label: 'Date', type: 'date', required: true,
-        value: row.spent_on || todayIso() },
-      { name: 'amount', label: 'Amount', type: 'text', inputmode: 'decimal',
-        value: row.amount_cents ? formatMoney(row.amount_cents).replace(/^\$/, '') : '',
+      { name: 'spent_on', label: 'Date paid', type: 'date', required: true,
+        value: row.spent_on || isoToday() },
+      { name: 'amount', label: 'Amount', type: 'text', inputmode: 'decimal', required: true,
+        value: row.amount_cents ? (row.amount_cents / 100).toFixed(2) : '',
         hint: 'A refund from a supplier is a negative amount.' },
       {
         name: 'vendor',
-        label: 'Who it was paid to',
+        label: 'Paid to',
         type: 'text',
         value: openingVendor,
-        suggestions: vendorNames,
+        suggestions: vendorSuggestions(),
         autocapitalize: 'words',
         hint: 'A name used before fills the category in for you. A new one is '
-            + 'remembered, so the next time it does the same.',
+            + 'saved as a vendor, so the next time it does the same.',
       },
       {
-        name: 'account_id',
+        name: 'category_id',
         label: 'Category',
         type: 'select',
-        value: row.account_id || '',
-        options: categoryOptions(),
-      },
-      {
-        name: 'paid_from_account_id',
-        label: 'What paid for it',
-        type: 'select',
-        // An edit keeps what it was booked against; a new one opens on
-        // whatever paid for the last one.
-        value: row.paid_from_account_id || (editing ? '' : rememberedPayFrom()),
-        options: payFromOptions(),
+        required: true,
+        value: row.category_id || '',
+        options: [
+          { value: '', label: 'Pick a category' },
+          ...categoryOptions(state.categories, { keepId: row.category_id || null }),
+        ],
       },
       { name: 'description', label: 'What it was', type: 'text',
         value: row.description || '',
         suggestions: recentValues(state.expenses, 'description') },
+      { name: 'method', label: 'Paid by', type: 'select',
+        value: row.method || 'card', options: PAYMENT_METHODS },
 
-      // The three the IRS asks for, and the one the mileage rate needs.
+      // The three the IRS asks for on a meal, a trip or a gift.
       {
         name: 'place',
         label: 'Where',
@@ -358,34 +252,23 @@ function expenseForm(row = {}) {
       },
       {
         name: 'business_purpose',
-        label: 'What you were doing',
+        label: 'Business purpose',
         type: 'text',
         group: 'story',
         value: row.business_purpose || '',
         suggestions: recentValues(state.expenses, 'business_purpose'),
-        hint: 'The business reason, in a few words — "discussing the spring rebrand". '
-            + 'This is the field a deduction is most often disallowed for missing.',
+        hint: 'In a few words — "discussing the spring rebrand". This is the '
+            + 'field a deduction is most often disallowed for missing.',
       },
       {
         name: 'attendees',
-        label: 'Who you were with',
+        label: 'Who was there',
         type: 'text',
         group: 'story',
         value: row.attendees || '',
         suggestions: recentValues(state.expenses, 'attendees'),
         hint: 'Names and how they relate to the business — "Dana Reid (prospective '
-            + 'client, Acme Co)". Needed for meals and gifts.',
-      },
-      {
-        name: 'miles',
-        label: 'Miles driven',
-        type: 'text',
-        inputmode: 'decimal',
-        group: 'story',
-        value: row.miles == null ? '' : String(row.miles),
-        hint: 'Leave the amount empty and it is worked out at '
-            + `${mileageRateLabel(rate)} a mile. The Drives page tracks trips with `
-            + 'GPS and logs them here itself.',
+            + 'client, Acme Co)". Asked for on meals and gifts.',
       },
 
       {
@@ -394,25 +277,12 @@ function expenseForm(row = {}) {
         type: 'select',
         group: 'extras',
         value: row.client_id || '',
-        options: [
-          { value: '', label: 'An overhead, not a job cost' },
-          ...state.clients.map((c) => ({ value: c.id, label: c.name })),
-        ],
+        options: clientOptions('An overhead, not a job cost'),
       },
-      { name: 'billable', label: 'Meant to be billed back to them', type: 'checkbox',
+      { name: 'billable', label: 'Bill it back to them', type: 'checkbox',
         group: 'extras', value: Boolean(row.billable) },
-      {
-        name: 'method',
-        label: 'How',
-        type: 'select',
-        group: 'extras',
-        value: row.method || 'card',
-        options: PAYMENT_METHODS,
-        hint: 'Set from the account above. Change it for the cheque written off '
-            + 'the checking account.',
-      },
       { name: 'reference', label: 'Reference', type: 'text', group: 'extras',
-        value: row.reference || '' },
+        value: row.reference || '', hint: 'An order or receipt number.' },
     ],
 
     onChange: expenseWatch(row),
@@ -422,208 +292,214 @@ function expenseForm(row = {}) {
 /**
  * The part that answers a question with another question's answer.
  *
- * Both prefills are keyed on *what changed*, not on what is empty: filling
- * only-when-blank would leave the category on the first vendor's after you
- * corrected the vendor, and re-imposing it on every keystroke would fight
- * anyone who deliberately booked a Dropbox charge somewhere unusual. So each
- * remembers what it last acted on and moves only when that moves.
+ * The category prefill is keyed on *what changed*, not on what is empty:
+ * filling only-when-blank would leave the category on the first vendor's
+ * after you corrected the vendor, and re-imposing it on every keystroke would
+ * fight anyone who deliberately booked an Adobe charge somewhere unusual. So
+ * it remembers which vendor it last acted on and moves only when that moves.
  *
- * The opening call arrives with `name === null`. It seeds those trackers and
+ * The opening call arrives with `name === null`. It seeds the tracker and
  * sets the sections, and deliberately prefills nothing: an expense being
  * edited was booked the way it was booked.
  */
 function expenseWatch(row = {}) {
   let lastVendorId = row.vendor_id || null;
-  let lastPaidFrom = row.paid_from_account_id || '';
 
   return (name, values, api) => {
     const opening = name === null;
 
-    // A vendor knows where its bills go. That is what vendors.default_account_id
-    // in schema.sql was added for, and until now nothing ever read it.
-    const vendor = matchVendor(values.vendor, state.vendors);
+    const vendor = matchVendor(state.vendors, values.vendor);
     const vendorId = vendor ? vendor.id : null;
     if (!opening && vendorId !== lastVendorId) {
       lastVendorId = vendorId;
-      if (vendor && vendor.default_account_id
-          && spendAccounts().some((a) => a.id === vendor.default_account_id)) {
-        api.set('account_id', vendor.default_account_id);
+      if (vendor && vendor.default_category_id && categoryById(vendor.default_category_id)) {
+        api.set('category_id', vendor.default_category_id);
       }
     }
 
-    // Money out of a card left on a card. Only ever set for an account whose
-    // subtype answers the question — a member's capital account means they
-    // paid it personally, and how is theirs to say.
-    if (!opening && values.paid_from_account_id !== lastPaidFrom) {
-      lastPaidFrom = values.paid_from_account_id;
-      const account = state.accounts.find((a) => a.id === values.paid_from_account_id);
-      const method = defaultMethodFor(account);
-      if (method) api.set('method', method);
-    }
+    const category = categoryById(values.category_id);
+    const wantsStory = Boolean(category && category.needs_substantiation);
+    const wantsWho = Boolean(category && category.needs_attendees);
+    const asks = wantsStory || wantsWho;
 
-    const account = state.accounts.find((a) => a.id === values.account_id) || null;
-    const needed = Boolean(account && account.needs_substantiation);
+    // A category with no flags leaves all three on offer, quietly. One with
+    // flags shows the ones it asks for and hides the rest — unless a value is
+    // already in one, so an edit can never strand something the books hold.
+    api.show('place', !asks || wantsStory || Boolean(values.place));
+    api.show('business_purpose', !asks || wantsStory || Boolean(values.business_purpose));
+    api.show('attendees', !asks || wantsWho || Boolean(values.attendees));
 
-    // The miles box belongs to one account and looks like a demand everywhere
-    // else. Shown anyway where a value is already in it, so an edit can never
-    // strand a number the books were built on.
-    api.show('miles', (account && account.code === MILEAGE_ACCOUNT_CODE)
-      || Boolean(values.miles));
-
-    // Same three fields either way; what changes is whether the summary line
-    // says the IRS is waiting on them. substantiationGaps is the authority the
-    // expense list already reports against, so the form and the list cannot
-    // disagree about what is missing.
-    const gaps = substantiationGaps({
-      place: values.place,
-      business_purpose: values.business_purpose,
-      attendees: values.attendees,
-      miles: values.miles,
-    }, account);
-
-    if (!needed) {
+    // substantiationGaps is the authority the list already reports against,
+    // so the form and the list cannot disagree about what is missing. It is
+    // a warning on the summary line, never a reason the form refuses to save.
+    const gaps = substantiationGaps(values, category);
+    if (!asks) {
       api.note('story', 'Optional for this category — worth a line anyway.');
     } else if (gaps.length) {
-      api.note('story', `${accountLabel(account)} needs ${gaps.join(', ')}.`);
+      api.note('story', `${category.name} usually needs ${gaps.join(', ')}. `
+        + 'You can still save without it.');
     } else {
-      api.note('story', `${accountLabel(account)} — all three recorded.`);
+      api.note('story', `${category.name} — all recorded.`);
     }
 
     // Opened, never closed. A section that shut itself while somebody was
     // reading it would be worse than one that never opened.
-    if (needed || values.place || values.business_purpose || values.attendees) {
-      api.openGroup('story');
-    }
+    if (asks) api.openGroup('story');
   };
 }
 
-/**
- * The vendor a typed name means, adding one where the name is new.
- *
- * Auto-creating is the hinge the rest of this turns on. The category prefill
- * reads vendors.default_account_id, and a vendor table nobody ever fills in
- * has nothing to read — which is exactly where this ledger was: zero vendors,
- * a column added for this job, and a select of saved vendors that was always
- * empty. Recording an expense is now what populates it, so the second Adobe
- * charge is a date and an amount.
- *
- * Nothing here can fail the expense. A name that lost a race with the unique
- * index on lower(name), or a write refused outright, falls back to
- * vendor_name — the column that exists so that adding a vendor record is a
- * choice rather than a toll gate on recording a receipt.
- */
-async function resolveVendor(name, accountId) {
-  const typed = String(name || '').trim();
-  if (!typed) return { vendor_id: null, vendor_name: null, created: null };
-
-  const existing = matchVendor(typed, state.vendors);
-  if (existing) {
-    // A vendor added through the Vendors panel usually has no category on it.
-    // Filling that blank from the first expense booked against it is what
-    // makes the second one fill itself. Never overwrites a chosen category.
-    if (!existing.default_account_id && accountId) {
-      try {
-        await saveVendor(existing.id, { default_account_id: accountId });
-      } catch {
-        // A category that did not stick costs one select next time.
-      }
-    }
-    return { vendor_id: existing.id, vendor_name: null, created: null };
-  }
-
-  try {
-    const id = await saveVendor(null, { name: typed, default_account_id: accountId || null });
-    return { vendor_id: id, vendor_name: null, created: typed };
-  } catch {
-    return { vendor_id: null, vendor_name: typed, created: null };
-  }
-}
-
-function expensePatch(values, vendorRef = {}) {
-  if (!values.account_id) throw new Error('Pick a category.');
-  if (!values.paid_from_account_id) throw new Error('Pick what paid for it.');
-
-  const miles = values.miles === '' ? null : Number(values.miles);
-  if (miles !== null && (!Number.isFinite(miles) || miles < 0)) {
-    throw new Error('That mileage is not a number.');
-  }
-
-  // A mileage claim can price itself. Entering 46 miles and nothing else is the
-  // whole interaction, which is the only way a mileage log ever gets kept.
-  const rate = (state.settings && state.settings.mileage_rate_cents) || 70;
-  let amount = parseMoney(values.amount);
-  if (amount === null && miles) amount = mileageAmount(miles, rate);
-
-  if (amount === null) throw new Error('That amount is not a number.');
-  if (amount === 0) throw new Error('An expense of nothing is not an expense.');
-
-  return {
-    spent_on: values.spent_on,
-    amount_cents: amount,
-    place: values.place || null,
-    business_purpose: values.business_purpose || null,
-    attendees: values.attendees || null,
-    miles,
-    vendor_id: vendorRef.vendor_id || null,
-    vendor_name: vendorRef.vendor_id ? null : (vendorRef.vendor_name || null),
-    account_id: values.account_id,
-    paid_from_account_id: values.paid_from_account_id,
-    description: values.description || null,
-    method: values.method,
-    reference: values.reference || null,
-    client_id: values.client_id || null,
-    billable: Boolean(values.billable) && Boolean(values.client_id),
-  };
+/** After a save: say what the IRS would still ask for, as a nudge, not a
+ *  refusal. */
+function gapsToast(patch) {
+  const gaps = substantiationGaps(patch, categoryById(patch.category_id));
+  if (!gaps.length) return null;
+  return `Still missing ${gaps.join(', ')} — edit it when you have a minute.`;
 }
 
 async function addExpense() {
-  if (!spendAccounts().length || !payFromAccounts().length) {
-    toast('The chart needs at least one expense account and one account to pay '
-        + 'from before an expense can be recorded.', 'error');
+  if (!state.categories.some((c) => !c.archived_at)) {
+    toast('Add at least one expense category under Admin before recording an expense.', 'error');
     return;
   }
 
-  let added = null;
+  let created = false;
+  let nudge = null;
 
   const result = await formModal({
-    title: 'Record an expense',
+    title: 'Add an expense',
     submitLabel: 'Record it',
-    intro: 'Money already spent. It posts itself to the books: what it was for '
-         + 'goes up, and what paid for it goes down.',
+    intro: 'Money already spent. Say who got it and what it was for; the receipt can follow.',
     ...expenseForm(),
     onSubmit: async (values) => {
-      const vendorRef = await resolveVendor(values.vendor, values.account_id);
-      added = vendorRef.created;
-      await saveExpense(null,
-        { ...expensePatch(values, vendorRef), created_by: state.profileId });
-      rememberPrefs({ paidFrom: values.paid_from_account_id, method: values.method });
+      const vendorRef = await resolveVendor(values.vendor,
+        { vendors: state.vendors, defaultCategoryId: values.category_id });
+      created = vendorRef.created;
+      const patch = expensePatch(values, vendorRef);
+      await saveExpense(null, { ...patch, created_by: state.profileId });
+      nudge = gapsToast(patch);
     },
   });
 
   if (result) {
     await refresh(renderExpenses);
-    toast(added
-      ? `Expense recorded. ${added} is saved as a vendor — its category fills itself next time.`
+    toast(created
+      ? `Expense recorded. ${result.vendor.trim()} is saved as a vendor.`
       : 'Expense recorded.', 'ok');
+    if (nudge) toast(nudge);
   }
 }
 
 async function editExpense(row) {
+  let nudge = null;
+
   const result = await formModal({
     title: 'Edit expense',
-    intro: 'Changing this rewrites its entry in the books.',
     ...expenseForm(row),
     onSubmit: async (values) => {
-      const vendorRef = await resolveVendor(values.vendor, values.account_id);
-      await saveExpense(row.id, expensePatch(values, vendorRef));
+      const vendorRef = await resolveVendor(values.vendor,
+        { vendors: state.vendors, defaultCategoryId: values.category_id });
+      const patch = expensePatch(values, vendorRef);
+      await saveExpense(row.id, patch);
+      nudge = gapsToast(patch);
     },
-    onDelete: async () => { await deleteExpense(row.id); },
-    deleteLabel: 'Delete expense',
   });
 
   if (result) {
     await refresh(renderExpenses);
-    toast(result === 'deleted' ? 'Expense deleted.' : 'Expense updated.', 'ok');
+    toast('Expense updated.', 'ok');
+    if (nudge) toast(nudge);
+  }
+}
+
+async function removeExpense(row) {
+  const receipts = receiptsOf(row).length;
+  const ok = await confirmModal({
+    title: `Delete the ${formatMoney(row.amount_cents)} expense for ${vendorNameOf(row) || 'this vendor'}?`,
+    body: [
+      receipts
+        ? `Its ${receipts === 1 ? 'receipt is' : `${receipts} receipts are`} deleted with it.`
+        : '',
+      'The deduction goes with it. This cannot be undone.',
+    ],
+    confirmLabel: 'Delete expense',
+    tone: 'danger',
+  });
+  if (!ok) return;
+
+  try {
+    await deleteExpense(row.id);
+  } catch (error) {
+    toast(errorMessage(error), 'error');
+    return;
+  }
+
+  await refresh(renderExpenses);
+  toast('Expense deleted.', 'ok');
+}
+
+/**
+ * The other way round: start from the photograph.
+ *
+ * "Add an expense, find its row, add the photo" is three steps, and the third
+ * is the one that gets skipped at a lunch counter. This is one step — the
+ * camera opens straight away, and the form builds the expense around the
+ * picture. The receipt files itself the moment the expense is recorded.
+ */
+async function snapExpense() {
+  if (!state.categories.some((c) => !c.archived_at)) {
+    toast('Add at least one expense category under Admin before recording an expense.', 'error');
+    return;
+  }
+
+  const file = await pickFile({ accept: RECEIPT_ACCEPT, capture: 'environment' });
+  if (!file) return;
+  if (!receiptMime(file)) {
+    toast(`${file.name} is not a photo or a PDF, which is all a receipt can be.`, 'error');
+    return;
+  }
+
+  // A photo from the library knows the day it was taken, which beats
+  // defaulting to today and being quietly wrong.
+  let spentOn = isoToday();
+  if (file.lastModified) {
+    const shot = new Date(file.lastModified);
+    if (!Number.isNaN(shot.getTime())) spentOn = isoToday(shot);
+  }
+
+  let filed = false;
+  let nudge = null;
+
+  const result = await formModal({
+    title: 'Record it from the receipt',
+    submitLabel: 'Record it',
+    intro: 'The photograph files itself when you record the expense. The date is '
+         + 'read off the photo; correct it if the receipt is older.',
+    ...expenseForm({ spent_on: spentOn }),
+    onSubmit: async (values) => {
+      const vendorRef = await resolveVendor(values.vendor,
+        { vendors: state.vendors, defaultCategoryId: values.category_id });
+      const patch = expensePatch(values, vendorRef);
+      const id = await saveExpense(null, { ...patch, created_by: state.profileId });
+      nudge = gapsToast(patch);
+      // The expense is recorded; a photograph that will not upload must not
+      // undo it, and a retry of this form would record it twice. So the
+      // failure is a toast, and the row's Receipts button is the retry.
+      try {
+        await addReceipt(id, file, { position: 0, uploadedBy: state.profileId });
+        filed = true;
+      } catch (error) {
+        toast(errorMessage(error), 'error');
+      }
+    },
+  });
+
+  if (result) {
+    await refresh(renderExpenses);
+    toast(filed
+      ? 'Expense recorded, receipt filed.'
+      : 'Expense recorded. The receipt did not upload — open Receipts on the row to try again.',
+    filed ? 'ok' : '');
+    if (nudge) toast(nudge);
   }
 }
 
@@ -631,475 +507,428 @@ async function editExpense(row) {
 // ---------------------------------------------------------------------------
 
 /**
- * Shrink and file a batch of photographs against one expense.
+ * The gallery for one expense: every receipt as a tile, the full-size one a
+ * tap away, and the two ways of adding another.
  *
- * Every image is shrunk before it leaves the browser: a phone photograph is
- * 4–8 MB and a legible receipt is about 300 KB. A small thumbnail goes up
- * alongside it so the gallery does not have to download the full-size one to
- * show a postage stamp. Neither step can fail the upload — a format the
- * browser cannot decode goes up untouched.
- *
- * A file that fails becomes a toast, never a throw: this runs after the
- * expense row exists, and a photograph that would not upload must not undo —
- * or double — the record it belongs to.
+ * Signed URLs are minted as the gallery draws and put straight on the tiles
+ * as ordinary links, so opening a receipt is a genuine click on an <a> —
+ * which is the one thing a phone browser never pop-up-blocks. They last five
+ * minutes, which is longer than a gallery stays open.
  */
-async function uploadReceipts(expenseId, files, startPosition = 0) {
-  let position = startPosition;
+async function openReceipts(row) {
+  let changed = false;
 
-  for (const original of files) {
-    try {
-      if (original.size > MAX_UPLOAD_BYTES * 4) {
-        throw new Error(`${original.name} is ${fmtBytes(original.size)}, which is more `
-          + 'than this can shrink. Photograph it again at a lower resolution.');
-      }
-
-      // eslint-disable-next-line no-await-in-loop
-      const { file } = await shrinkImage(original);
-      // eslint-disable-next-line no-await-in-loop
-      const thumb = await makeThumbnail(file);
-
-      if (file.size > MAX_UPLOAD_BYTES) {
-        throw new Error(`${original.name} is still ${fmtBytes(file.size)} after `
-          + `shrinking. The limit is ${fmtBytes(MAX_UPLOAD_BYTES)}.`);
-      }
-
-      const stem = `${expenseId}/${crypto.randomUUID()}`;
-      const path = `${stem}-${safeName(file.name)}`;
-
-      // eslint-disable-next-line no-await-in-loop
-      const { error } = await supabase.storage
-        .from(RECEIPT_BUCKET)
-        .upload(path, file, { contentType: file.type || 'application/octet-stream' });
-      if (error) throw new Error(errorMessage(error));
-
-      let thumbPath = null;
-      if (thumb) {
-        thumbPath = `${stem}-thumb.jpg`;
-        // A missing thumbnail is a cosmetic problem, so a failure here must not
-        // lose the receipt that already uploaded.
-        // eslint-disable-next-line no-await-in-loop
-        const thumbUpload = await supabase.storage
-          .from(RECEIPT_BUCKET)
-          .upload(thumbPath, thumb, { contentType: 'image/jpeg' });
-        if (thumbUpload.error) thumbPath = null;
-      }
-
-      // eslint-disable-next-line no-await-in-loop
-      await addReceipt({
-        expense_id: expenseId,
-        storage_path: path,
-        thumb_path: thumbPath,
-        name: original.name,
-        size_bytes: file.size,
-        mime_type: file.type || null,
-        captured_on: original.lastModified
-          ? new Date(original.lastModified).toISOString().slice(0, 10)
-          : null,
-        position,
-      });
-      position += 1;
-    } catch (error) {
-      toast(errorMessage(error), 'error');
-    }
-  }
-
-  return position - startPosition;
-}
-
-/**
- * Photograph a receipt, or pick several off the phone, for a row that exists.
- *
- * Two entry points on purpose. `capture` opens the camera straight away, which
- * is the one that matters — a receipt filed at the table is a receipt that gets
- * filed at all. The other opens the library, for the evening spent working
- * through a drawer of paper.
- */
-async function captureReceipts(row, { fromCamera = false } = {}) {
-  const files = await pickFile({
-    accept: 'application/pdf,image/*',
-    multiple: !fromCamera,
-    capture: fromCamera ? 'environment' : '',
+  const shell = modalShell({
+    title: `Receipts — ${vendorNameOf(row) || 'expense'}, ${formatSigned(row.amount_cents)}`,
+    onClose: () => { if (changed) refresh(renderExpenses); },
   });
+  shell.dialog.classList.add('modal__dialog--wide');
 
-  const chosen = (Array.isArray(files) ? files : [files]).filter(Boolean);
-  if (!chosen.length) return;
+  const strip = el('div', { class: 'receipt-strip receipt-strip--gallery' });
+  const status = el('p', { class: 'progress__label' });
+  let count = 0;
 
-  toast(`Uploading ${chosen.length} ${chosen.length === 1 ? 'photo' : 'photos'}…`);
-  const filed = await uploadReceipts(row.id, chosen, (row.expense_receipts || []).length);
+  shell.body.append(
+    el('p', {
+      class: 'progress__label',
+      text: [fmtDate(row.spent_on), row.category && row.category.name, row.description]
+        .filter(Boolean).join(' · '),
+    }),
+    strip,
+    status,
+  );
 
-  await refresh(renderExpenses);
-  if (filed) toast('Receipt filed.', 'ok');
-}
-
-/**
- * The other way round: start from the photograph.
- *
- * "Record an expense, find its row, add the photo" is three steps, and the
- * third is the one that gets skipped at a lunch counter. This is one step —
- * pick or take the picture first, and the form builds the expense around it,
- * with the date read off the photograph. The receipt files itself the moment
- * the expense is recorded.
- */
-async function snapExpense() {
-  if (!spendAccounts().length || !payFromAccounts().length) {
-    toast('The chart needs at least one expense account and one account to pay '
-        + 'from before an expense can be recorded.', 'error');
-    return;
-  }
-
-  const files = await pickFile({ accept: 'application/pdf,image/*', multiple: true });
-  const chosen = (Array.isArray(files) ? files : [files]).filter(Boolean);
-  if (!chosen.length) return;
-
-  // A photo from the library knows the day the receipt was actually
-  // photographed, which beats defaulting to today and being quietly wrong.
-  let spentOn;
-  const shotAt = chosen[0].lastModified ? new Date(chosen[0].lastModified) : null;
-  if (shotAt && !Number.isNaN(shotAt.getTime())) {
-    spentOn = [
-      shotAt.getFullYear(),
-      String(shotAt.getMonth() + 1).padStart(2, '0'),
-      String(shotAt.getDate()).padStart(2, '0'),
-    ].join('-');
-  }
-
-  const result = await formModal({
-    title: 'Record it from the receipt',
-    submitLabel: 'Record it',
-    intro: (chosen.length === 1
-      ? 'One photograph ready — it files itself when you record the expense. '
-      : `${chosen.length} photographs ready — they file themselves when you record the expense. `)
-      + 'The date is read off the photo; correct it if the receipt is older.',
-    ...expenseForm({ spent_on: spentOn }),
-    onSubmit: async (values) => {
-      const vendorRef = await resolveVendor(values.vendor, values.account_id);
-      const id = await saveExpense(null,
-        { ...expensePatch(values, vendorRef), created_by: state.profileId });
-      rememberPrefs({ paidFrom: values.paid_from_account_id, method: values.method });
-      // uploadReceipts toasts its own failures and never throws — the expense
-      // is already recorded, and a retry of this form would record it twice.
-      await uploadReceipts(id, chosen, 0);
-    },
-  });
-
-  if (result) {
-    await refresh(renderExpenses);
-    toast('Expense recorded, receipt filed.', 'ok');
-  }
-}
-
-/** A short-lived signed URL, the same way every other private file in the portal
- *  is read. The bucket is never public. */
-async function signedUrl(path) {
-  const { data, error } = await supabase.storage
-    .from(RECEIPT_BUCKET)
-    .createSignedUrl(path, 300);
-  if (error) throw new Error(errorMessage(error));
-  return data.signedUrl;
-}
-
-async function openReceipt(receipt) {
-  try {
-    window.open(await signedUrl(receipt.storage_path), '_blank', 'noopener');
-  } catch (error) {
-    toast(errorMessage(error), 'error');
-  }
-}
-
-async function removeReceipt(receipt) {
-  const ok = await confirmModal({
-    title: `Remove ${receipt.name}?`,
-    body: 'The photograph is deleted. If this is the only proof of the expense, the '
-      + 'deduction goes with it.',
-    confirmLabel: 'Remove receipt',
-    tone: 'danger',
-  });
-  if (!ok) return;
-
-  try {
-    await supabase.storage.from(RECEIPT_BUCKET).remove(
-      [receipt.storage_path, receipt.thumb_path].filter(Boolean),
-    );
-    await deleteReceipt(receipt.id);
-  } catch (error) {
-    toast(errorMessage(error), 'error');
-    return;
-  }
-
-  await refresh(renderExpenses);
-  toast('Receipt removed.', 'ok');
-}
-
-/**
- * The gallery for one expense.
- *
- * Thumbnails are fetched through signed URLs the moment the row opens, which is
- * why they are small: twelve full-size photographs would be twelve megabytes to
- * look at twelve stamps.
- */
-function receiptGallery(row) {
-  const receipts = (row.expense_receipts || [])
-    .slice()
-    .sort((a, b) => a.position - b.position);
-
-  const strip = el('div', { class: 'receipt-strip' });
-
-  receipts.forEach((receipt) => {
+  function tile(receipt) {
     const isImage = /^image\//.test(receipt.mime_type || '');
-    const tile = el('button', {
+
+    // No href until the URL arrives: a link to nowhere is worse than a tile
+    // that does nothing for the hundred milliseconds it takes.
+    const link = el('a', {
       class: 'receipt',
-      type: 'button',
+      target: '_blank',
+      rel: 'noopener',
       title: receipt.name,
       'aria-label': `Open ${receipt.name}`,
-      onclick: () => openReceipt(receipt),
     }, [
       isImage
-        ? el('span', { class: 'receipt__img', 'data-loading': 'true' })
+        ? el('span', { class: 'receipt__img' })
         : el('span', { class: 'receipt__doc', text: 'PDF' }),
     ]);
 
-    // Signed URLs expire, so they are fetched when the gallery draws rather
-    // than stored anywhere.
+    const gone = () => mount(link, el('span', { class: 'receipt__doc', text: 'gone' }));
+
+    receiptUrl(receipt.storage_path)
+      .then((url) => { link.href = url; })
+      .catch(gone);
+
     if (isImage) {
-      signedUrl(receipt.thumb_path || receipt.storage_path)
-        .then((url) => {
-          const img = el('img', { src: url, alt: receipt.name, loading: 'lazy' });
-          mount(tile, img);
-        })
-        .catch(() => {
-          mount(tile, el('span', { class: 'receipt__doc', text: 'gone' }));
-        });
+      receiptUrl(receipt.thumb_path || receipt.storage_path)
+        .then((url) => mount(link, el('img', { src: url, alt: receipt.name, loading: 'lazy' })))
+        .catch(gone);
     }
 
-    strip.append(el('span', { class: 'receipt-wrap' }, [
-      tile,
-      el('button', {
-        class: 'receipt__remove',
-        type: 'button',
-        text: '×',
-        'aria-label': `Remove ${receipt.name}`,
-        onclick: () => removeReceipt(receipt),
+    const remove = el('button', {
+      class: 'receipt__remove',
+      type: 'button',
+      'aria-label': `Remove ${receipt.name}`,
+      onclick: busy(async () => {
+        const ok = await confirmModal({
+          title: `Remove ${receipt.name}?`,
+          body: 'The photograph is deleted. If this is the only proof of the expense, '
+              + 'the deduction goes with it.',
+          confirmLabel: 'Remove receipt',
+          tone: 'danger',
+        });
+        if (!ok) return;
+        try {
+          await deleteReceipt(receipt);
+        } catch (error) {
+          toast(errorMessage(error), 'error');
+          return;
+        }
+        changed = true;
+        toast('Receipt removed.', 'ok');
+        await draw();
       }),
-    ]));
-  });
+    }, [icon('x', { size: 14 })]);
 
-  // Deliberately quiet. These sit on every row of a long table, and two loud
-  // buttons per row would make the receipts the loudest thing on a screen about
-  // money. The camera comes first because that is the one that matters at the
-  // table; the label says "Photo" rather than "Take a photo" for the same
-  // reason — a row is not where a sentence goes.
-  strip.append(el('span', { class: 'receipt-actions' }, [
+    return el('span', { class: 'receipt-wrap' }, [link, remove]);
+  }
+
+  async function draw() {
+    let receipts;
+    try {
+      receipts = await loadReceipts(row.id);
+    } catch (error) {
+      shell.showError(error);
+      return;
+    }
+    count = receipts.length;
+    mount(strip, receipts.map(tile));
+    status.textContent = count
+      ? `${count} on file. Tap one to open it full size.`
+      : 'No receipt yet. A deduction without one is a deduction that does not survive an audit.';
+  }
+
+  /** Photograph one, or pick several off the phone. `capture` opens the
+   *  camera straight away, which is the one that matters at the table. */
+  async function add({ fromCamera }) {
+    const picked = await pickFile({
+      accept: RECEIPT_ACCEPT,
+      multiple: !fromCamera,
+      capture: fromCamera ? 'environment' : '',
+    });
+    const chosen = (Array.isArray(picked) ? picked : [picked]).filter(Boolean);
+    if (!chosen.length) return;
+
+    status.textContent = `Uploading ${chosen.length} ${chosen.length === 1 ? 'file' : 'files'}…`;
+    let position = count;
+    for (const file of chosen) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await addReceipt(row.id, file, { position, uploadedBy: state.profileId });
+        position += 1;
+        changed = true;
+      } catch (error) {
+        toast(errorMessage(error), 'error');
+      }
+    }
+    await draw();
+  }
+
+  shell.foot.append(
     el('button', {
-      class: 'btn btn--ghost btn--tiny',
+      class: 'btn btn--small',
       type: 'button',
-      text: 'Photo',
-      'aria-label': `Photograph a receipt for this ${formatMoney(row.amount_cents)} expense`,
-      onclick: () => captureReceipts(row, { fromCamera: true }),
+      text: 'Take a photo',
+      onclick: busy(() => add({ fromCamera: true })),
     }),
     el('button', {
-      class: 'btn btn--ghost btn--tiny',
+      class: 'btn btn--ghost btn--small',
       type: 'button',
-      text: 'Upload',
-      'aria-label': `Upload a receipt for this ${formatMoney(row.amount_cents)} expense`,
-      onclick: () => captureReceipts(row, { fromCamera: false }),
+      text: 'Upload files',
+      onclick: busy(() => add({ fromCamera: false })),
     }),
-  ]));
+    el('button', {
+      class: 'btn btn--ghost btn--small',
+      type: 'button',
+      text: 'Close',
+      onclick: () => shell.close(null),
+    }),
+  );
 
-  return strip;
+  shell.open();
+  await draw();
 }
 
 // The expense list
 // ---------------------------------------------------------------------------
 
-const HEADINGS = ['Date', 'Paid to', 'Category', 'Paid with', 'Amount', 'Receipts', ''];
-
-/** The account an expense was booked to, for the substantiation check. */
-function accountFor(row) {
-  return state.accounts.find((a) => a.id === row.account_id) || null;
-}
+const HEADINGS = ['Date', 'Paid to', 'Category', 'What for', 'Client', 'Amount', 'Receipts', ''];
 
 function filtered() {
-  const needle = state.search.trim().toLowerCase();
-
-  return state.expenses.filter((row) => {
-    if (state.accountId && row.account_id !== state.accountId) return false;
-    if (state.enteredBy && row.created_by !== state.enteredBy) return false;
-    if (!needle) return true;
-
-    // Everything a person might remember about it a year later, which is the
-    // whole point of "recall them any time": who, what, where, and who with.
-    const haystack = [
-      (row.vendors && row.vendors.name) || row.vendor_name,
-      row.description,
-      row.reference,
-      row.place,
-      row.business_purpose,
-      row.attendees,
-      row.account && row.account.name,
-      (row.clients && row.clients.name),
-      row.creator && row.creator.full_name,
-    ].filter(Boolean).join(' ').toLowerCase();
-
-    return haystack.includes(needle);
+  return filterExpenses(state.expenses, {
+    month: state.month,
+    categoryId: state.categoryId,
+    clientId: state.clientId,
+    vendorId: state.vendorId,
+    search: state.search,
   });
 }
 
+function clientCell(row) {
+  if (!row.client) return ['—'];
+  let pill = null;
+  if (row.billed_invoice_id) pill = el('span', { class: 'pill pill--green', text: 'Billed' });
+  else if (row.billable) pill = el('span', { class: 'pill pill--blue', text: 'Billable' });
+  return [
+    el('span', { class: 'row-cell__name', text: row.client.name }),
+    pill,
+  ];
+}
+
 function expenseRow(row) {
-  const vendor = (row.vendors && row.vendors.name) || row.vendor_name || '—';
-  const gaps = substantiationGaps(row, accountFor(row));
+  const vendor = vendorNameOf(row) || '—';
+  const gaps = substantiationGaps(row, row.category);
+  const receipts = receiptsOf(row).length;
 
   return el('tr', {}, [
     el('td', { class: 'is-tight', text: fmtDate(row.spent_on) }),
-    el('td', { class: 'is-roomy' }, [
-      el('span', { class: 'sow-cell__name', text: vendor }),
-      row.description ? el('span', { class: 'sow-cell__desc', text: row.description }) : null,
-      // The story, where there is one. Shown rather than hidden behind an edit,
-      // because the point of recording it is being able to read it later.
-      row.business_purpose
-        ? el('span', { class: 'sow-cell__desc', text: row.business_purpose })
+    el('td', {}, [
+      el('span', { class: 'row-cell__name', text: vendor }),
+      el('span', { class: 'row-cell__desc', text: methodLabel(row.method)
+        + (row.reference ? ` · ${row.reference}` : '') }),
+    ]),
+    el('td', { class: 'is-tight' }, [
+      el('span', { text: row.category ? row.category.name : '—' }),
+      row.category
+        ? el('span', { class: 'row-cell__desc', text: scheduleCLabel(row.category.schedule_c_line) })
         : null,
-      row.attendees ? el('span', { class: 'sow-cell__desc', text: `With ${row.attendees}` }) : null,
-      row.place ? el('span', { class: 'sow-cell__desc', text: row.place }) : null,
-      row.miles ? el('span', { class: 'sow-cell__desc', text: `${row.miles} miles` }) : null,
-      el('span', { class: 'sow-cell__desc', text: `Entered by ${personName(row.creator)}` }),
+    ]),
+    el('td', { class: 'is-roomy' }, [
+      el('span', { class: 'row-cell__name', text: row.description || '—' }),
+      // The story, where there is one. Shown rather than hidden behind an
+      // edit, because the point of recording it is being able to read it later.
+      row.business_purpose
+        ? el('span', { class: 'row-cell__desc', text: row.business_purpose })
+        : null,
+      row.place ? el('span', { class: 'row-cell__desc', text: row.place }) : null,
+      row.attendees ? el('span', { class: 'row-cell__desc', text: `With ${row.attendees}` }) : null,
       gaps.length
         ? el('span', {
           // --wrap because this one is a sentence, not a status word: nowrap
-          // made it 451px wide and took the page sideways on a phone.
+          // would take the page sideways on a phone.
           class: 'pill pill--amber pill--wrap',
           text: `Missing ${gaps.join(', ')}`,
         })
         : null,
     ]),
+    el('td', {}, clientCell(row)),
+    el('td', { class: 'is-numeric', text: formatSigned(row.amount_cents) }),
     el('td', { class: 'is-tight' }, [
-      el('span', { text: row.account ? accountLabel(row.account) : '—' }),
-      row.clients
-        ? el('span', { class: 'sow-cell__desc',
-          text: `${row.clients.name}${row.billable ? ' · to bill back' : ''}` })
-        : null,
+      receipts
+        ? el('span', { text: String(receipts) })
+        : el('span', { class: 'pill pill--amber', text: 'None' }),
     ]),
-    el('td', { class: 'is-tight' }, [
-      el('span', { text: row.paid_from ? row.paid_from.name : '—' }),
-      el('span', { class: 'sow-cell__desc', text: methodLabel(row.method) }),
-    ]),
-    el('td', { class: 'is-numeric', text: formatMoney(row.amount_cents) }),
-    el('td', {}, [receiptGallery(row)]),
     el('td', {}, [
-      el('button', {
-        class: 'btn btn--ghost btn--tiny',
-        type: 'button',
-        text: 'Edit',
-        'aria-label': `Edit the ${formatMoney(row.amount_cents)} expense for ${vendor}`,
-        onclick: () => editExpense(row),
-      }),
+      el('span', { class: 'btn-row' }, [
+        el('button', {
+          class: 'btn btn--ghost btn--tiny',
+          type: 'button',
+          text: 'Edit',
+          'aria-label': `Edit the ${formatMoney(row.amount_cents)} expense for ${vendor}`,
+          onclick: () => editExpense(row),
+        }),
+        el('button', {
+          class: 'btn btn--ghost btn--tiny',
+          type: 'button',
+          text: 'Receipts',
+          'aria-label': `Receipts for the ${formatMoney(row.amount_cents)} expense for ${vendor}`,
+          onclick: () => openReceipts(row),
+        }),
+        el('button', {
+          class: 'btn btn--ghost btn--tiny',
+          type: 'button',
+          text: 'Delete',
+          'aria-label': `Delete the ${formatMoney(row.amount_cents)} expense for ${vendor}`,
+          onclick: busy(() => removeExpense(row)),
+        }),
+      ]),
     ]),
   ]);
 }
 
+/** The four numbers over the list, for the loaded year. */
+function renderFigures() {
+  const year = String(state.year);
+  const today = isoToday();
+  const thisYear = year === today.slice(0, 4);
+  const thisMonthRows = thisYear
+    ? state.expenses.filter((row) => String(row.spent_on).slice(0, 7) === today.slice(0, 7))
+    : [];
+  const unreceipted = state.expenses.filter((row) => !receiptsOf(row).length).length;
+  const unbilled = state.expenses.filter((row) => row.billable && !row.billed_invoice_id);
+
+  mount(figuresBox, figureRow([
+    figure(`Spent in ${year}`, formatSigned(sumCents(state.expenses)),
+      `${state.expenses.length} ${state.expenses.length === 1 ? 'expense' : 'expenses'}`),
+    figure('This month',
+      thisYear ? formatSigned(sumCents(thisMonthRows)) : '—',
+      thisYear ? monthName(today) : `Viewing ${year}`),
+    figure('No receipt', String(unreceipted),
+      unreceipted ? 'Tap Receipts on a row to add one' : 'Every expense has one',
+      unreceipted ? 'bad' : undefined),
+    figure('To bill back', formatSigned(sumCents(unbilled)),
+      unbilled.length
+        ? `${unbilled.length} not yet on an invoice`
+        : 'Nothing waiting for an invoice'),
+  ]));
+}
+
+/** Repopulate a filter select without losing what it is set to. */
+function setOptions(select, options) {
+  if (!select) return;
+  const keep = select.value;
+  mount(select, options.map((option) => el('option', { value: option.value, text: option.label })));
+  select.value = options.some((option) => option.value === keep) ? keep : '';
+}
+
+function refreshFilterOptions() {
+  setOptions(filterSelects.category, [
+    { value: '', label: 'Every category' },
+    ...categoryOptions(state.categories, { keepId: state.categoryId || null }),
+  ]);
+  setOptions(filterSelects.client, clientOptions('Every client'));
+  setOptions(filterSelects.vendor, [
+    { value: '', label: 'Every vendor' },
+    ...state.vendors
+      .filter((v) => !v.archived_at || v.id === state.vendorId)
+      .map((v) => ({ value: v.id, label: v.name })),
+  ]);
+}
+
 function renderExpenses() {
+  renderFigures();
+  refreshFilterOptions();
+
   const rows = filtered();
 
   if (!state.expenses.length) {
     mount(expenseTable, el('p', {
       class: 'empty',
-      text: 'No expenses recorded in this period. Every one you record is a cost '
-          + 'the studio does not pay tax on.',
+      text: `No expenses recorded in ${state.year}. Every one you record is a cost `
+          + 'the business does not pay tax on.',
     }));
     return;
   }
 
   if (!rows.length) {
-    mount(expenseTable, el('p', { class: 'empty', text: 'Nothing matches that search. Try fewer letters, or clear the filters.' }));
+    mount(expenseTable, el('p', {
+      class: 'empty',
+      text: 'Nothing matches those filters. Try fewer letters, or clear them.',
+    }));
     return;
   }
 
-  const total = rows.reduce((sum, row) => sum + (Number(row.amount_cents) || 0), 0);
-  const noReceipt = rows.filter((row) => !(row.expense_receipts || []).length).length;
+  const noReceipt = rows.filter((row) => !receiptsOf(row).length).length;
   const unsubstantiated = rows.filter(
-    (row) => substantiationGaps(row, accountFor(row)).length,
+    (row) => substantiationGaps(row, row.category).length,
   ).length;
 
   const problems = [];
   if (noReceipt) problems.push(`${noReceipt} with no receipt`);
-  if (unsubstantiated) {
-    problems.push(`${unsubstantiated} missing the who, what or where the IRS asks for`);
-  }
+  if (unsubstantiated) problems.push(`${unsubstantiated} missing the where, why or who`);
 
   mount(expenseTable,
     table(HEADINGS, rows.map(expenseRow), { wide: true }),
     el('p', {
       class: problems.length ? 'notice notice--warn' : 'progress__label',
-      text: `${rows.length} of ${state.expenses.length} shown · ${formatMoney(total)} total`
+      text: `${rows.length} of ${state.expenses.length} shown · ${formatSigned(sumCents(rows))} total`
           + (problems.length
             ? ` · ${problems.join(' · ')}`
             : ' · every one has its receipt and its story'),
-    }),
-  );
+    }));
 }
 
 function buildFilters() {
-  const from = el('input', {
-    type: 'date', id: 'exp-from', value: state.from,
-    onchange: async (event) => { state.from = event.target.value; await refresh(renderExpenses); },
-  });
-  const to = el('input', {
-    type: 'date', id: 'exp-to', value: state.to,
-    onchange: async (event) => { state.to = event.target.value; await refresh(renderExpenses); },
-  });
-  const search = el('input', {
-    type: 'search', id: 'exp-search', placeholder: 'Vendor, description, reference',
-    oninput: (event) => { state.search = event.target.value; renderExpenses(); },
-  });
-  const account = el('select', {
-    id: 'exp-account',
-    onchange: (event) => { state.accountId = event.target.value; renderExpenses(); },
+  const year = el('select', {
+    id: 'exp-year',
+    onchange: async (event) => {
+      state.year = Number(event.target.value);
+      await refresh(renderExpenses);
+    },
+  }, yearOptions(currentYear(), state.earliestYear).map((y) => el('option', {
+    value: String(y), text: String(y), selected: y === Number(state.year),
+  })));
+
+  const month = el('select', {
+    id: 'exp-month',
+    onchange: (event) => { state.month = event.target.value; renderExpenses(); },
   }, [
-    el('option', { value: '', text: 'Every category' }),
-    ...spendAccounts().map((a) => el('option', { value: a.id, text: accountLabel(a) })),
-  ]);
-  const who = el('select', {
-    id: 'exp-who',
-    onchange: (event) => { state.enteredBy = event.target.value; renderExpenses(); },
-  }, [
-    el('option', { value: '', text: 'Anyone' }),
-    ...state.owners.map((member) => el('option', {
-      value: member.profile_id,
-      text: (member.profiles && member.profiles.full_name) || memberName(member),
+    el('option', { value: '', text: 'Every month' }),
+    ...MONTH_NAMES.map((name, index) => el('option', {
+      value: String(index + 1), text: name,
     })),
   ]);
 
+  filterSelects.category = el('select', {
+    id: 'exp-category',
+    onchange: (event) => { state.categoryId = event.target.value; renderExpenses(); },
+  });
+  filterSelects.client = el('select', {
+    id: 'exp-client',
+    onchange: (event) => { state.clientId = event.target.value; renderExpenses(); },
+  });
+  filterSelects.vendor = el('select', {
+    id: 'exp-vendor',
+    onchange: (event) => { state.vendorId = event.target.value; renderExpenses(); },
+  });
+
+  const search = el('input', {
+    type: 'search',
+    id: 'exp-search',
+    placeholder: 'Vendor, description, place, who',
+    oninput: (event) => { state.search = event.target.value; renderExpenses(); },
+  });
+
   return el('div', { class: 'filters' }, [
-    el('div', { class: 'form-field' }, [el('label', { for: 'exp-from', text: 'From' }), from]),
-    el('div', { class: 'form-field' }, [el('label', { for: 'exp-to', text: 'To' }), to]),
-    el('div', { class: 'form-field' }, [el('label', { for: 'exp-search', text: 'Search' }), search]),
-    el('div', { class: 'form-field' }, [el('label', { for: 'exp-account', text: 'Category' }), account]),
-    el('div', { class: 'form-field' }, [el('label', { for: 'exp-who', text: 'Entered by' }), who]),
+    filterField('exp-year', 'Year', year),
+    filterField('exp-month', 'Month', month),
+    filterField('exp-category', 'Category', filterSelects.category),
+    filterField('exp-client', 'Client', filterSelects.client),
+    filterField('exp-vendor', 'Vendor', filterSelects.vendor),
+    filterField('exp-search', 'Search', search),
   ]);
 }
 
 function exportCsv() {
-  downloadCsv(`njd-expenses-${todayIso()}.csv`,
-    ['Date', 'Entered by', 'Vendor', 'Description', 'Category code', 'Category',
-      'Paid from', 'Method', 'Reference', 'Client', 'Billable', 'Where',
-      'Business purpose', 'Who was there', 'Miles', 'Amount', 'Receipts'],
-    filtered().map((row) => [
+  const rows = filtered();
+  if (!rows.length) {
+    toast('Nothing to export — the list is empty.', 'error');
+    return;
+  }
+
+  downloadCsv(`wo-expenses-${state.year}.csv`,
+    ['Date', 'Vendor', 'Category', 'Schedule C line', 'Description', 'Method',
+      'Reference', 'Client', 'Billable', 'Billed', 'Where', 'Business purpose',
+      'Who was there', 'Amount', 'Receipts', 'Missing'],
+    rows.map((row) => [
       row.spent_on,
-      personName(row.creator),
-      (row.vendors && row.vendors.name) || row.vendor_name || '',
+      vendorNameOf(row),
+      (row.category && row.category.name) || '',
+      (row.category && row.category.schedule_c_line) || '',
       row.description || '',
-      (row.account && row.account.code) || '',
-      (row.account && row.account.name) || '',
-      (row.paid_from && row.paid_from.name) || '',
       methodLabel(row.method),
       row.reference || '',
-      (row.clients && row.clients.name) || '',
+      (row.client && row.client.name) || '',
       row.billable ? 'yes' : 'no',
+      row.billed_invoice_id ? 'yes' : 'no',
       row.place || '',
       row.business_purpose || '',
       row.attendees || '',
-      row.miles == null ? '' : row.miles,
-      (row.amount_cents / 100).toFixed(2),
-      (row.expense_receipts || []).length,
+      ((Number(row.amount_cents) || 0) / 100).toFixed(2),
+      receiptsOf(row).length,
+      substantiationGaps(row, row.category).join(', '),
     ]));
 }
 
@@ -1109,10 +938,6 @@ function exportCsv() {
 /** Record buttons in flight, so a double tap cannot book a month twice. */
 const recordingIds = new Set();
 
-function monthName(dateIso) {
-  return new Date(`${dateIso}T12:00:00`).toLocaleString([], { month: 'long' });
-}
-
 /**
  * Record the oldest month a template is waiting on.
  *
@@ -1120,44 +945,42 @@ function monthName(dateIso) {
  * June, tap, July, tap, August — rather than as a silent burst of rows, and
  * each expense lands dated the day the charge actually hit the card.
  */
-async function recordRecurring(template) {
-  const status = recurringStatus(template, todayIso());
+async function recordTemplate(template) {
+  const status = recurringStatus(template, isoToday());
   if (!status.due || recordingIds.has(template.id)) return;
   recordingIds.add(template.id);
 
   try {
-    await saveExpense(null, {
-      created_by: state.profileId,
-      spent_on: status.dueOn,
-      vendor_id: template.vendor_id || null,
-      vendor_name: template.vendor_id ? null : (template.vendor_name || null),
-      account_id: template.account_id,
-      paid_from_account_id: template.paid_from_account_id,
-      amount_cents: template.amount_cents,
-      description: template.name,
-      method: template.method,
-      client_id: template.client_id || null,
-      billable: Boolean(template.billable) && Boolean(template.client_id),
-    });
-    await saveRecurring(template.id, { last_recorded_on: status.dueOn });
+    await recordRecurring(template, status.dueOn, { createdBy: state.profileId });
   } catch (error) {
     toast(errorMessage(error), 'error');
-    recordingIds.delete(template.id);
     return;
+  } finally {
+    recordingIds.delete(template.id);
   }
 
-  recordingIds.delete(template.id);
   await refresh(renderAll);
 
-  const after = recurringStatus(
-    { ...template, last_recorded_on: status.dueOn }, todayIso(),
-  );
+  const after = recurringStatus({ ...template, last_recorded_on: status.dueOn }, isoToday());
   toast(`${template.name} recorded for ${monthName(status.dueOn)}.`
     + (after.due ? ` ${monthName(after.dueOn)} is still waiting — tap again.` : ''), 'ok');
 }
 
+async function pauseTemplate(template) {
+  try {
+    await saveRecurring(template.id, { active: !template.active });
+  } catch (error) {
+    toast(errorMessage(error), 'error');
+    return;
+  }
+  await refresh(renderRecurring);
+  toast(template.active ? `${template.name} paused.` : `${template.name} resumed.`, 'ok');
+}
+
 async function editRecurring(row = null) {
-  const vendors = state.vendors.filter((v) => !v.archived_at || (row && v.id === row.vendor_id));
+  const openingVendor = row && row.vendor_id
+    ? ((state.vendors.find((v) => v.id === row.vendor_id) || {}).name || '')
+    : ((row && row.vendor_name) || '');
 
   const result = await formModal({
     title: row ? row.name : 'Add a subscription',
@@ -1168,44 +991,32 @@ async function editRecurring(row = null) {
     fields: [
       { name: 'name', label: 'What it is', type: 'text', required: true,
         value: row ? row.name : '',
-        hint: '"Adobe Creative Cloud". Becomes the expense\'s description.' },
+        hint: '"Adobe Creative Cloud", "Netlify Pro". Becomes the expense\'s description.' },
       { name: 'amount', label: 'Amount each month', type: 'text', inputmode: 'decimal',
         required: true,
-        value: row && row.amount_cents ? formatMoney(row.amount_cents).replace(/^\$/, '') : '' },
+        value: row && row.amount_cents ? (row.amount_cents / 100).toFixed(2) : '' },
       {
-        name: 'vendor_id',
-        label: 'Who it is paid to',
-        type: 'select',
-        value: row ? row.vendor_id || '' : '',
-        options: [
-          { value: '', label: 'Not a saved vendor' },
-          ...vendors.map((v) => ({ value: v.id, label: v.name })),
-        ],
+        name: 'vendor',
+        label: 'Paid to',
+        type: 'text',
+        value: openingVendor,
+        suggestions: vendorSuggestions(),
+        autocapitalize: 'words',
+        hint: 'A new name is saved as a vendor.',
       },
-      { name: 'vendor_name', label: 'Or type a name', type: 'text',
-        value: row ? row.vendor_name || '' : '',
-        hint: 'Only read when no vendor is picked above.' },
       {
-        name: 'account_id',
+        name: 'category_id',
         label: 'Category',
         type: 'select',
-        value: row ? row.account_id || '' : '',
-        options: categoryOptions(),
+        required: true,
+        value: row ? row.category_id || '' : '',
+        options: [
+          { value: '', label: 'Pick a category' },
+          ...categoryOptions(state.categories, { keepId: row ? row.category_id : null }),
+        ],
       },
-      {
-        name: 'paid_from_account_id',
-        label: 'What pays for it',
-        type: 'select',
-        value: row ? row.paid_from_account_id || '' : '',
-        options: payFromOptions(),
-      },
-      {
-        name: 'method',
-        label: 'How',
-        type: 'select',
-        value: row ? row.method : 'card',
-        options: PAYMENT_METHODS,
-      },
+      { name: 'method', label: 'Paid by', type: 'select',
+        value: row ? row.method : 'card', options: PAYMENT_METHODS },
       { name: 'day_of_month', label: 'Day of the month it bills', type: 'text',
         inputmode: 'numeric', required: true,
         value: row ? String(row.day_of_month) : '1',
@@ -1215,42 +1026,20 @@ async function editRecurring(row = null) {
         label: 'For a client',
         type: 'select',
         value: row ? row.client_id || '' : '',
-        options: [
-          { value: '', label: 'An overhead, not a job cost' },
-          ...state.clients.map((c) => ({ value: c.id, label: c.name })),
-        ],
+        options: clientOptions('An overhead, not a job cost'),
       },
-      { name: 'billable', label: 'Meant to be billed back to them', type: 'checkbox',
+      { name: 'billable', label: 'Bill it back to them', type: 'checkbox',
         value: row ? Boolean(row.billable) : false },
       row ? { name: 'active', label: 'Active — surface it when it falls due',
         type: 'checkbox', value: Boolean(row.active) } : null,
     ].filter(Boolean),
     onSubmit: async (values) => {
-      if (!values.account_id) throw new Error('Pick a category.');
-      if (!values.paid_from_account_id) throw new Error('Pick what pays for it.');
-
-      const amount = parseMoney(values.amount);
-      if (amount === null) throw new Error('That amount is not a number.');
-      if (amount === 0) throw new Error('A subscription of nothing is not a subscription.');
-
-      const day = Number(values.day_of_month);
-      if (!Number.isInteger(day) || day < 1 || day > 31) {
-        throw new Error('The billing day is a number from 1 to 31.');
-      }
-
-      await saveRecurring(row ? row.id : null, {
-        name: values.name.trim(),
-        vendor_id: values.vendor_id || null,
-        vendor_name: values.vendor_id ? null : (values.vendor_name || null),
-        account_id: values.account_id,
-        paid_from_account_id: values.paid_from_account_id,
-        amount_cents: amount,
-        method: values.method,
-        day_of_month: day,
-        client_id: values.client_id || null,
-        billable: Boolean(values.billable) && Boolean(values.client_id),
-        active: row ? Boolean(values.active) : true,
-      });
+      const vendorRef = await resolveVendor(values.vendor,
+        { vendors: state.vendors, defaultCategoryId: values.category_id });
+      const patch = recurringPatch(values, vendorRef);
+      if (!row) patch.active = true;
+      await saveRecurring(row ? row.id : null,
+        row ? patch : { ...patch, created_by: state.profileId });
     },
     onDelete: row ? async () => { await deleteRecurring(row.id); } : undefined,
     deleteLabel: 'Delete subscription',
@@ -1266,9 +1055,8 @@ async function editRecurring(row = null) {
 }
 
 function recurringRow(template) {
-  const status = recurringStatus(template, todayIso());
-  const account = state.accounts.find((a) => a.id === template.account_id);
-  const vendor = (template.vendors && template.vendors.name) || template.vendor_name;
+  const status = recurringStatus(template, isoToday());
+  const vendor = (template.vendor && template.vendor.name) || template.vendor_name;
 
   let standing;
   if (!template.active) {
@@ -1284,26 +1072,26 @@ function recurringRow(template) {
     standing = el('span', {
       class: 'progress__label',
       text: template.last_recorded_on
-        ? `Recorded for ${monthName(template.last_recorded_on)}`
+        ? `Recorded for ${monthName(template.last_recorded_on, { withYear: true })}`
         : `First bill ${fmtDate(status.dueOn)}`,
     });
   }
 
   return el('tr', {}, [
     el('td', { class: 'is-roomy' }, [
-      el('span', { class: 'sow-cell__name', text: template.name }),
-      vendor ? el('span', { class: 'sow-cell__desc', text: vendor }) : null,
-      template.clients
-        ? el('span', { class: 'sow-cell__desc',
-          text: `${template.clients.name}${template.billable ? ' · to bill back' : ''}` })
+      el('span', { class: 'row-cell__name', text: template.name }),
+      vendor ? el('span', { class: 'row-cell__desc', text: vendor }) : null,
+      template.client
+        ? el('span', { class: 'row-cell__desc',
+          text: `${template.client.name}${template.billable ? ' · to bill back' : ''}` })
         : null,
     ]),
     el('td', { class: 'is-tight' }, [
-      el('span', { text: account ? accountLabel(account) : '—' }),
-      el('span', { class: 'sow-cell__desc',
+      el('span', { text: template.category ? template.category.name : '—' }),
+      el('span', { class: 'row-cell__desc',
         text: `Day ${template.day_of_month} · ${methodLabel(template.method)}` }),
     ]),
-    el('td', { class: 'is-numeric', text: formatMoney(template.amount_cents) }),
+    el('td', { class: 'is-numeric', text: formatSigned(template.amount_cents) }),
     el('td', {}, [standing]),
     el('td', {}, [
       el('span', { class: 'btn-row' }, [
@@ -1313,7 +1101,7 @@ function recurringRow(template) {
             type: 'button',
             text: `Record ${monthName(status.dueOn)}`,
             'aria-label': `Record ${template.name} for ${monthName(status.dueOn)}`,
-            onclick: () => recordRecurring(template),
+            onclick: busy(() => recordTemplate(template), { label: 'Recording…' }),
           })
           : null,
         el('button', {
@@ -1322,6 +1110,13 @@ function recurringRow(template) {
           text: 'Edit',
           'aria-label': `Edit the subscription ${template.name}`,
           onclick: () => editRecurring(template),
+        }),
+        el('button', {
+          class: 'btn btn--ghost btn--tiny',
+          type: 'button',
+          text: template.active ? 'Pause' : 'Resume',
+          'aria-label': `${template.active ? 'Pause' : 'Resume'} the subscription ${template.name}`,
+          onclick: busy(() => pauseTemplate(template)),
         }),
       ]),
     ]),
@@ -1332,18 +1127,19 @@ function renderRecurring() {
   if (!state.recurring.length) {
     mount(recurringTable, el('p', {
       class: 'empty',
-      text: 'Nothing recurring yet. The monthly stack — Adobe, Figma, hosting — is '
-          + 'the spend most reliably forgotten, and a missed subscription is a '
-          + 'missed deduction. Add each one once and this panel does the remembering.',
+      text: 'Nothing recurring yet. The monthly stack — software, hosting, domains, '
+          + 'app-store and API fees — is the spend most reliably forgotten, and a '
+          + 'missed subscription is a missed deduction. Add each one once and this '
+          + 'panel does the remembering.',
     }));
     return;
   }
 
   const due = state.recurring
-    .reduce((count, t) => count + (recurringStatus(t, todayIso()).due ? 1 : 0), 0);
+    .reduce((count, t) => count + (recurringStatus(t, isoToday()).due ? 1 : 0), 0);
 
   mount(recurringTable,
-    table(['Subscription', 'Books to', 'Amount', 'Standing', ''],
+    table(['Subscription', 'Category', 'Amount', 'Standing', ''],
       state.recurring.map(recurringRow), { wide: true }),
     el('p', {
       class: due ? 'notice notice--warn' : 'progress__label',
@@ -1360,24 +1156,30 @@ async function editVendor(row = null) {
   const result = await formModal({
     title: row ? row.name : 'Add a vendor',
     submitLabel: row ? 'Save' : 'Add',
-    intro: 'Kept light on purpose — this is not a second CRM. It exists so that '
-         + '"what did we spend at Adobe this year" has an answer, and so that '
-         + 'January\'s 1099 filing is a report rather than a memory test.',
+    intro: 'Kept light on purpose. It exists so that "what did we spend at Adobe '
+         + 'this year" has an answer, and so that January\'s 1099 filing is a '
+         + 'report rather than a memory test.',
     fields: [
-      { name: 'name', label: 'Name', type: 'text', required: true, value: row ? row.name : '' },
+      { name: 'name', label: 'Name', type: 'text', required: true,
+        value: row ? row.name : '', autocapitalize: 'words' },
       { name: 'email', label: 'Email', type: 'email', value: row ? row.email || '' : '' },
-      { name: 'phone', label: 'Phone', type: 'text', value: row ? row.phone || '' : '' },
+      { name: 'phone', label: 'Phone', type: 'text', inputmode: 'tel',
+        value: row ? row.phone || '' : '' },
+      { name: 'website', label: 'Website', type: 'text', value: row ? row.website || '' : '' },
+      { name: 'address', label: 'Address', type: 'textarea', rows: 2,
+        value: row ? row.address || '' : '',
+        hint: 'What goes on the 1099, for a contractor.' },
       {
-        name: 'default_account_id',
+        name: 'default_category_id',
         label: 'Their bills usually go to',
         type: 'select',
-        value: row ? row.default_account_id || '' : '',
+        value: row ? row.default_category_id || '' : '',
         options: [
           { value: '', label: 'No usual category' },
-          ...spendAccounts().map((a) => ({ value: a.id, label: accountLabel(a) })),
+          ...categoryOptions(state.categories, { keepId: row ? row.default_category_id : null }),
         ],
       },
-      { name: 'files_1099', label: 'Needs a 1099 at year end', type: 'checkbox',
+      { name: 'files_1099', label: 'Needs a 1099-NEC at year end', type: 'checkbox',
         value: row ? Boolean(row.files_1099) : false },
       { name: 'tax_id_on_file', label: 'W-9 collected', type: 'checkbox',
         value: row ? Boolean(row.tax_id_on_file) : false },
@@ -1389,7 +1191,9 @@ async function editVendor(row = null) {
         name: values.name.trim(),
         email: values.email || null,
         phone: values.phone || null,
-        default_account_id: values.default_account_id || null,
+        website: values.website || null,
+        address: values.address || null,
+        default_category_id: values.default_category_id || null,
         files_1099: Boolean(values.files_1099),
         tax_id_on_file: Boolean(values.tax_id_on_file),
         notes: values.notes || null,
@@ -1398,58 +1202,148 @@ async function editVendor(row = null) {
   });
 
   if (result) {
-    await refresh(renderVendors);
+    await refresh(renderAll);
     toast('Vendor saved.', 'ok');
   }
 }
 
+async function retireVendor(row) {
+  const ok = await confirmModal({
+    title: `Archive ${row.name}?`,
+    body: 'Every expense already booked to them stays as it is, and the 1099 report '
+        + 'for past years still names them. They just stop being offered.',
+    confirmLabel: 'Archive vendor',
+  });
+  if (!ok) return;
+
+  try {
+    await archiveVendor(row.id);
+  } catch (error) {
+    toast(errorMessage(error), 'error');
+    return;
+  }
+  await refresh(renderAll);
+  toast(`${row.name} archived.`, 'ok');
+}
+
+async function unretireVendor(row) {
+  try {
+    await restoreVendor(row.id);
+  } catch (error) {
+    toast(errorMessage(error), 'error');
+    return;
+  }
+  await refresh(renderAll);
+  toast(`${row.name} restored.`, 'ok');
+}
+
+function vendorRow(row, totals) {
+  const total = totals.get(row.id) || null;
+  const category = categoryById(row.default_category_id);
+
+  let tax = el('span', { class: 'progress__label', text: '—' });
+  if (row.files_1099) {
+    tax = el('span', {
+      class: row.tax_id_on_file ? 'pill pill--green' : 'pill pill--amber',
+      text: row.tax_id_on_file ? 'W-9 on file' : 'No W-9',
+    });
+  }
+
+  return el('tr', { class: row.archived_at ? 'is-archived' : null }, [
+    el('td', {}, [
+      el('span', { class: 'row-cell__name', text: row.name }),
+      row.email ? el('span', { class: 'row-cell__desc', text: row.email }) : null,
+      row.phone ? el('span', { class: 'row-cell__desc', text: row.phone }) : null,
+      row.archived_at ? el('span', { class: 'pill', text: 'Archived' }) : null,
+    ]),
+    el('td', { text: category ? category.name : '—' }),
+    el('td', {}, [
+      tax,
+      total && total.reportable
+        ? el('span', {
+          class: 'row-cell__desc',
+          text: `Over ${formatMoney(state.necThreshold)} — 1099 due`,
+        })
+        : null,
+    ]),
+    el('td', { class: 'is-numeric', text: formatSigned(total ? total.total_cents : 0) }),
+    el('td', {}, [
+      el('span', { class: 'btn-row' }, [
+        el('button', {
+          class: 'btn btn--ghost btn--tiny',
+          type: 'button',
+          text: 'Edit',
+          'aria-label': `Edit ${row.name}`,
+          onclick: () => editVendor(row),
+        }),
+        row.archived_at
+          ? el('button', {
+            class: 'btn btn--ghost btn--tiny',
+            type: 'button',
+            text: 'Restore',
+            'aria-label': `Restore ${row.name}`,
+            onclick: busy(() => unretireVendor(row)),
+          })
+          : el('button', {
+            class: 'btn btn--ghost btn--tiny',
+            type: 'button',
+            text: 'Archive',
+            'aria-label': `Archive ${row.name}`,
+            onclick: busy(() => retireVendor(row)),
+          }),
+      ]),
+    ]),
+  ]);
+}
+
 function renderVendors() {
-  const rows = state.vendors.filter((row) => !row.archived_at);
+  const rows = state.vendors.filter((row) => state.showArchivedVendors || !row.archived_at);
+
+  const toggle = el('label', { class: 'check' }, [
+    el('input', {
+      type: 'checkbox',
+      checked: state.showArchivedVendors,
+      onchange: (event) => {
+        state.showArchivedVendors = event.target.checked;
+        renderVendors();
+      },
+    }),
+    'Show archived vendors',
+  ]);
 
   if (!rows.length) {
     mount(vendorTable, el('p', {
       class: 'empty',
-      text: 'No vendors yet. Adding one is optional — an expense can name anybody — '
-          + 'but a contractor who might need a 1099 is worth having here.',
-    }));
+      text: 'No vendors yet. Adding one is optional — an expense can name anybody, and '
+          + 'a new name saves itself — but a contractor who might need a 1099 is worth '
+          + 'setting up here with the box ticked.',
+    }), toggle);
     return;
   }
 
-  const spent = new Map();
-  state.expenses.forEach((row) => {
-    if (!row.vendor_id) return;
-    spent.set(row.vendor_id, (spent.get(row.vendor_id) || 0) + (Number(row.amount_cents) || 0));
-  });
+  // Paid this year, keyed by vendor, with the 1099 arithmetic attached.
+  const totals = new Map(
+    vendorTotals(state.expenses, state.vendors, state.year, state.necThreshold)
+      .map((row) => [row.vendor.id, row]),
+  );
+  const missing = rows.filter((row) => {
+    const total = totals.get(row.id);
+    return total && total.missing_tax_id;
+  }).length;
 
-  mount(vendorTable, table(['Vendor', 'Usually', '1099', 'Paid this period', ''],
-    rows.map((row) => {
-      const account = state.accounts.find((a) => a.id === row.default_account_id);
-      return el('tr', {}, [
-        el('td', {}, [
-          el('span', { class: 'sow-cell__name', text: row.name }),
-          row.email ? el('span', { class: 'sow-cell__desc', text: row.email }) : null,
-        ]),
-        el('td', { text: account ? accountLabel(account) : '—' }),
-        el('td', {}, [
-          row.files_1099
-            ? el('span', {
-              class: row.tax_id_on_file ? 'pill pill--green' : 'pill pill--amber',
-              text: row.tax_id_on_file ? 'W-9 on file' : 'No W-9',
-            })
-            : el('span', { class: 'progress__label', text: '—' }),
-        ]),
-        el('td', { class: 'is-numeric', text: formatMoney(spent.get(row.id) || 0) }),
-        el('td', {}, [
-          el('button', {
-            class: 'btn btn--ghost btn--tiny',
-            type: 'button',
-            text: 'Edit',
-            'aria-label': `Edit ${row.name}`,
-            onclick: () => editVendor(row),
-          }),
-        ]),
-      ]);
-    })));
+  mount(vendorTable,
+    table(['Vendor', 'Usually', '1099', `Paid in ${state.year}`, ''],
+      rows.map((row) => vendorRow(row, totals)), { wide: true }),
+    el('p', {
+      class: missing ? 'notice notice--warn' : 'progress__label',
+      text: missing
+        ? `${missing} ${missing === 1 ? 'contractor is' : 'contractors are'} over the `
+          + `${formatMoney(state.necThreshold)} threshold with no W-9 on file. `
+          + 'Collect it now, not in January.'
+        : `Anyone paid ${formatMoney(state.necThreshold)} or more for services in a `
+          + 'calendar year needs a 1099-NEC. Flagging them here is what makes January easy.',
+    }),
+    toggle);
 }
 
 function renderAll() {
@@ -1462,13 +1356,10 @@ async function main() {
   const ctx = await bootstrap({ requireAdmin: true });
   if (!ctx) return;
 
-  // Who recorded it. Set on insert only — an edit by a colleague must not
-  // quietly reassign whose expense it was, and the mileage log reads this
-  // column to say whose miles a vehicle line covers.
+  // Who recorded it. Set on insert only — an edit by the bookkeeper must not
+  // quietly reassign whose expense it was. An audit column, never shown.
   state.profileId = ctx.profile.id;
-
-  state.from = yearStart();
-  state.to = todayIso();
+  state.year = currentYear();
 
   try {
     await loadAll();
@@ -1479,14 +1370,15 @@ async function main() {
 
   mount(panels.expenses,
     panelHead('Expenses', el('div', { class: 'btn-row' }, [
-      el('button', { class: 'btn btn--small', type: 'button', text: 'Snap a receipt',
-        onclick: snapExpense }),
-      el('button', { class: 'btn btn--ghost btn--small', type: 'button', text: 'Record an expense',
+      el('button', { class: 'btn btn--small', type: 'button', text: 'Add expense',
         onclick: addExpense }),
+      el('button', { class: 'btn btn--ghost btn--small', type: 'button', text: 'Snap a receipt',
+        onclick: snapExpense }),
       el('button', { class: 'btn btn--ghost btn--small', type: 'button', text: 'Export CSV',
         onclick: exportCsv }),
-    ]), 'Money already out of the door. Each one posts itself to the books. '
-      + 'Snap a receipt starts from the photograph and builds the expense around it.'),
+    ]), 'Money already out of the door, recorded when it was paid. Snap a receipt '
+      + 'starts from the photograph and builds the expense around it.'),
+    figuresBox,
     buildFilters(),
     expenseTable,
   );
@@ -1494,27 +1386,33 @@ async function main() {
   mount(panels.recurring,
     panelHead('Subscriptions & recurring', el('button', { class: 'btn btn--small',
       type: 'button', text: 'Add a subscription', onclick: () => editRecurring() }),
-    'The monthly stack, recorded with a tap when each one falls due. Templates '
-    + 'rather than automation: nothing writes to the books unattended, so a '
-    + 'cancelled subscription can never keep billing itself.'),
+    'The monthly stack — licences, hosting, domains, app-store and API fees — recorded '
+    + 'with a tap when each one falls due. Templates rather than automation: nothing '
+    + 'writes to the books unattended.'),
     recurringTable,
   );
 
   mount(panels.vendors,
     panelHead('Vendors', el('button', { class: 'btn btn--small', type: 'button',
       text: 'Add a vendor', onclick: () => editVendor() }),
-    'Anyone unincorporated paid $600 or more for services in a calendar year '
-    + 'needs a 1099-NEC. Flagging them here is what makes January easy.'),
+    'Who the business pays. Tick the 1099 box on a contractor, and the W-9 box once '
+    + 'you have it.'),
     vendorTable,
   );
 
   mount(byId('portal-root'),
-    el('p', { class: 'breadcrumb' }, [el('a', { href: '/portal/admin/ledger/', text: '← Ledger' })]),
     el('div', { class: 'page-head' }, [
       el('div', {}, [
         el('h1', { text: 'Expenses' }),
-        el('p', { text: 'What the studio spends, and who it spends it with.' }),
+        el('p', { text: 'What the business spends, and who it spends it with.' }),
       ]),
+    ]),
+    // The jump bar pins under the header; the panels must be direct children
+    // of #portal-root for its scroll-spy to measure them.
+    sectionNav([
+      { id: 'expenses', label: 'Expenses', target: panels.expenses },
+      { id: 'recurring', label: 'Subscriptions', target: panels.recurring },
+      { id: 'vendors', label: 'Vendors', target: panels.vendors },
     ]),
     panels.expenses,
     panels.recurring,
@@ -1522,15 +1420,6 @@ async function main() {
   );
 
   renderAll();
-
-  // Arrived from the quick-add button's "Log an expense". Opening a form is a
-  // door, not a judgment — nothing is written until the person submits it — but
-  // the parameter is still stripped so a refresh does not reopen a form they
-  // just cancelled.
-  if (shouldAutoOpen(window.location.search, 'new')) {
-    window.history.replaceState({}, '', window.location.pathname);
-    addExpense();
-  }
 }
 
 main();

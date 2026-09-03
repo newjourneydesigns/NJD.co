@@ -7,3 +7,6 @@
 .env.*
 .netlify/
 node_modules/
+
+# wo-portal smoke-test screenshots — regenerated on demand, never reviewed.
+wo-portal/tools/portal/shots/

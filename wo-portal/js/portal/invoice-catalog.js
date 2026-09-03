@@ -1,14 +1,22 @@
 // ---------------------------------------------------------------------------
-// The standing lists an invoice is assembled from, and the arithmetic behind
-// its totals.
+// The standing lists an invoice is assembled from, and the checks before one
+// goes out.
 //
-// The same split as sow-catalog.js and for the same reason: invoice-list.js and
-// invoice-editor.js both open a page, so importing either outside a browser
-// runs bootstrap(). Everything worth a test lives here instead.
+// invoice-list.js and invoice-editor.js both open a page, so importing either
+// outside a browser runs bootstrap(). Everything worth a test lives here
+// instead: no DOM, no network, no clock. node --test holds it to account
+// through tools/portal/invoice-doc.test.mjs.
 // ---------------------------------------------------------------------------
 
-import { clientSlug } from './sow-catalog.js';
-import { formatMoney } from './sow-fees.js';
+import { clientSlug } from './doc-common.js';
+import { centsOf, computeTotals, formatRate, lineAmount } from './money.js';
+
+// The arithmetic is money.js's; re-exported so the two invoice screens and
+// the document assembler read it from one place.
+export { computeTotals, formatRate } from './money.js';
+
+// Statuses
+// ---------------------------------------------------------------------------
 
 export const STATUS_OPTIONS = [
   { value: 'draft', label: 'Draft' },
@@ -21,122 +29,127 @@ export const STATUS_OPTIONS = [
 /**
  * The statuses a person sets by hand.
  *
- * 'paid' is not one of them any more, and that is the point rather than an
- * omission. It is now decided by the payments recorded against the invoice: the
- * moment they cover the total the database sets it, and if one is removed it
- * un-sets it. An invoice that could be marked paid without a payment behind it
- * would be an invoice the books know nothing about, which is precisely the gap
- * the ledger exists to close.
+ * 'paid' is not one of them, and that is the point rather than an omission.
+ * It is decided by the payments recorded against the invoice: the moment they
+ * cover the total the database sets it, and if one is removed it un-sets it.
+ * An invoice that could be marked paid without a payment behind it would be
+ * income the tax-year report knows nothing about.
  *
  * 'draft' is missing for a different reason — a draft becomes issued by being
- * issued, and going back is what voiding is for.
+ * issued, and going back is what voiding is for. 'issued' is what issuing
+ * does. That leaves the two that are observations rather than arithmetic:
+ * the invoice was handed over, or the invoice was cancelled.
  */
 export const MANUAL_STATUS_OPTIONS = STATUS_OPTIONS.filter(
-  (option) => !['draft', 'paid'].includes(option.value),
+  (option) => ['sent', 'void'].includes(option.value),
 );
-
-/**
- * The payment an invoice is for.
- *
- * The first three are the scope of work's own fee block, which is what makes
- * "raise the deposit invoice" a single click rather than a retyping exercise.
- * `other` is everything that did not come from a SOW.
- */
-export const STAGE_OPTIONS = [
-  { value: 'deposit', label: 'Deposit', hint: 'Half the project fee, due on signing' },
-  { value: 'balance', label: 'Balance', hint: 'The other half, due at launch' },
-  { value: 'full', label: 'Full amount', hint: 'The whole project fee on one invoice' },
-  { value: 'other', label: 'Something else', hint: 'Out-of-scope work, a Support Plan, an ad-hoc job' },
-];
-
-export function stageLabel(value) {
-  const found = STAGE_OPTIONS.find((option) => option.value === value);
-  return found ? found.label : 'Something else';
-}
 
 export function statusLabel(value) {
   const found = STATUS_OPTIONS.find((option) => option.value === value);
-  return found ? found.label : value;
+  return found ? found.label : String(value || '');
 }
 
-/** INV 0001. Four digits rather than the SOW's three: invoices outnumber scopes
- *  of work — a project produces one SOW and at least two invoices. */
+/** The pill colour for a status: the same vocabulary portal.css's .pill--*
+ *  modifiers speak. Blank means the plain grey pill. */
+export function statusTone(value) {
+  return {
+    draft: '',
+    issued: 'blue',
+    sent: 'amber',
+    paid: 'green',
+    void: 'red',
+  }[value] || '';
+}
+
+// How money moves
+// ---------------------------------------------------------------------------
+
+/** The payment_method enum, in the order the owner reaches for them. */
+export const PAYMENT_METHODS = [
+  { value: 'ach', label: 'ACH / bank transfer' },
+  { value: 'check', label: 'Check' },
+  { value: 'zelle', label: 'Zelle' },
+  { value: 'card', label: 'Card' },
+  { value: 'cash', label: 'Cash' },
+  { value: 'other', label: 'Other' },
+];
+
+export function methodLabel(value) {
+  const found = PAYMENT_METHODS.find((option) => option.value === value);
+  return found ? found.label : String(value || '');
+}
+
+// What the business sells
+// ---------------------------------------------------------------------------
+
+/** The services the owner listed, offered as suggestions on a line's name so
+ *  the same work is not spelled four ways across a year of invoices. Never
+ *  enforced — a line can say anything. */
+export const LINE_PRESETS = [
+  'Marketing consulting',
+  'Business consulting',
+  'Business system architecture & delivery',
+  'App design',
+  'Graphic design',
+  'Video design',
+  'Print work',
+  'Website creation',
+];
+
+// Numbers, labels, filenames
+// ---------------------------------------------------------------------------
+
+/** YYYYMMDD-N: the day the invoice was raised and that day's sequence. The
+ *  same shape the database's invoices_number_shape constraint insists on. */
+export const NUMBER_RE = /^[0-9]{8}-[0-9]+$/;
+
+export function isValidNumber(number) {
+  return NUMBER_RE.test(String(number == null ? '' : number).trim());
+}
+
+/** What people call it: "Invoice 20260901-1". */
 export function invoiceLabel(number) {
-  return String(number == null ? 0 : number).padStart(4, '0');
+  const shown = String(number == null ? '' : number).trim();
+  return `Invoice ${shown || '—'}`;
 }
 
-export function invoiceFilename(invoice, clientName, date) {
-  return `NJD-INV-${invoiceLabel(invoice.number)}`
-       + `-${clientSlug(clientName)}-${String(date).slice(0, 10)}.pdf`;
+/** WO-INV-20260901-1-acme-roofing-llc.pdf — the number already carries the
+ *  date, so the filename does not repeat it. */
+export function invoiceFilename(invoice, clientName) {
+  const number = String((invoice && invoice.number) || '').trim() || 'draft';
+  return `WO-INV-${number}-${clientSlug(clientName)}.pdf`;
 }
 
-/** The client name off a list row, whose `clients` embed may not have resolved.
- *  Same fallback as the SOW list, so an orphaned row still lists. */
+/** The client name off a list row, whose embed may not have resolved. The
+ *  embed is aliased `client` by invoice-data.js; `clients` is tolerated so a
+ *  row shaped by somebody else's loader still lists. */
 export function invoiceClientName(row) {
-  const client = (row && row.clients) || {};
+  const client = (row && (row.client || row.clients)) || {};
   return client.name || client.legal_name || 'Unknown client';
 }
 
-/**
- * One line's amount.
- *
- * Quantity is a float on purpose — 1.5 hours is a real thing to bill — and the
- * rounding happens once, here, so the number stored is the number printed. A
- * line whose quantity or rate is nonsense contributes zero rather than NaN: a
- * total that reads "$NaN" on a document sent to a client is the failure this
- * whole file exists to avoid.
- */
-export function lineAmount({ quantity, unit_cents: unitCents }) {
-  const qty = Number(quantity);
-  const unit = Number(unitCents);
-  if (!Number.isFinite(qty) || !Number.isFinite(unit)) return 0;
-  return Math.round(qty * unit);
+// Lines and totals
+// ---------------------------------------------------------------------------
+
+/** One line's amount: quantity × unit price, rounded once. A line whose
+ *  quantity or rate is nonsense contributes zero rather than NaN, because a
+ *  total that reads "$NaN" on a document sent to a client is the failure this
+ *  whole file exists to avoid — money.js's lineAmount already promises that. */
+export function itemAmount(item) {
+  if (!item) return 0;
+  return lineAmount(item.quantity, item.unit_cents);
 }
 
-/**
- * What the invoice asks for.
- *
- * There is no discount arithmetic here, and that is the point. Every discount
- * this studio gives is decided by the fee engine when the scope of work is
- * written, and is already baked into the figures the client agreed to. An
- * invoice that could discount again would be a second place for the price to be
- * decided, and the two would drift.
- *
- * `paid` is part payment against this document — the client who sends half of
- * what was asked — not the deposit/balance split, which is two invoices.
- */
-export function computeTotals(items = [], paidCents = 0, taxRateBp = 0) {
-  const subtotal = items.reduce((sum, item) => sum + lineAmount(item), 0);
-  const paid = Math.max(0, Number(paidCents) || 0);
-
-  // Tax is charged on the lines that say they are taxable, not on the invoice.
-  // "Build the site, and here is the printing we bought on your behalf" is one
-  // document with two answers, and an invoice that could only say yes or no
-  // would force it to be two documents or to be wrong.
-  const rate = Math.max(0, Number(taxRateBp) || 0);
-  const taxable = items
-    .filter((item) => item.taxable)
-    .reduce((sum, item) => sum + lineAmount(item), 0);
-  // Basis points, and the rounding happens once here so the number stored is
-  // the number printed and the number posted.
-  const tax = rate ? Math.round((taxable * rate) / 10000) : 0;
-  const total = subtotal + tax;
-
-  return {
-    subtotal,
-    taxable,
-    taxRateBp: rate,
-    tax,
-    total,
-    paid,
-    due: total - paid,
-  };
+/** The lines with their amount_cents worked out from quantity × rate, so the
+ *  number stored is the number printed and the number the database checks. */
+export function withAmounts(items) {
+  return (items || []).map((item) => ({ ...item, amount_cents: itemAmount(item) }));
 }
 
-/** 825 → "8.25%". Trailing zeros trimmed, because a rate is read aloud. */
-export function formatRate(basisPoints) {
-  const rate = (Number(basisPoints) || 0) / 100;
-  return `${rate.toFixed(2).replace(/\.?0+$/, '')}%`;
+/** Subtotal, tax and total for the lines as they stand. Tax is rounded once,
+ *  on the taxable subtotal — see computeTotals in money.js. */
+export function invoiceTotals(items, taxRateBp) {
+  return computeTotals(withAmounts(items), taxRateBp);
 }
 
 /** "8.25" or "8.25%" → 825. Null for anything that is not a number, so a typo
@@ -151,84 +164,87 @@ export function parseRate(input) {
   return Math.round(rate * 100);
 }
 
+// The checks before issuing
+// ---------------------------------------------------------------------------
+
+function present(value) {
+  return String(value === null || value === undefined ? '' : value).trim() !== '';
+}
+
 /**
  * Everything wrong with this invoice, worst first.
  *
- * Same contract as the SOW's validate(): `blocking` stops the issue, anything
- * else is a warning the operator is trusted to overrule. The split matters —
- * an invoice for a scope of work nobody has marked signed yet is very often
- * correct (deposits are billed on the call that agrees the work), so it warns
- * rather than blocks.
+ * `blocking` stops the issue; anything else is a warning the owner is trusted
+ * to overrule. The database repeats the one check that matters most — the
+ * lines and the tax have to add up to the total — so a stale browser cannot
+ * freeze a document that disagrees with its own record.
  */
-export function validate({ invoice, client, items = [], sow = null, billedCents = 0 } = {}) {
+export function validate(invoice, items = [], client = null) {
   const problems = [];
   const add = (blocking, field, message) => problems.push({ blocking, field, message });
+  const lines = items || [];
 
   if (!client) {
     add(true, 'client', 'This invoice has no client on it. An invoice is addressed to somebody.');
   }
 
-  if (!items.length) {
+  if (!lines.length) {
     add(true, 'items', 'An invoice with no lines is not one. Add at least one.');
   }
 
-  const zeroLines = items.filter((item) => lineAmount(item) === 0);
-  if (items.length && zeroLines.length === items.length) {
+  const unnamed = lines.filter((item) => !present(item.name));
+  if (unnamed.length) {
+    add(true, 'items', `${unnamed.length} line${unnamed.length === 1 ? ' has' : 's have'} `
+      + 'no name. Say what each one is for — it is what the client reads.');
+  }
+
+  if (!invoice || !isValidNumber(invoice.number)) {
+    add(true, 'number', 'The number has to look like 20260901-1: the date it was '
+      + 'raised, a dash, and that day\'s sequence.');
+  }
+
+  if (!invoice || !present(invoice.issued_on)) {
+    add(true, 'issued_on', 'An invoice needs a date. It is what the payment terms count from.');
+  }
+
+  if (invoice && present(invoice.issued_on) && present(invoice.due_on)
+      && String(invoice.due_on) < String(invoice.issued_on)) {
+    add(true, 'due_on', 'This is due before it is dated. One of the two dates is wrong.');
+  }
+
+  const totals = invoiceTotals(lines, invoice ? invoice.tax_rate_bp : 0);
+  const stored = invoice ? Number(invoice.total_cents) : NaN;
+  if (Number.isFinite(stored) && centsOf(stored) !== totals.total_cents) {
+    add(true, 'total', 'The saved total does not match the lines and the tax. '
+      + 'Wait for the save to finish, or reload the page.');
+  }
+
+  const zeroLines = lines.filter((item) => itemAmount(item) === 0);
+  if (lines.length && zeroLines.length === lines.length) {
     add(true, 'items', 'Every line on this invoice is zero. Nothing is being asked for.');
   } else if (zeroLines.length) {
     add(false, 'items', `${zeroLines.length} line${zeroLines.length === 1 ? ' adds' : 's add'} `
       + 'nothing to the total. Remove them, or say what they are for.');
   }
 
-  const negative = items.filter((item) => lineAmount(item) < 0);
-  if (negative.length) {
-    add(false, 'items', 'A negative line reads as a credit note. If that is what '
-      + 'this is, say so in the summary — otherwise it looks like a typo.');
+  if (lines.some((item) => itemAmount(item) < 0)) {
+    add(false, 'items', 'A negative line reads as a credit. If that is what this is, '
+      + 'say so in the summary — otherwise it looks like a typo.');
   }
 
-  if (!invoice || !invoice.issued_on) {
-    add(true, 'issued_on', 'An invoice needs a date. It is what the payment terms count from.');
-  }
-
-  if (invoice && invoice.issued_on && invoice.due_on && invoice.due_on < invoice.issued_on) {
-    add(true, 'due_on', 'This is due before it is dated. One of the two dates is wrong.');
-  }
-
-  if (invoice && items.some((item) => item.taxable) && !Number(invoice.tax_rate_bp)) {
+  if (invoice && lines.some((item) => item.taxable) && !centsOf(invoice.tax_rate_bp)) {
     add(false, 'tax', 'A line is marked taxable but the tax rate is zero, so nothing '
-      + 'is being charged. Set the rate in Payment terms, or untick the line.');
+      + 'is being charged. Set a rate on this invoice, or untick the line.');
   }
 
-  if (invoice && Number(invoice.tax_rate_bp) && !items.some((item) => item.taxable)) {
+  if (invoice && centsOf(invoice.tax_rate_bp) && !lines.some((item) => item.taxable)) {
     add(false, 'tax', 'This invoice has a tax rate but no taxable lines, so it charges '
       + 'no tax. That is right for pure service work — tick a line if it is not.');
   }
 
-  if (invoice && !invoice.due_on) {
-    add(false, 'due_on', 'No due date, so the document will fall back to the '
-      + 'standing terms. Setting one is clearer.');
-  }
-
-  // Billing against a scope of work: the two questions worth asking before the
-  // document goes out, neither of which is a hard stop.
-  if (sow) {
-    if (sow.status !== 'signed') {
-      add(false, 'sow', `${sow.label || 'That scope of work'} is marked `
-        + `“${statusLabel(sow.status)}”, not signed. Billing a deposit before the `
-        + 'paperwork comes back is normal — billing a balance is worth a second look.');
-    }
-
-    const totals = computeTotals(items, invoice ? invoice.paid_cents : 0);
-    const wouldBill = billedCents + totals.total;
-
-    if (sow.adjusted_fee_cents && wouldBill > sow.adjusted_fee_cents) {
-      const over = wouldBill - sow.adjusted_fee_cents;
-      add(false, 'items', `This takes the total billed against `
-        + `${sow.label || 'that scope of work'} to ${formatMoney(wouldBill)}, which is `
-        + `${formatMoney(over)} more than the ${formatMoney(sow.adjusted_fee_cents)} `
-        + 'agreed. That is right for out-of-scope work and wrong for everything '
-        + 'else — make sure the lines say which this is.');
-    }
+  if (invoice && !present(invoice.due_on)) {
+    add(false, 'due_on', 'No due date, so the document cannot say when to pay by. '
+      + 'Setting one is clearer.');
   }
 
   return problems.sort((a, b) => Number(b.blocking) - Number(a.blocking));
@@ -238,39 +254,52 @@ export function blockers(problems) {
   return (problems || []).filter((problem) => problem.blocking);
 }
 
-/** The list view's search and status filter, same shape as filterSows(). */
-export function filterInvoices(invoices, { search = '', status = '' } = {}) {
-  const needle = String(search).trim().toLowerCase();
+// The list
+// ---------------------------------------------------------------------------
+
+/** The list view's filters: a status, a client, and a search over the number,
+ *  the client and the project. Pure, so the same rule serves the page and the
+ *  loader's `search` argument. */
+export function filterInvoices(invoices, { search = '', status = '', clientId = '' } = {}) {
+  const needle = String(search || '').trim().toLowerCase();
 
   return (invoices || []).filter((row) => {
     if (status && row.status !== status) return false;
+    if (clientId && row.client_id !== clientId) return false;
     if (!needle) return true;
 
     const haystack = [
       invoiceClientName(row),
       row.project_name,
-      row.sow_label,
-      `inv ${invoiceLabel(row.number)}`,
-      String(row.number),
+      row.purchase_order,
+      invoiceLabel(row.number),
+      String(row.number || ''),
     ].filter(Boolean).join(' ').toLowerCase();
 
     return haystack.includes(needle);
   });
 }
 
+/** What is still owed on a row: nothing for a draft, a void or a paid one. */
+export function outstandingCents(row) {
+  if (!row || !['issued', 'sent'].includes(row.status)) return 0;
+  return centsOf(row.total_cents) - centsOf(row.paid_cents);
+}
+
 /**
- * Is this invoice overdue, and by how much?
+ * Is this invoice overdue, and by how many whole days?
  *
- * `today` is passed in rather than read off the clock so a test can ask about a
- * Tuesday. Paid and void invoices are never overdue — money that has arrived,
- * or was never owed, is not late.
+ * `today` is passed in rather than read off the clock so a test can ask about
+ * a Tuesday. Only an issued or sent invoice can be late: a draft has been
+ * handed to nobody, and money that has arrived, or was never owed, is not
+ * late.
  */
 export function overdueDays(invoice, today) {
   if (!invoice || !invoice.due_on) return 0;
-  if (['paid', 'void', 'draft'].includes(invoice.status)) return 0;
+  if (!['issued', 'sent'].includes(invoice.status)) return 0;
 
-  const due = Date.parse(`${String(invoice.due_on).slice(0, 10)}T00:00:00`);
-  const now = Date.parse(`${String(today).slice(0, 10)}T00:00:00`);
+  const due = Date.parse(`${String(invoice.due_on).slice(0, 10)}T00:00:00Z`);
+  const now = Date.parse(`${String(today).slice(0, 10)}T00:00:00Z`);
   if (Number.isNaN(due) || Number.isNaN(now)) return 0;
 
   const days = Math.floor((now - due) / 86400000);

@@ -540,7 +540,7 @@ export function modalShell({ title, onClose }) {
 // ---------------------------------------------------------------------------
 //
 // There were 25 window.confirm() calls in this portal, every one of which
-// dropped the product into an OS alert captioned "newjourneydesigns.com
+// dropped the product into an OS alert captioned with the bare domain and
 // says:". The copy inside them was good — it named consequences, it was
 // written in the house voice — and it was being rendered in the one container
 // that makes it look like a browser security warning. One of them was the
@@ -1154,16 +1154,26 @@ export function formModal({
   });
 }
 
+/** The one status chip, keyed by every status this portal has: an invoice's,
+ *  a client's, and the two tags an expense carries. An unknown value still
+ *  renders — title-cased, in the neutral tone — because a pill that vanishes
+ *  hides the fact that something has a status at all. */
 export function statusPill(status) {
   const tone = {
-    complete: 'green',
-    launched: 'green',
-    in_progress: 'blue',
-    review: 'amber',
-    blocked: 'red',
-    on_hold: 'red',
-    discovery: '',
-    not_started: '',
+    // Invoices
+    draft: '',
+    issued: 'blue',
+    sent: 'blue',
+    paid: 'green',
+    void: 'red',
+    overdue: 'red',
+    // Clients
+    active: 'green',
+    lead: 'amber',
+    past: '',
+    // Expenses
+    billable: 'amber',
+    billed: 'green',
   }[status] || '';
 
   return el('span', {
@@ -1194,9 +1204,8 @@ export function figureRow(figures) {
 // Panels and tables
 // ---------------------------------------------------------------------------
 //
-// The three staff list screens — Clients, Form Entries, Admin — plus the SOW
-// list are all the same shape: a titled panel with one action in its corner and
-// a table under it. These live here rather than in any one of them so splitting
+// The list screens — Clients, Invoices, Expenses, Admin — are all the same
+// shape: a titled panel with one action in its corner and a table under it. These live here rather than in any one of them so splitting
 // a screen out into its own page never means copying the phone layout with it.
 
 /** A panel's title bar: heading on the left, one action on the right, and an

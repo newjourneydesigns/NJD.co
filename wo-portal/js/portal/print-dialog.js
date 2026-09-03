@@ -62,11 +62,11 @@ export async function openPrintDialog({ container, filename, footer }) {
   if (filename) document.title = filename.replace(/\.pdf$/i, '');
 
   const cssString = JSON.stringify(String(footer || ''));
-  document.documentElement.style.setProperty('--sow-party', cssString);
+  document.documentElement.style.setProperty('--doc-party', cssString);
 
   const cleanup = () => {
     container.remove();
-    document.documentElement.style.removeProperty('--sow-party');
+    document.documentElement.style.removeProperty('--doc-party');
     document.title = previousTitle;
   };
 

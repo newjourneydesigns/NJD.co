@@ -1,115 +1,44 @@
 // ---------------------------------------------------------------------------
-// The bookkeeping: what the account types mean, and how the reports are built
-// out of a list of balances.
+// Expenses — the pure half.
 //
-// The same split as sow-fees.js and invoice-catalog.js, for the same reason —
-// every screen in the ledger opens a page, so importing one outside a browser
-// runs bootstrap(). Everything worth a test lives here instead, and here is
-// where the arithmetic that an accountant would check lives too.
+// Everything on the Expenses page that is worth a test lives here: no DOM, no
+// network, no clock. expenses.js opens a page and runs bootstrap() the moment
+// it is imported, so anything an accountant would want to check — the 1099
+// list, the ageing buckets, what a meal is missing before it survives an
+// examination, when a subscription falls due — has to live somewhere a test
+// can import. This is that somewhere.
 //
-// The one idea worth reading before the rest: every balance arriving from
-// ledger_balances() is already signed the way its account is normally read. An
-// asset with more debits than credits is positive; so is income with more
-// credits than debits. That flip happens once, in SQL, so that nothing in this
-// file has to remember which way round a revenue account goes.
+// Money is integer cents throughout. Dates are YYYY-MM-DD strings and are cut
+// apart by hand rather than parsed: `new Date('2026-08-01')` is UTC midnight,
+// which is the previous evening in Texas.
 // ---------------------------------------------------------------------------
 
-import { formatMoney } from './sow-fees.js';
+import { formatMoney, parseMoney } from './money.js';
 
-/**
- * The account types, in the order a set of books is always presented: what you
- * own, what you owe, what is left over, what came in, what went out.
- *
- * `normal` is the side that makes the balance bigger, which is the single fact
- * that decides everything else. It is stated rather than derived because it is
- * the thing a person reading this file most needs to know.
- */
-export const ACCOUNT_TYPES = [
-  { value: 'asset',     label: 'Asset',     normal: 'debit',
-    hint: 'Something the studio owns or is owed — a bank account, an unpaid invoice, a laptop.' },
-  { value: 'liability', label: 'Liability', normal: 'credit',
-    hint: 'Something the studio owes — a card balance, tax collected and not yet handed over.' },
-  { value: 'equity',    label: 'Equity',    normal: 'credit',
-    hint: "The owner's stake: what went in, what came out, and what the business has kept." },
-  { value: 'income',    label: 'Income',    normal: 'credit',
-    hint: 'What the studio earned.' },
-  { value: 'expense',   label: 'Expense',   normal: 'debit',
-    hint: 'What it cost to earn it.' },
-];
+// How money moved
+// ---------------------------------------------------------------------------
 
-/**
- * The subtypes, grouped under their type, in balance-sheet order.
- *
- * `section` is which block of which report the account prints in, and it is the
- * only reason the subtype exists as a separate column: "current asset" and
- * "fixed asset" are both assets, and a balance sheet that ran them together
- * would be missing the distinction the reader came for.
- */
-export const ACCOUNT_SUBTYPES = [
-  { value: 'bank',                    type: 'asset',     label: 'Bank account',        section: 'current_assets' },
-  { value: 'receivable',              type: 'asset',     label: 'Accounts receivable', section: 'current_assets' },
-  { value: 'other_current_asset',     type: 'asset',     label: 'Other current asset', section: 'current_assets' },
-  { value: 'fixed_asset',             type: 'asset',     label: 'Fixed asset',         section: 'fixed_assets' },
-
-  { value: 'credit_card',             type: 'liability', label: 'Credit card',             section: 'current_liabilities' },
-  { value: 'payable',                 type: 'liability', label: 'Accounts payable',        section: 'current_liabilities' },
-  { value: 'other_current_liability', type: 'liability', label: 'Other current liability', section: 'current_liabilities' },
-  { value: 'long_term_liability',     type: 'liability', label: 'Long-term liability',     section: 'long_term_liabilities' },
-
-  { value: 'equity',                  type: 'equity',    label: 'Equity',            section: 'equity' },
-
-  { value: 'income',                  type: 'income',    label: 'Income',            section: 'revenue' },
-  { value: 'other_income',            type: 'income',    label: 'Other income',      section: 'other_income' },
-
-  { value: 'cost_of_sales',           type: 'expense',   label: 'Cost of sales',     section: 'cost_of_sales' },
-  { value: 'expense',                 type: 'expense',   label: 'Operating expense', section: 'operating' },
-  { value: 'other_expense',           type: 'expense',   label: 'Other expense',     section: 'other_expense' },
-];
-
+/** The payment_method enum in schema.sql, in the order the business uses them. */
 export const PAYMENT_METHODS = [
-  { value: 'bank_transfer', label: 'Bank transfer' },
-  { value: 'card',          label: 'Card' },
-  { value: 'check',         label: 'Check' },
-  { value: 'cash',          label: 'Cash' },
-  { value: 'zelle',         label: 'Zelle' },
-  { value: 'other',         label: 'Other' },
+  { value: 'ach',   label: 'ACH' },
+  { value: 'check', label: 'Check' },
+  { value: 'zelle', label: 'Zelle' },
+  { value: 'card',  label: 'Card' },
+  { value: 'cash',  label: 'Cash' },
+  { value: 'other', label: 'Other' },
 ];
-
-/** The accounts money can be paid into or out of — a bank, or a card. */
-export const CASH_SUBTYPES = ['bank', 'credit_card', 'other_current_asset'];
-
-export function typeLabel(value) {
-  const found = ACCOUNT_TYPES.find((row) => row.value === value);
-  return found ? found.label : value;
-}
-
-export function subtypeLabel(value) {
-  const found = ACCOUNT_SUBTYPES.find((row) => row.value === value);
-  return found ? found.label : value;
-}
-
-export function subtypesFor(type) {
-  return ACCOUNT_SUBTYPES.filter((row) => row.type === type);
-}
 
 export function methodLabel(value) {
   const found = PAYMENT_METHODS.find((row) => row.value === value);
-  return found ? found.label : value;
-}
-
-/** Which side a debit-normal account sits on. Used by the entry form to say
- *  "this increases the balance" rather than making somebody remember. */
-export function normalSide(type) {
-  const found = ACCOUNT_TYPES.find((row) => row.value === type);
-  return found ? found.normal : 'debit';
+  return found ? found.label : String(value || '');
 }
 
 /**
  * Money for a report, where a negative is written in parentheses.
  *
- * Not decoration: it is what every accountant, every tax preparer and every
- * other set of books does, and a profit and loss with "-$400.00" on it reads as
- * a typo to the person this report exists to be handed to.
+ * Not decoration: it is what every accountant and every tax preparer does,
+ * and a list with "-$400.00" on it reads as a typo to the person this exists
+ * to be handed to. A refund from a supplier is a negative expense.
  */
 export function formatSigned(cents) {
   const amount = Number(cents) || 0;
@@ -117,202 +46,93 @@ export function formatSigned(cents) {
   return formatMoney(amount);
 }
 
-/** `1000 · Business checking`, which is how an account is named everywhere it
- *  is picked from — the code is what an accountant sorts and searches by. */
-export function accountLabel(account) {
-  if (!account) return '—';
-  return `${account.code} · ${account.name}`;
+/** The total of a list of cents, or of rows carrying amount_cents. Garbage
+ *  counts as nothing rather than as NaN, which would poison every figure. */
+export function sumCents(list) {
+  return (list || []).reduce((total, item) => {
+    const raw = item && typeof item === 'object' ? item.amount_cents : item;
+    const n = Number(raw);
+    return total + (Number.isFinite(n) ? n : 0);
+  }, 0);
+}
+
+// Schedule C
+// ---------------------------------------------------------------------------
+
+/**
+ * Part II of Schedule C, so a category's line number can be printed as a
+ * name. Only the lines a service business meets; a line missing from this
+ * list still prints as "Line 12", it just does not get a caption.
+ */
+export const SCHEDULE_C_LINES = [
+  { line: '8',   label: 'Advertising' },
+  { line: '9',   label: 'Car and truck expenses' },
+  { line: '10',  label: 'Commissions and fees' },
+  { line: '11',  label: 'Contract labor' },
+  { line: '13',  label: 'Depreciation' },
+  { line: '15',  label: 'Insurance' },
+  { line: '16b', label: 'Interest' },
+  { line: '17',  label: 'Legal and professional services' },
+  { line: '18',  label: 'Office expense' },
+  { line: '20b', label: 'Rent or lease' },
+  { line: '21',  label: 'Repairs and maintenance' },
+  { line: '22',  label: 'Supplies' },
+  { line: '23',  label: 'Taxes and licenses' },
+  { line: '24a', label: 'Travel' },
+  { line: '24b', label: 'Meals' },
+  { line: '25',  label: 'Utilities' },
+  { line: '27a', label: 'Other expenses' },
+  { line: '30',  label: 'Home office' },
+];
+
+/** "Line 24b · Meals", or just "Line 12" for a line this file has no name for. */
+export function scheduleCLabel(line) {
+  const key = String(line || '').trim();
+  if (!key) return '';
+  const found = SCHEDULE_C_LINES.find((row) => row.line === key);
+  return found ? `Line ${key} · ${found.label}` : `Line ${key}`;
+}
+
+/** '24b' → [24, 'b'], so lines sort the way the form reads: 8, 9, 11, 24a,
+ *  24b, 27a. A plain string sort would put 11 before 8. */
+function lineRank(line) {
+  const match = /^(\d+)([a-z]?)$/i.exec(String(line || '').trim());
+  if (!match) return [999, String(line || '')];
+  return [Number(match[1]), match[2].toLowerCase()];
+}
+
+export function compareLines(a, b) {
+  const [na, sa] = lineRank(a);
+  const [nb, sb] = lineRank(b);
+  return (na - nb) || sa.localeCompare(sb);
 }
 
 /**
- * The first day of the financial year that `asOf` falls in.
+ * The category list as a <select> reads it: grouped by Schedule C line, then
+ * in the owner's own order. A plain <select> has no headings, so the line is
+ * written into each label — "24b · Business meals" — which is what makes the
+ * grouping visible.
  *
- * A balance sheet has to split what the business made this year from what it
- * made in every year before it, and that split moves with the fiscal year. Both
- * arguments are passed in rather than read from the clock or the settings, so
- * the same inputs always give the same answer.
+ * Archived categories are left out unless `keepId` names one: an expense
+ * booked to a category that was archived afterwards must still be able to
+ * open in the form without quietly moving somewhere else.
  */
-export function fiscalYearStart(asOf, startMonth = 1) {
-  const iso = String(asOf).slice(0, 10);
-  const year = Number(iso.slice(0, 4));
-  const month = Number(iso.slice(5, 7));
-  const start = Number(startMonth) || 1;
-  const useYear = month >= start ? year : year - 1;
-  return `${useYear}-${String(start).padStart(2, '0')}-01`;
+export function categoryOptions(categories, { keepId = null } = {}) {
+  return (categories || [])
+    .filter((row) => !row.archived_at || row.id === keepId)
+    .slice()
+    .sort((a, b) => compareLines(a.schedule_c_line, b.schedule_c_line)
+      || ((Number(a.position) || 0) - (Number(b.position) || 0))
+      || String(a.name).localeCompare(String(b.name)))
+    .map((row) => ({
+      value: row.id,
+      label: `${row.schedule_c_line ? `${row.schedule_c_line} · ` : ''}${row.name}`
+        + (row.archived_at ? ' (archived)' : ''),
+    }));
 }
 
-/** The day before a date, so "everything up to the start of this year" can be
- *  asked for as a closed range. */
-export function dayBefore(iso) {
-  const date = new Date(`${String(iso).slice(0, 10)}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() - 1);
-  return date.toISOString().slice(0, 10);
-}
-
-function sum(rows, pick) {
-  return rows.reduce((total, row) => total + (Number(pick(row)) || 0), 0);
-}
-
-function bySection(rows, section) {
-  const wanted = ACCOUNT_SUBTYPES
-    .filter((row) => row.section === section)
-    .map((row) => row.value);
-  return rows.filter((row) => wanted.includes(row.subtype));
-}
-
-/**
- * Only the accounts worth printing.
- *
- * An account with no movement and no balance is noise on a report — the chart
- * seeds forty of them and a new studio uses eight. An archived account with a
- * balance still prints, because money that is somewhere has to be shown
- * wherever it is.
- */
-function used(rows) {
-  return rows.filter((row) => (
-    Number(row.balance) !== 0 || Number(row.debits) !== 0 || Number(row.credits) !== 0
-  ));
-}
-
-/**
- * The trial balance: every account, both columns, and the proof that they
- * match.
- *
- * This is the report that says whether the books are internally consistent, and
- * `balanced` should be true forever — the database refuses an entry that would
- * make it false. It is shown anyway, because a claim that is never checked is a
- * claim nobody should rely on.
- */
-export function trialBalance(balances) {
-  const rows = used(balances || []);
-  const debits = sum(rows, (row) => row.debits);
-  const credits = sum(rows, (row) => row.credits);
-
-  return {
-    rows,
-    debits,
-    credits,
-    difference: debits - credits,
-    balanced: debits === credits,
-  };
-}
-
-/**
- * Profit and loss for a window.
- *
- * The shape is the conventional one, and each subtotal answers a different
- * question: gross profit is what the work itself earns, operating profit is
- * what the business earns after the cost of being open, and net profit is what
- * is actually left. Running them together would collapse three answers into one.
- *
- * `cashRevenue`, when given, replaces the accrual revenue lines with what
- * ledger_cash_income() worked out — the same report, read the other way. Costs
- * are not switched with it, and that is correct rather than lazy: an expense in
- * this system is recorded when it is paid, so the two bases already agree on
- * them. The screen says so rather than leaving it to be assumed.
- */
-export function profitAndLoss(balances, cashRevenue = null) {
-  const rows = balances || [];
-
-  let revenue = used(bySection(rows, 'revenue'));
-  if (cashRevenue) {
-    const byId = new Map(cashRevenue.map((row) => [row.account_id, Number(row.amount) || 0]));
-    revenue = rows
-      .filter((row) => byId.has(row.account_id))
-      .map((row) => ({ ...row, balance: byId.get(row.account_id) }));
-  }
-
-  const costOfSales = used(bySection(rows, 'cost_of_sales'));
-  const operating = used(bySection(rows, 'operating'));
-  const otherIncome = used(bySection(rows, 'other_income'));
-  const otherExpense = used(bySection(rows, 'other_expense'));
-
-  const revenueTotal = sum(revenue, (row) => row.balance);
-  const costTotal = sum(costOfSales, (row) => row.balance);
-  const grossProfit = revenueTotal - costTotal;
-  const operatingTotal = sum(operating, (row) => row.balance);
-  const operatingProfit = grossProfit - operatingTotal;
-  const otherIncomeTotal = sum(otherIncome, (row) => row.balance);
-  const otherExpenseTotal = sum(otherExpense, (row) => row.balance);
-
-  return {
-    revenue,
-    revenueTotal,
-    costOfSales,
-    costTotal,
-    grossProfit,
-    // The number a studio actually steers by. Guarded against a zero-revenue
-    // period, where the honest answer is "no margin to speak of" rather than a
-    // division by zero rendered as NaN%.
-    grossMargin: revenueTotal ? grossProfit / revenueTotal : null,
-    operating,
-    operatingTotal,
-    operatingProfit,
-    otherIncome,
-    otherIncomeTotal,
-    otherExpense,
-    otherExpenseTotal,
-    netProfit: operatingProfit + otherIncomeTotal - otherExpenseTotal,
-  };
-}
-
-/**
- * The balance sheet, as of a date.
- *
- * `toDate` is every balance since the books opened; `thisYear` is the same
- * accounts over the current financial year only. Both are needed because equity
- * has two pieces that no account holds directly:
- *
- *   net profit        what the business has made since the year began
- *   retained earnings what it made in every year before that and kept
- *
- * Most systems make you post a closing entry each year to move one into the
- * other. This works them out instead, so there is no annual ritual to forget
- * and no year where the balance sheet is wrong until somebody remembers it.
- *
- * `balanced` is the check that matters: assets must equal liabilities plus
- * equity, or something is wrong with the books rather than with the report.
- */
-export function balanceSheet(toDate, thisYear) {
-  const rows = toDate || [];
-
-  const currentAssets = used(bySection(rows, 'current_assets'));
-  const fixedAssets = used(bySection(rows, 'fixed_assets'));
-  const currentLiabilities = used(bySection(rows, 'current_liabilities'));
-  const longTermLiabilities = used(bySection(rows, 'long_term_liabilities'));
-  const equity = used(bySection(rows, 'equity'));
-
-  const profitOf = (source) => {
-    const set = source || [];
-    const income = sum(set.filter((row) => row.type === 'income'), (row) => row.balance);
-    const expense = sum(set.filter((row) => row.type === 'expense'), (row) => row.balance);
-    return income - expense;
-  };
-
-  const netProfit = profitOf(thisYear);
-  const retained = profitOf(rows) - netProfit;
-
-  const assetsTotal = sum(currentAssets, (row) => row.balance)
-    + sum(fixedAssets, (row) => row.balance);
-  const liabilitiesTotal = sum(currentLiabilities, (row) => row.balance)
-    + sum(longTermLiabilities, (row) => row.balance);
-  const equityTotal = sum(equity, (row) => row.balance) + retained + netProfit;
-
-  return {
-    currentAssets,
-    fixedAssets,
-    assetsTotal,
-    currentLiabilities,
-    longTermLiabilities,
-    liabilitiesTotal,
-    equity,
-    retained,
-    netProfit,
-    equityTotal,
-    difference: assetsTotal - (liabilitiesTotal + equityTotal),
-    balanced: assetsTotal === liabilitiesTotal + equityTotal,
-  };
-}
+// Accounts receivable ageing
+// ---------------------------------------------------------------------------
 
 export const AGING_BUCKETS = [
   { key: 'current', label: 'Not yet due' },
@@ -325,15 +145,14 @@ export const AGING_BUCKETS = [
 /**
  * Who owes what, and how long they have owed it.
  *
- * Built from the invoices rather than from the ledger, because the ledger knows
- * the total owed and not which document it belongs to — and "chase this one" is
- * a question about a document. The two are cross-checked on the report itself:
- * this total and the Accounts receivable balance are the same fact counted two
- * ways, and if they ever disagree that is worth knowing immediately.
+ * Built from the invoices, because "chase this one" is a question about a
+ * document. Drafts, voids and paid invoices are all excluded. An invoice with
+ * no due date counts as due on the day it was issued, which is the least
+ * generous honest reading and stops a missing field hiding a debt in the "not
+ * yet due" column.
  *
- * Drafts, voids and paid invoices are all excluded. An invoice with no due date
- * counts as due on the day it was issued, which is the least generous honest
- * reading and stops a missing field hiding a debt in the "not yet due" column.
+ * The client name is read off either embed shape — `clients` (NJD's) or
+ * `client` (this portal's) — so the dashboard and the reports can share it.
  */
 export function agingReport(invoices, today) {
   const now = String(today).slice(0, 10);
@@ -360,7 +179,7 @@ export function agingReport(invoices, today) {
 
   const byClient = new Map();
   rows.forEach((row) => {
-    const client = row.invoice.clients || {};
+    const client = row.invoice.clients || row.invoice.client || {};
     const key = row.invoice.client_id || 'unknown';
     if (!byClient.has(key)) {
       byClient.set(key, {
@@ -379,70 +198,39 @@ export function agingReport(invoices, today) {
 
   const clients = Array.from(byClient.values()).sort((a, b) => b.total - a.total);
   const totals = Object.fromEntries(AGING_BUCKETS.map((b) => [
-    b.key, sum(clients, (row) => row[b.key]),
+    b.key, clients.reduce((t, row) => t + row[b.key], 0),
   ]));
 
   return {
     clients,
     totals,
-    total: sum(clients, (row) => row.total),
-    overdue: sum(clients, (row) => row.total - row.current),
+    total: clients.reduce((t, row) => t + row.total, 0),
+    overdue: clients.reduce((t, row) => t + (row.total - row.current), 0),
   };
 }
 
-/**
- * What each client has been worth, and what each one cost.
- *
- * Reads the ledger's own client column rather than the invoices, which is what
- * makes it able to answer the second half: an invoice knows what was charged,
- * and only a ledger line knows that the stock photography for that job came to
- * $240. The margin is the number worth having — a client who pays well and
- * consumes three subcontractors is not the client they look like.
- */
-export function byClient(lines) {
-  const map = new Map();
+// 1099s
+// ---------------------------------------------------------------------------
 
-  (lines || []).forEach((line) => {
-    const account = line.ledger_accounts || {};
-    if (!['income', 'expense'].includes(account.type)) return;
-    const key = line.client_id || 'none';
-    if (!map.has(key)) {
-      map.set(key, {
-        clientId: line.client_id || null,
-        name: (line.clients && line.clients.name) || 'Not assigned to a client',
-        revenue: 0,
-        cost: 0,
-      });
-    }
-    const entry = map.get(key);
-    const net = (Number(line.credit_cents) || 0) - (Number(line.debit_cents) || 0);
-    if (account.type === 'income') entry.revenue += net;
-    else entry.cost -= net;
-  });
-
-  return Array.from(map.values())
-    .map((row) => ({
-      ...row,
-      profit: row.revenue - row.cost,
-      margin: row.revenue ? (row.revenue - row.cost) / row.revenue : null,
-    }))
-    .sort((a, b) => b.revenue - a.revenue);
-}
+/** The 1099-NEC threshold for payments made in 2026 onward. The live value
+ *  is studio_settings.nec_threshold_cents; this is the fallback. */
+export const DEFAULT_NEC_THRESHOLD_CENTS = 200000;
 
 /**
- * The 1099-NEC list.
+ * The 1099-NEC list: what each vendor was paid in a calendar year.
  *
- * Anyone unincorporated paid $600 or more for services in a calendar year needs
- * a form, and the deadline is January 31st — which is a terrible time to start
- * working out who they were. `threshold` is a parameter because the IRS has
- * moved it before and will again.
+ * `over_threshold` is the arithmetic; `files_1099` is the owner's decision
+ * about whether that vendor is the kind that gets a form. `reportable` is the
+ * two together, and `missing_tax_id` is the column that earns this report its
+ * place: a contractor who needs a form and whose W-9 was never collected is a
+ * cheap problem in June and an expensive one in January.
  *
- * `missingTaxId` is the column that actually earns this report its place. A
- * contractor who needs a 1099 and whose W-9 was never collected is a problem
- * with a cheap fix in June and an expensive one in January.
+ * Vendors with nothing paid and no 1099 flag are left out; a flagged vendor
+ * always prints, so a contractor on zero for the year is still visible.
  */
-export function vendorTotals(expenses, vendors, year, threshold = 60000) {
+export function vendorTotals(expenses, vendors, year, thresholdCents = DEFAULT_NEC_THRESHOLD_CENTS) {
   const totals = new Map();
+  const threshold = Number(thresholdCents) || DEFAULT_NEC_THRESHOLD_CENTS;
 
   (expenses || []).forEach((row) => {
     if (year && String(row.spent_on).slice(0, 4) !== String(year)) return;
@@ -452,161 +240,152 @@ export function vendorTotals(expenses, vendors, year, threshold = 60000) {
 
   return (vendors || [])
     .map((vendor) => {
-      const paid = totals.get(vendor.id) || 0;
+      const total = totals.get(vendor.id) || 0;
+      const files = Boolean(vendor.files_1099);
+      const over = total >= threshold;
       return {
         vendor,
-        paid,
-        reportable: Boolean(vendor.files_1099) && paid >= threshold,
-        missingTaxId: Boolean(vendor.files_1099) && paid >= threshold && !vendor.tax_id_on_file,
+        total_cents: total,
+        files_1099: files,
+        tax_id_on_file: Boolean(vendor.tax_id_on_file),
+        over_threshold: over,
+        reportable: files && over,
+        missing_tax_id: files && over && !vendor.tax_id_on_file,
       };
     })
-    .filter((row) => row.paid !== 0 || row.vendor.files_1099)
-    .sort((a, b) => b.paid - a.paid);
+    .filter((row) => row.total_cents !== 0 || row.files_1099)
+    .sort((a, b) => b.total_cents - a.total_cents);
 }
+
+// Substantiation
+// ---------------------------------------------------------------------------
 
 /**
  * What is missing from an expense before it would survive an examination.
  *
- * The IRS wants five things for a meal, a trip, a gift or a mile driven
- * (Publication 463): how much, when, where, the business purpose, and the
- * business relationship of anybody else there. The first two are on every
- * expense and a receipt photograph proves them. The last three are the ones
- * that get forgotten and the ones a deduction is disallowed for — a shoebox of
- * receipts with no story attached is the classic failed audit.
- *
- * `attendees` is only asked for where somebody else was present, which is meals
- * and gifts. Nobody has to name the people on a hotel bill.
+ * Publication 463 wants the where, the business purpose and the business
+ * relationship of anybody else there for a meal, a trip or a gift. The
+ * category's own flags say which apply: `needs_substantiation` asks for the
+ * place and the purpose, `needs_attendees` asks who was there. Nobody has to
+ * name the people on a hotel bill.
  *
  * Returns the list of what is missing, so a screen can name it rather than
- * showing a red dot.
+ * show a red dot. It is a warning, never a blocker: the expense records
+ * either way, and the gap is reported until it is filled.
  */
-export function substantiationGaps(expense, account) {
-  const needed = account ? account.needs_substantiation : false;
-  if (!needed) return [];
-
+export function substantiationGaps(expense, category) {
+  if (!category) return [];
+  const row = expense || {};
+  const blank = (value) => !String(value || '').trim();
   const gaps = [];
-  const code = (account && account.code) || '';
 
-  if (!String(expense.place || '').trim()) gaps.push('where it was');
-  if (!String(expense.business_purpose || '').trim()) gaps.push('the business purpose');
-
-  // Meals and gifts are the two where somebody else is the point of the spend.
-  if (['6070', '6075'].includes(code) && !String(expense.attendees || '').trim()) {
-    gaps.push('who was there');
+  if (category.needs_substantiation) {
+    if (blank(row.place)) gaps.push('where it was');
+    if (blank(row.business_purpose)) gaps.push('the business purpose');
   }
-
-  // A mileage claim without a distance is not a claim at all.
-  if (code === '6090' && !(Number(expense.miles) > 0)) gaps.push('how many miles');
+  if (category.needs_attendees && blank(row.attendees)) gaps.push('who was there');
 
   return gaps;
 }
 
 /** Is this expense ready to hand to a preparer? */
-export function isSubstantiated(expense, account) {
-  return substantiationGaps(expense, account).length === 0;
+export function isSubstantiated(expense, category) {
+  return substantiationGaps(expense, category).length === 0;
+}
+
+// The calendar
+// ---------------------------------------------------------------------------
+
+export const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+
+export const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+/** Days in a month, asked of the calendar rather than remembered. `month` is
+ *  1–12, the way a person counts. */
+export function daysInMonth(year, month) {
+  return new Date(Date.UTC(Number(year), Number(month), 0)).getUTCDate();
 }
 
 /**
- * What the standard mileage rate makes a trip worth.
- *
- * The rate is passed in rather than held here because the IRS republishes it
- * every December, and a constant compiled into a bundle is a constant that is
- * quietly wrong every January.
+ * A day of the month that exists: "the 31st" bills February on the 28th (or
+ * the 29th), and a nonsense day lands on the 1st rather than nowhere.
  */
-export function mileageAmount(miles, rateCents) {
-  const distance = Number(miles);
-  const rate = Number(rateCents);
-  if (!Number.isFinite(distance) || !Number.isFinite(rate)) return 0;
-  return Math.round(distance * rate);
+export function clampDay(year, month, day) {
+  const wanted = Math.floor(Number(day));
+  if (!Number.isFinite(wanted) || wanted < 1) return 1;
+  return Math.min(wanted, daysInMonth(year, month));
+}
+
+export function isoDay(year, month, day) {
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+}
+
+/** "August" or, with the year, "August 2026" — from a date-only string, with
+ *  no Date object in the way. */
+export function monthName(iso, { withYear = false } = {}) {
+  const text = String(iso || '');
+  const month = Number(text.slice(5, 7));
+  if (!month || month > 12) return '';
+  return MONTH_NAMES[month - 1] + (withYear ? ` ${text.slice(0, 4)}` : '');
+}
+
+/** The calendar year an expense belongs to, or null. */
+export function expenseYear(expense) {
+  const year = Number(String((expense && expense.spent_on) || '').slice(0, 4));
+  return year > 0 ? year : null;
 }
 
 /**
- * The two accounts a mileage claim moves between, named by their chart codes —
- * the same way substantiationGaps() recognises them.
- *
- * The debit is obvious. The credit deserves its sentence: the standard mileage
- * rate deducts the cost of a car the business never paid for, so no bank or
- * card balance moved. The owner absorbed it personally, and personally-borne
- * costs enter the books as owner's contributions.
+ * The twelve months of a calendar year, each as a closed date range — what a
+ * by-month report asks twelve times.
  */
-export const MILEAGE_ACCOUNT_CODE = '6090';
-
-/**
- * The member whose capital account a personally-borne cost belongs to.
- *
- * There is no single "owner's funds" account any more, and that is the point:
- * this studio has four members, and a pooled capital account cannot say what
- * any one of them put in. Returns the owner_members row, or null when the
- * person is not a member — which callers must treat as a refusal rather than
- * a reason to guess at somebody's account.
- */
-export function memberFor(members, profileId) {
-  if (!profileId) return null;
-  return (members || []).find((row) => row.profile_id === profileId) || null;
-}
-
-/** The name a tax document should carry. The portal calls them Trip and Vic;
- *  a K-1 does not. Falls back to the display name where no legal name is
- *  recorded, so this is an improvement where filled in and never a blank. */
-export function memberName(member) {
-  const legal = String((member && member.legal_name) || '').trim();
-  if (legal) return legal;
-  const profile = (member && member.profiles) || null;
-  const display = String((profile && profile.full_name) || '').trim();
-  if (display) return display;
-  const email = String((profile && profile.email) || '').trim();
-  return email ? email.split('@')[0] : 'Unnamed member';
+export function monthSpans(year) {
+  const y = Number(year);
+  return MONTH_SHORT.map((label, index) => {
+    const month = index + 1;
+    return {
+      key: `${y}-${pad2(month)}`,
+      month,
+      from: isoDay(y, month, 1),
+      to: isoDay(y, month, daysInMonth(y, month)),
+      label,
+    };
+  });
 }
 
 /**
- * Name a person from an embedded profile row.
- *
- * Used wherever the books have to say who did something — who entered an
- * expense, who drove a trip. "Not recorded" rather than a blank, because an
- * empty cell in a column of names reads as an oversight rather than as a fact
- * about a row that predates the column.
+ * The years the year filter offers: from the earliest expense on record (or
+ * last year, whichever is earlier) up to this year, newest first. Always at
+ * least two, so a first-year business can look at last year's empty page and
+ * see that it is empty rather than wonder where the control went.
  */
-export function personName(profile, fallback = 'Not recorded') {
-  const full = String((profile && profile.full_name) || '').trim();
-  if (full) return full;
-  const email = String((profile && profile.email) || '').trim();
-  return email ? email.split('@')[0] : fallback;
+export function yearOptions(currentYear, earliestYear = null) {
+  const now = Number(currentYear);
+  const first = Math.min(now - 1, Number(earliestYear) || now - 1);
+  const years = [];
+  for (let y = now; y >= first; y -= 1) years.push(y);
+  return years;
 }
 
-/** Ownership as a percentage, from the basis points the row holds. */
-export function ownershipPct(member) {
-  return (Number(member && member.ownership_bp) || 0) / 100;
-}
-
-/**
- * A mileage rate in dollars, with the half-cent shown when there is one:
- * "$0.76", "$0.725". Two decimals would render 72.5¢ as $0.73 — a rounding the
- * IRS did not publish.
- */
-export function mileageRateLabel(rateCents) {
-  const dollars = (Number(rateCents) || 0) / 100;
-  return `$${dollars.toFixed((Number(rateCents) || 0) % 1 ? 3 : 2)}`;
-}
-
-/** Days in a month, asked the calendar rather than remembered. */
-function daysInMonth(year, month) {
-  return new Date(Date.UTC(year, month, 0)).getUTCDate();
-}
-
-function isoDay(year, month, day) {
-  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-}
+// Subscriptions
+// ---------------------------------------------------------------------------
 
 /**
  * Where a recurring charge stands against the calendar.
  *
- * Returns { due, dueOn, behind }. `dueOn` is the next month it should be
- * recorded for — the month after the last recorded one, or the current month
- * for a fresh template — with the billing day clamped to the month's length,
- * so "the 31st" bills February honestly. `behind` counts how many months are
- * waiting (1 is the normal case; more means bookkeeping lapsed and each
- * Record will walk forward a month at a time, so a lapse backfills instead
- * of leaving holes).
+ * Returns { due, dueOn, behind, recordedThisMonth }. `dueOn` is the next
+ * month it should be recorded for — the month after the last recorded one,
+ * or the current month for a fresh template — with the billing day clamped to
+ * the month's length. `behind` counts how many months are waiting (1 is the
+ * normal case; more means bookkeeping lapsed and each Record walks forward a
+ * month at a time, so a lapse backfills instead of leaving holes).
+ * `recordedThisMonth` is what the "Record this month" button reads.
  *
  * A paused template is never due. A fresh template starts at the current
  * month rather than reaching into the past: the months before it existed
@@ -614,331 +393,55 @@ function isoDay(year, month, day) {
  * function's call.
  */
 export function recurringStatus(template, todayIso) {
-  const none = { due: false, dueOn: null, behind: 0 };
+  const today = String(todayIso).slice(0, 10);
+  const thisMonth = today.slice(0, 7);
+  const last = template && template.last_recorded_on
+    ? String(template.last_recorded_on).slice(0, 7)
+    : null;
+  const recordedThisMonth = Boolean(last) && last >= thisMonth;
+  const none = { due: false, dueOn: null, behind: 0, recordedThisMonth };
+
   if (!template || !template.active) return none;
 
-  const today = String(todayIso).slice(0, 10);
   const [ty, tm] = today.split('-').map(Number);
-
   let ny = ty;
   let nm = tm;
-  const last = template.last_recorded_on ? String(template.last_recorded_on).slice(0, 7) : null;
   if (last) {
     const [ly, lm] = last.split('-').map(Number);
     ny = lm === 12 ? ly + 1 : ly;
     nm = lm === 12 ? 1 : lm + 1;
     // Recorded through this month (or beyond) already: nothing is waiting.
-    if (`${ny}-${String(nm).padStart(2, '0')}` > today.slice(0, 7)) return none;
+    if (`${ny}-${pad2(nm)}` > thisMonth) return none;
   }
 
-  const day = Math.min(Number(template.day_of_month) || 1, daysInMonth(ny, nm));
-  const dueOn = isoDay(ny, nm, day);
-  if (dueOn > today) return { due: false, dueOn, behind: 0 };
+  const dueOn = isoDay(ny, nm, clampDay(ny, nm, template.day_of_month));
+  if (dueOn > today) return { due: false, dueOn, behind: 0, recordedThisMonth };
 
-  return { due: true, dueOn, behind: (ty - ny) * 12 + (tm - nm) + 1 };
+  return { due: true, dueOn, behind: (ty - ny) * 12 + (tm - nm) + 1, recordedThisMonth };
 }
 
-const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/**
- * The months of the financial year so far, each as a closed date range —
- * what a by-month profit and loss asks the ledger twelve times.
- *
- * Labels carry a year only when the fiscal year crosses one, so a January
- * start reads "Jan Feb Mar…" and a July start reads "Jul 25 … Jan 26".
- */
-export function monthSpans(asOf, startMonth = 1) {
-  const start = fiscalYearStart(asOf, startMonth);
-  const endKey = String(asOf).slice(0, 7);
-  const crossesYear = (Number(startMonth) || 1) !== 1;
-
-  const spans = [];
-  let year = Number(start.slice(0, 4));
-  let month = Number(start.slice(5, 7));
-
-  while (`${year}-${String(month).padStart(2, '0')}` <= endKey && spans.length < 12) {
-    spans.push({
-      key: `${year}-${String(month).padStart(2, '0')}`,
-      from: isoDay(year, month, 1),
-      to: isoDay(year, month, daysInMonth(year, month)),
-      label: MONTH_SHORT[month - 1] + (crossesYear ? ` ${String(year).slice(2)}` : ''),
-    });
-    month += 1;
-    if (month === 13) { month = 1; year += 1; }
-  }
-  return spans;
-}
-
-/**
- * The by-month profit and loss: the same report, twelve columns wide.
- *
- * This is the view an accountant reads first and a single-period P&L cannot
- * give: one bad month next to eleven good ones, a subscription that doubled
- * in March, the seasonality of a studio's revenue. `byMonth` maps a span key
- * to that month's balances, exactly as ledger_balances() returned them.
- *
- * Every account that moved in any month gets a row, so the columns line up
- * across the year — an account absent from June prints a zero there rather
- * than shifting June's figures up a line.
- */
-export function monthlyProfitAndLoss(spans, byMonth) {
-  const months = spans || [];
-  const reports = months.map((span) => profitAndLoss((byMonth && byMonth[span.key]) || []));
-
-  const groups = [
-    { key: 'revenue', title: 'Revenue', pick: (pl) => pl.revenue, total: (pl) => pl.revenueTotal },
-    { key: 'costOfSales', title: 'Cost of sales', pick: (pl) => pl.costOfSales, total: (pl) => pl.costTotal },
-    { key: 'operating', title: 'Operating expenses', pick: (pl) => pl.operating, total: (pl) => pl.operatingTotal },
-    { key: 'otherIncome', title: 'Other income', pick: (pl) => pl.otherIncome, total: (pl) => pl.otherIncomeTotal },
-    { key: 'otherExpense', title: 'Other costs', pick: (pl) => pl.otherExpense, total: (pl) => pl.otherExpenseTotal },
-  ].map((group) => {
-    const seen = new Map();
-    reports.forEach((pl, index) => {
-      group.pick(pl).forEach((row) => {
-        if (!seen.has(row.account_id)) {
-          seen.set(row.account_id, {
-            account_id: row.account_id,
-            code: row.code,
-            name: row.name,
-            values: months.map(() => 0),
-          });
-        }
-        seen.get(row.account_id).values[index] = Number(row.balance) || 0;
-      });
-    });
-
-    const rows = Array.from(seen.values())
-      .sort((a, b) => String(a.code).localeCompare(String(b.code)))
-      .map((row) => ({ ...row, total: row.values.reduce((t, v) => t + v, 0) }));
-
-    const totals = months.map((_, index) => group.total(reports[index]));
-
-    return {
-      key: group.key,
-      title: group.title,
-      rows,
-      totals,
-      total: totals.reduce((t, v) => t + v, 0),
-    };
-  }).filter((group) => group.rows.length);
-
-  const figures = [
-    { key: 'grossProfit', label: 'Gross profit', of: (pl) => pl.grossProfit },
-    { key: 'operatingProfit', label: 'Operating profit', of: (pl) => pl.operatingProfit },
-    { key: 'netProfit', label: 'Net profit', of: (pl) => pl.netProfit },
-  ].map((figure) => {
-    const values = reports.map(figure.of);
-    return {
-      key: figure.key,
-      label: figure.label,
-      values,
-      total: values.reduce((t, v) => t + v, 0),
-    };
-  });
-
-  return { months, groups, figures };
-}
-
-/**
- * Each member's capital account, which is the schedule a K-1 is built from.
- *
- * For every member: what they put in, what they took out, their share of the
- * period's profit, and what that leaves them holding. Contributions and draws
- * come from their own two accounts — that is the whole reason the accounts are
- * per member — and the profit share is the allocation their percentage buys.
- *
- * Two things this deliberately does NOT do. It does not post the profit
- * allocation to anybody's account: allocating profit to member capital is a
- * year-end entry a preparer makes, and a report that quietly did it would put
- * a figure in the books that nobody chose. And it does not rescue an ownership
- * table that fails to total 100% — it reports the total and says so, because a
- * split that does not tie is a K-1 that does not tie, and hiding it in a
- * rounding would be the worst possible kindness.
- *
- * `balances` is what ledger_balances() returned, already signed the way each
- * account is normally read: a contributions account credit-normal and positive,
- * a draws account credit-normal and therefore negative when money went out.
- * Draws are flipped here so the column reads as a positive "taken out".
- */
-export function ownerCapital(members, balances, netProfit = 0) {
-  const byAccount = new Map((balances || []).map((row) => [row.account_id, row]));
-  const balanceOf = (id) => Number((byAccount.get(id) || {}).balance) || 0;
-
-  const rows = (members || [])
-    .slice()
-    .sort((a, b) => (a.position - b.position) || (b.ownership_bp - a.ownership_bp))
-    .map((member) => {
-      const contributed = balanceOf(member.contributions_account_id);
-      // Credit-normal account, debited when money goes out, so the balance
-      // arrives negative. The report wants "took out: $3,000", not "($3,000)".
-      const drawn = -balanceOf(member.draws_account_id);
-      const share = Math.round((Number(netProfit) || 0) * (Number(member.ownership_bp) || 0) / 10000);
-
-      return {
-        member,
-        name: memberName(member),
-        ownershipBp: Number(member.ownership_bp) || 0,
-        pct: ownershipPct(member),
-        contributed,
-        drawn,
-        share,
-        capital: contributed - drawn + share,
-      };
-    });
-
-  const totalBp = rows.reduce((t, row) => t + row.ownershipBp, 0);
-  const allocated = rows.reduce((t, row) => t + row.share, 0);
-
-  return {
-    rows,
-    totalBp,
-    // The allocation is whole cents per member, so it can miss the profit by a
-    // cent or two. Named rather than smoothed away: a preparer decides who
-    // absorbs a rounding penny, not this function.
-    rounding: (Number(netProfit) || 0) - allocated,
-    balanced: totalBp === 10000,
-    contributed: rows.reduce((t, row) => t + row.contributed, 0),
-    drawn: rows.reduce((t, row) => t + row.drawn, 0),
-    capital: rows.reduce((t, row) => t + row.capital, 0),
-  };
-}
-
-/**
- * Everything wrong with a journal entry, worst first.
- *
- * Same contract as the SOW's and the invoice's validate(): `blocking` stops the
- * save, anything else is a warning the operator is trusted to overrule. The
- * balance check is blocking because the database will refuse it anyway, and a
- * message written here can say which way it is out and by how much.
- */
-export function validateEntry({ entry, lines = [] } = {}) {
-  const problems = [];
-  const add = (blocking, field, message) => problems.push({ blocking, field, message });
-
-  if (!entry || !entry.entry_date) {
-    add(true, 'entry_date', 'An entry needs a date. It is what every report sorts and filters on.');
-  }
-
-  const real = lines.filter((line) => (
-    line.account_id && ((Number(line.debit_cents) || 0) || (Number(line.credit_cents) || 0))
-  ));
-
-  if (real.length < 2) {
-    add(true, 'lines', 'An entry needs at least two lines — one side of the money and the other.');
-  }
-
-  if (lines.some((line) => !line.account_id
-    && ((Number(line.debit_cents) || 0) || (Number(line.credit_cents) || 0)))) {
-    add(true, 'lines', 'A line with an amount on it needs an account. Pick one, or clear the amount.');
-  }
-
-  const debits = sum(real, (line) => line.debit_cents);
-  const credits = sum(real, (line) => line.credit_cents);
-
-  if (real.length >= 2 && debits !== credits) {
-    add(true, 'lines', `This is out by ${formatMoney(Math.abs(debits - credits))}. `
-      + `Debits come to ${formatMoney(debits)} and credits to ${formatMoney(credits)}, `
-      + 'and every entry has to come to zero.');
-  }
-
-  if (real.length >= 2 && debits === 0 && credits === 0) {
-    add(true, 'lines', 'Every line is zero, so this entry says nothing.');
-  }
-
-  if (lines.some((line) => (Number(line.debit_cents) || 0) && (Number(line.credit_cents) || 0))) {
-    add(true, 'lines', 'A line is either a debit or a credit, never both.');
-  }
-
-  if (!entry || !entry.memo) {
-    add(false, 'memo', 'No memo. In a year this is the only thing that will say why '
-      + 'this entry exists.');
-  }
-
-  return problems.sort((a, b) => Number(b.blocking) - Number(a.blocking));
-}
-
-export function blockers(problems) {
-  return (problems || []).filter((problem) => problem.blocking);
-}
-
-/** Running totals for the entry form, so the operator sees the difference close
- *  as they type rather than finding out when they save. */
-export function entryTotals(lines = []) {
-  const debits = sum(lines, (line) => line.debit_cents);
-  const credits = sum(lines, (line) => line.credit_cents);
-  return { debits, credits, difference: debits - credits, balanced: debits === credits };
-}
-
-/**
- * The reconciliation arithmetic.
- *
- * `cleared` is what the ledger says has hit the bank; the statement says what
- * the bank thinks. Difference zero is the whole point of the exercise — it is
- * the moment the books are known to be complete rather than merely consistent.
- */
-export function reconcileTotals(lines, { openingCents = 0, closingCents = 0 } = {}) {
-  const ticked = (lines || []).filter((line) => line.cleared_on);
-  const movement = ticked.reduce((total, line) => (
-    total + ((Number(line.debit_cents) || 0) - (Number(line.credit_cents) || 0))
-  ), 0);
-
-  const cleared = (Number(openingCents) || 0) + movement;
-  const difference = (Number(closingCents) || 0) - cleared;
-
-  return {
-    ticked: ticked.length,
-    movement,
-    cleared,
-    difference,
-    balanced: difference === 0,
-  };
-}
-
-/** The list filter shared by the journal and the account register. */
-export function filterEntries(rows, { search = '', source = '', accountId = '' } = {}) {
-  const needle = String(search).trim().toLowerCase();
-
-  return (rows || []).filter((row) => {
-    if (source && row.source !== source) return false;
-    if (accountId && !(row.ledger_lines || []).some((line) => line.account_id === accountId)) {
-      return false;
-    }
-    if (!needle) return true;
-
-    const haystack = [
-      row.memo,
-      row.reference,
-      ...(row.ledger_lines || []).flatMap((line) => [
-        line.description,
-        line.ledger_accounts && line.ledger_accounts.name,
-        line.ledger_accounts && line.ledger_accounts.code,
-      ]),
-    ].filter(Boolean).join(' ').toLowerCase();
-
-    return haystack.includes(needle);
-  });
+/** The day a template's charge lands in the month of `forDateIso`, clamped —
+ *  the spent_on an expense recorded from it carries. */
+export function recurringSpentOn(template, forDateIso) {
+  const iso = String(forDateIso || '').slice(0, 10);
+  const year = Number(iso.slice(0, 4));
+  const month = Number(iso.slice(5, 7));
+  return isoDay(year, month, clampDay(year, month, template && template.day_of_month));
 }
 
 // What the form can work out for itself
 // ---------------------------------------------------------------------------
-//
-// An expense has fifteen things worth knowing about it and a person recording
-// one at a lunch counter has patience for four. Nothing below drops a field —
-// every one of them is still collected and still exported. They are the
-// answers the ledger already knows, so that the person only types the ones it
-// cannot.
 
 /**
  * The saved vendor a typed name means, or null for a name nobody has used yet.
  *
  * Case- and space-insensitive because "adobe" typed on a phone and "Adobe" in
  * the vendor table are the same supplier, and a second vendor row for the
- * casing is how "what did we spend at Adobe this year" stops having an answer.
- * The unique index on lower(name) in schema.sql takes the same view.
+ * casing is how "what did we spend at Adobe this year" stops having an
+ * answer. The unique index on lower(name) in schema.sql takes the same view.
  */
-export function matchVendor(name, vendors) {
-  const needle = String(name || '').trim().toLowerCase();
+export function matchVendor(vendors, typedName) {
+  const needle = String(typedName || '').trim().toLowerCase();
   if (!needle) return null;
   return (vendors || []).find(
     (vendor) => String(vendor.name || '').trim().toLowerCase() === needle,
@@ -946,31 +449,12 @@ export function matchVendor(name, vendors) {
 }
 
 /**
- * How a payment made from this account was almost certainly made.
- *
- * "What paid for it" and "How" are two questions with one answer nearly every
- * time: money leaving a credit card left it on a card. Derived rather than
- * asked, and still editable — the check written off the checking account is
- * the exception that has to stay possible.
- *
- * A capital account means the member paid it personally, out of whatever was
- * in their pocket, and the ledger has no way to know which. Left alone.
- */
-export function defaultMethodFor(account) {
-  if (!account) return null;
-  if (account.subtype === 'credit_card') return 'card';
-  if (account.subtype === 'bank') return 'bank_transfer';
-  return null;
-}
-
-/**
- * The distinct values a column has recently held, newest first, for a
- * datalist.
+ * The distinct values a column has recently held, in the order given (newest
+ * first, as loadExpenses returns them), for a datalist.
  *
  * This is what stops "Client meeting" and "Client Meeting" becoming two
  * different reasons for the same trip. Matched case-insensitively but offered
- * in the casing it was last written in, so the list reads like the person's
- * own words rather than a normalised version of them.
+ * in the casing it was last written in.
  */
 export function recentValues(rows, field, { limit = 12 } = {}) {
   const seen = new Set();
@@ -987,4 +471,169 @@ export function recentValues(rows, field, { limit = 12 } = {}) {
   }
 
   return out;
+}
+
+/** The name on an expense: the saved vendor's, or the one-off typed name. */
+export function vendorNameOf(row) {
+  if (!row) return '';
+  return (row.vendor && row.vendor.name) || row.vendor_name || '';
+}
+
+/** The receipts on a loaded expense, whichever embed name carried them. */
+export function receiptsOf(row) {
+  return (row && (row.receipts || row.expense_receipts)) || [];
+}
+
+/**
+ * The expense list filter. `year` and `month` are compared as text against
+ * spent_on; `month` takes 8, '8', '08' or '2026-08' (the last also sets the
+ * year). Search reads everything a person might remember about an expense a
+ * year later: who, what, where, why, and who with.
+ */
+export function filterExpenses(expenses, filters = {}) {
+  let { year = '', month = '' } = filters;
+  const { categoryId = '', clientId = '', vendorId = '', search = '' } = filters;
+
+  const yearMonth = /^(\d{4})-(\d{2})$/.exec(String(month || ''));
+  if (yearMonth) { [, year, month] = yearMonth; }
+
+  const wantYear = year ? String(year) : '';
+  const wantMonth = month ? pad2(Number(month)) : '';
+  const needle = String(search || '').trim().toLowerCase();
+
+  return (expenses || []).filter((row) => {
+    const spent = String(row.spent_on || '');
+    if (wantYear && spent.slice(0, 4) !== wantYear) return false;
+    if (wantMonth && spent.slice(5, 7) !== wantMonth) return false;
+    if (categoryId && row.category_id !== categoryId) return false;
+    if (clientId && row.client_id !== clientId) return false;
+    if (vendorId && row.vendor_id !== vendorId) return false;
+    if (!needle) return true;
+
+    const haystack = [
+      vendorNameOf(row),
+      row.description,
+      row.reference,
+      row.place,
+      row.business_purpose,
+      row.attendees,
+      row.category && row.category.name,
+      row.category && row.category.code,
+      row.client && row.client.name,
+      row.creator && row.creator.full_name,
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    return haystack.includes(needle);
+  });
+}
+
+/**
+ * The expenses row the expense form's values describe.
+ *
+ * Throws with a sentence for the two things the form cannot save without;
+ * formModal shows the message and keeps the dialog open. `vendorRef` is what
+ * resolveVendor() answered: a saved vendor's id, or a one-off name for the
+ * free-text column.
+ */
+export function expensePatch(values, vendorRef = {}) {
+  const v = values || {};
+  if (!v.spent_on) throw new Error('Pick the date it was paid.');
+  if (!v.category_id) throw new Error('Pick a category.');
+
+  const amount = parseMoney(v.amount);
+  if (amount === null) throw new Error('That amount is not a number.');
+  if (amount === 0) throw new Error('An expense of nothing is not an expense.');
+
+  const text = (value) => (String(value || '').trim() || null);
+
+  return {
+    spent_on: v.spent_on,
+    amount_cents: amount,
+    vendor_id: vendorRef.vendor_id || null,
+    vendor_name: vendorRef.vendor_id ? null : text(vendorRef.vendor_name),
+    category_id: v.category_id,
+    description: text(v.description),
+    method: v.method || 'card',
+    reference: text(v.reference),
+    client_id: v.client_id || null,
+    // Billable only means something against a client.
+    billable: Boolean(v.billable) && Boolean(v.client_id),
+    place: text(v.place),
+    business_purpose: text(v.business_purpose),
+    attendees: text(v.attendees),
+  };
+}
+
+/** The recurring_expenses row the subscription form's values describe. */
+export function recurringPatch(values, vendorRef = {}) {
+  const v = values || {};
+  const name = String(v.name || '').trim();
+  if (!name) throw new Error('Give the subscription a name.');
+  if (!v.category_id) throw new Error('Pick a category.');
+
+  const amount = parseMoney(v.amount);
+  if (amount === null) throw new Error('That amount is not a number.');
+  if (amount === 0) throw new Error('A subscription of nothing is not a subscription.');
+
+  const day = Number(v.day_of_month);
+  if (!Number.isInteger(day) || day < 1 || day > 31) {
+    throw new Error('The billing day is a number from 1 to 31.');
+  }
+
+  const patch = {
+    name,
+    vendor_id: vendorRef.vendor_id || null,
+    vendor_name: vendorRef.vendor_id ? null : (String(vendorRef.vendor_name || '').trim() || null),
+    category_id: v.category_id,
+    amount_cents: amount,
+    method: v.method || 'card',
+    day_of_month: day,
+    client_id: v.client_id || null,
+    billable: Boolean(v.billable) && Boolean(v.client_id),
+  };
+  if (typeof v.active === 'boolean') patch.active = v.active;
+  return patch;
+}
+
+// Receipts
+// ---------------------------------------------------------------------------
+
+/** What the expense-receipts bucket accepts (schema.sql). The upload's
+ *  contentType must be one of these — Storage refuses anything else, and it
+ *  refuses application/octet-stream in particular. */
+export const RECEIPT_TYPES = [
+  'application/pdf', 'image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp',
+];
+
+/** The file picker's filter: the types, and the extensions for the browsers
+ *  that only understand those. */
+export const RECEIPT_ACCEPT = `${RECEIPT_TYPES.join(',')},.pdf,.jpg,.jpeg,.png,.heic,.heif,.webp`;
+
+const MIME_BY_EXTENSION = {
+  pdf: 'application/pdf',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  heic: 'image/heic',
+  heif: 'image/heif',
+  webp: 'image/webp',
+};
+
+/**
+ * The content type a receipt uploads as, or null for a file the bucket will
+ * not take.
+ *
+ * A phone often hands over a file with an empty `type` — a HEIC from the
+ * camera roll, a PDF shared out of Mail — so the extension is the fallback.
+ * Never application/octet-stream: the bucket lists what it allows and that
+ * is not on the list, so the upload would fail at the end of the transfer
+ * rather than before it.
+ */
+export function receiptMime(file) {
+  const declared = String((file && file.type) || '').toLowerCase();
+  if (declared === 'image/jpg') return 'image/jpeg';
+  if (RECEIPT_TYPES.includes(declared)) return declared;
+  const name = String((file && file.name) || '').toLowerCase();
+  const extension = name.includes('.') ? name.split('.').pop() : '';
+  return MIME_BY_EXTENSION[extension] || null;
 }

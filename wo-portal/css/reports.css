@@ -1,0 +1,47 @@
+/* ==========================================================================
+   Dashboard and Reports — the figure rows.
+
+   Everything else on /portal/dashboard/ and /portal/reports/ reuses
+   portal.css: .figure, .panel, .table, .report__*, .notice, .doc-row. This
+   file only adds counted figure rows. The default .figure-row wraps by fit
+   alone, and a rank of four lands three-and-one at a tablet's width while a
+   rank of three lands two-and-one on a phone — a figure alone on its own
+   row reads as a mistake, not a layout. Counted columns cannot orphan one.
+
+   Tokens and breakpoints only — the palette lives in styles.css / portal.css,
+   and 46rem / 72rem are the steps portal.css already uses.
+   ========================================================================== */
+
+/* Four across: two-by-two on a phone, the whole rank from a tablet up. */
+.figure-row--four { grid-template-columns: repeat(2, 1fr); }
+
+@media (min-width: 46rem) {
+  .figure-row--four { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Three across: on a phone the last one — the headline figure, Net — spans
+   the row rather than sitting alone in a half. */
+.figure-row--three { grid-template-columns: repeat(2, 1fr); }
+.figure-row--three > :last-child { grid-column: 1 / -1; }
+
+@media (min-width: 46rem) {
+  .figure-row--three { grid-template-columns: repeat(3, 1fr); }
+  .figure-row--three > :last-child { grid-column: auto; }
+}
+
+/* The activity feed's right-hand side: the amount and the link, kept on one
+   line and pushed to the end of the row where the grid gives it a column. */
+.recent-row__end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.recent-row__amount {
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.recent-row__amount--out { color: var(--color-ink-soft); }

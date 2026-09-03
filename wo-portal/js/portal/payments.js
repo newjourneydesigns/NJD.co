@@ -1,99 +1,55 @@
 // ---------------------------------------------------------------------------
 // Recording that money arrived.
 //
-// Shared by the invoice list and the invoice form, because "mark this paid" is
-// something you reach for from both and there should be exactly one thing that
-// happens when you do.
+// A payment is a row: an amount, a date, how it came and a reference. The
+// invoice's own paid_cents, paid_at and status are maintained from those rows
+// by a trigger (supabase/schema.sql), so "mark this paid" is not a thing a
+// person does — recording the payment is, and the status follows. An invoice
+// that could be marked paid with no payment behind it would be income the
+// tax-year report could not explain.
 //
-// It replaces a shortcut. Before this, marking an invoice paid wrote a number
-// and a timestamp onto the invoice itself and that was the whole record — which
-// could not say whether $2,000 was one payment or four, could not say which
-// account it landed in, and left nothing for a bank reconciliation to tick off.
-// Now a payment is a row: an amount, a date, a method, and the account it went
-// into. The invoice's own paid_cents and status are maintained from it by a
-// trigger, so the invoice list keeps reading exactly as it did.
-//
-// The ledger side is not this file's business either. Inserting the row posts
-// it — debit the account it landed in, credit Accounts receivable — through the
-// trigger in supabase/schema.sql. Doing it here would mean a payment recorded
-// any other way silently missed the books.
+// Shared by the invoice editor and anything else that wants to record one, so
+// there is exactly one thing that happens when you do.
 // ---------------------------------------------------------------------------
 
 import { errorMessage } from './client.js';
 import { el, formModal, fmtDate, toast, busy, confirmModal } from './ui.js';
-import { formatMoney, parseMoney } from './sow-fees.js';
-import { invoiceLabel } from './invoice-catalog.js';
-import {
-  CASH_SUBTYPES,
-  PAYMENT_METHODS,
-  accountLabel,
-  methodLabel,
-} from './ledger-catalog.js';
-import {
-  deletePayment,
-  loadAccounts,
-  loadSettings,
-  paymentsForInvoice,
-  recordPayment,
-} from './ledger-data.js';
-
-/**
- * The accounts money can arrive into, and which one to offer first.
- *
- * Loaded once per screen and passed in, rather than fetched inside the modal:
- * the list is the same for every invoice on the page, and a dialog that opens
- * after a round trip feels broken on a slow connection.
- */
-export async function paymentContext() {
-  const [accounts, settings] = await Promise.all([loadAccounts(), loadSettings()]);
-
-  const deposits = accounts.filter((row) => (
-    !row.archived_at && CASH_SUBTYPES.includes(row.subtype)
-  ));
-
-  return { accounts, deposits, settings };
-}
-
-function todayIso() {
-  const now = new Date();
-  return [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-  ].join('-');
-}
+import { formatMoney, parseMoney, centsOf } from './money.js';
+import { isoToday } from './doc-common.js';
+import { PAYMENT_METHODS, invoiceLabel, methodLabel } from './invoice-catalog.js';
+import { deletePayment, paymentsForInvoice, recordPayment } from './invoice-data.js';
 
 /**
  * Record one payment against one invoice.
  *
  * Defaults to the whole outstanding balance, because that is what usually
- * happened, and to today. Both are editable — a cheque that arrived last
+ * happened, and to today. Both are editable — a check that arrived last
  * Thursday is dated last Thursday, and dating it today would put it in the
- * wrong month on every report and leave the bank reconciliation short.
+ * wrong month on the tax-year report.
  *
- * Resolves truthy when something was recorded, so callers can refresh.
+ * Resolves with the submitted values when something was recorded and null
+ * when the dialog was dismissed, so callers can refresh only when it matters.
  */
-export async function openRecordPayment(invoice, context) {
-  const { deposits, settings } = context;
-
-  if (!deposits.length) {
-    toast('There is nowhere to record this yet. Add a bank account under '
-        + 'Ledger → Chart of accounts first.', 'error');
-    return null;
-  }
-
-  const outstanding = (Number(invoice.total_cents) || 0) - (Number(invoice.paid_cents) || 0);
-  const preferred = (settings && settings.default_deposit_account_id) || deposits[0].id;
+export async function openRecordPayment(invoice) {
+  const outstanding = centsOf(invoice.total_cents) - centsOf(invoice.paid_cents);
 
   return formModal({
-    title: `Record a payment — INV ${invoiceLabel(invoice.number)}`,
+    title: `Record a payment — ${invoiceLabel(invoice.number)}`,
     submitLabel: 'Record it',
     intro: outstanding > 0
       ? `${formatMoney(outstanding)} is outstanding. Recording this updates the `
-        + 'invoice and posts it to the books.'
-      : 'This invoice is already settled. A further payment will show as an '
+        + 'invoice, and marks it paid once the payments cover the total.'
+      : 'This invoice is already settled. A further payment shows as an '
         + 'overpayment — record a refund as a negative amount.',
     fields: [
+      {
+        name: 'received_on',
+        label: 'Received on',
+        type: 'date',
+        required: true,
+        value: isoToday(),
+        hint: 'The day the money moved, not the day you are typing this.',
+      },
       {
         name: 'amount',
         label: 'Amount received',
@@ -103,38 +59,32 @@ export async function openRecordPayment(invoice, context) {
         value: outstanding > 0 ? formatMoney(outstanding).replace(/^\$/, '') : '',
         hint: 'A negative amount is a refund.',
       },
-      { name: 'received_on', label: 'Received on', type: 'date', required: true, value: todayIso(),
-        hint: 'The day the money moved, not the day you are typing this.' },
-      {
-        name: 'deposit_account_id',
-        label: 'Into',
-        type: 'select',
-        value: preferred,
-        options: deposits.map((row) => ({ value: row.id, label: accountLabel(row) })),
-      },
       {
         name: 'method',
         label: 'How',
         type: 'select',
-        value: 'bank_transfer',
+        value: 'ach',
         options: PAYMENT_METHODS,
       },
-      { name: 'reference', label: 'Reference', type: 'text',
-        hint: 'A cheque number or a transfer reference, so it can be found on a statement.' },
+      {
+        name: 'reference',
+        label: 'Reference',
+        type: 'text',
+        hint: 'A check number or a transfer reference, so it can be found on a statement.',
+      },
       { name: 'notes', label: 'Note', type: 'textarea', rows: 2 },
     ],
     onSubmit: async (values) => {
       const amount = parseMoney(values.amount);
       if (amount === null) throw new Error('That amount is not a number.');
       if (amount === 0) throw new Error('A payment of nothing is not a payment.');
+      if (!values.received_on) throw new Error('When did it arrive?');
 
       await recordPayment({
         invoice_id: invoice.id,
-        client_id: invoice.client_id,
         received_on: values.received_on,
         amount_cents: amount,
-        method: values.method,
-        deposit_account_id: values.deposit_account_id,
+        method: values.method || 'ach',
         reference: values.reference || null,
         notes: values.notes || null,
       });
@@ -147,32 +97,29 @@ export async function openRecordPayment(invoice, context) {
  *
  * Deleting one is offered because a payment entered against the wrong invoice
  * is a mistake with no other way out — there is no "move it", and leaving it
- * would misstate both invoices and the bank. It is a confirm, not a
- * double-confirm: this is a correction to the studio's own record of an event,
- * not a document anybody is holding.
+ * would misstate both invoices. It is a confirm, not a double-confirm: this is
+ * a correction to the business's own record of an event, not a document
+ * anybody is holding.
  */
 export function paymentRows(payments, { onChange } = {}) {
-  if (!payments.length) {
+  if (!payments || !payments.length) {
     return [el('p', {
       class: 'empty',
       text: 'Nothing recorded against this invoice yet. Record a payment when '
-           + 'one arrives and it is listed here.',
+          + 'one arrives and it is listed here.',
     })];
   }
 
   return payments.map((payment) => {
-    const account = payment.ledger_accounts || {};
-    const refund = Number(payment.amount_cents) < 0;
+    const refund = centsOf(payment.amount_cents) < 0;
+    const amount = formatMoney(Math.abs(centsOf(payment.amount_cents)));
 
     return el('div', { class: 'doc-row' }, [
-      el('div', { class: 'doc-row__main' }, [
-        el('p', { class: 'doc-row__name' }, [
-          `${refund ? 'Refund ' : ''}${formatMoney(payment.amount_cents)}`,
-        ]),
+      el('div', {}, [
+        el('p', { class: 'doc-row__name', text: refund ? `Refund ${amount}` : amount }),
         el('p', { class: 'doc-row__meta' }, [
           el('span', { text: fmtDate(payment.received_on) }),
           el('span', { text: methodLabel(payment.method) }),
-          account.code ? el('span', { text: `${account.code} · ${account.name}` }) : null,
           payment.reference ? el('span', { text: payment.reference }) : null,
         ]),
         payment.notes ? el('p', { class: 'doc-row__meta', text: payment.notes }) : null,
@@ -182,15 +129,16 @@ export function paymentRows(payments, { onChange } = {}) {
           class: 'btn btn--ghost btn--tiny',
           type: 'button',
           text: 'Remove',
-          'aria-label': `Remove the ${formatMoney(payment.amount_cents)} payment `
+          'aria-label': `Remove the ${amount} ${refund ? 'refund' : 'payment'} `
                       + `received on ${fmtDate(payment.received_on)}`,
-          // Removing a payment rewrites the invoice's balance and the books.
+          // Removing a payment rewrites the invoice's balance and status.
           // Pressed twice on a slow connection it ran twice, hence busy().
           onclick: busy(async () => {
             const ok = await confirmModal({
-              title: `Remove the ${formatMoney(payment.amount_cents)} payment received on `
+              title: `Remove the ${amount} ${refund ? 'refund' : 'payment'} received on `
                 + `${fmtDate(payment.received_on)}?`,
-              body: 'The invoice and the books both go back to what they said before it.',
+              body: 'The invoice goes back to what it said before it: the balance '
+                  + 'reopens, and a paid invoice becomes sent again.',
               confirmLabel: 'Remove payment',
               tone: 'danger',
             });

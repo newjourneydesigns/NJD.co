@@ -1,89 +1,88 @@
 // ---------------------------------------------------------------------------
-// The invoice form.
+// The invoice form, and the frozen document it becomes.
 //
-// A deliberately smaller screen than the scope of work builder next door, and
-// that is the design rather than an omission. By the time an invoice is being
-// written, every hard question has already been answered: what the work is,
-// what it costs, what came off and why. This screen's job is to ask for a
-// number that was agreed weeks ago, and the more it lets you rethink that
-// number the less useful it is.
+// A small screen on purpose. There are lines, dates, and the terms. The one
+// piece of arithmetic is quantity × rate, which exists because billing six
+// hours of consulting is a real thing the business does; the tax on the
+// taxable lines is the other, and it is off unless the invoice says so.
 //
-// So there are no discounts here, no fee engine, and no package catalog. There
-// are lines, dates, and the terms. The one piece of arithmetic is quantity ×
-// rate, which exists because billing six hours of out-of-scope work is a real
-// thing the studio does.
+// Three habits:
 //
-// The three habits it shares with the SOW form:
+//   Nothing is lost. Edits save a beat after you stop typing, through the
+//   save_invoice RPC, which rewrites the header and every line together.
 //
-//   Nothing is lost. Edits save a beat after you stop typing.
-//
-//   An issued invoice cannot be edited. The form renders read-only once it is
-//   frozen, and the database refuses the write regardless — see the guard
-//   triggers in supabase/schema.sql.
+//   An issued invoice cannot be edited. Once issued this screen renders the
+//   stored snapshot as a document, offers to print it again, and takes
+//   payments against it. The database refuses any other write regardless —
+//   see the guard triggers in supabase/schema.sql.
 //
 //   The checks before issuing are split into things that stop you and things
-//   that are worth a look. Billing a deposit against a scope of work nobody has
-//   marked signed yet is the second kind, not the first.
+//   that are worth a look.
 // ---------------------------------------------------------------------------
 
 import { errorMessage } from './client.js';
 import { bootstrap, renderError } from './shell.js';
-import { el, mount, byId, toast, formModal, fmtDate, fmtDateTime, confirmModal } from './ui.js';
-import { formatMoney, parseMoney, resolveHourlyRate } from './sow-fees.js';
-import { sowLabel } from './sow-catalog.js';
 import {
-  STAGE_OPTIONS,
+  el, mount, byId, toast, busy, formModal, fmtDate, fmtDateTime, confirmModal, table,
+} from './ui.js';
+import { formatMoney, parseMoney, resolveHourlyRate, centsOf } from './money.js';
+import { isoToday, addDays, longDate, lines as textLines } from './doc-common.js';
+import { reorderList, moveItem } from './reorder.js';
+import {
+  LINE_PRESETS,
   blockers,
-  computeTotals,
   formatRate,
   invoiceFilename,
   invoiceLabel,
-  lineAmount,
-  stageLabel,
+  invoiceTotals,
+  isValidNumber,
+  itemAmount,
+  overdueDays,
+  parseRate,
+  statusLabel,
+  statusTone,
   validate,
 } from './invoice-catalog.js';
 import { assemble, digest } from './invoice-doc.js';
-import { accountLabel } from './ledger-catalog.js';
-import { loadAccounts } from './ledger-data.js';
-import { openRecordPayment, paymentContext, paymentRows, paymentsForInvoice } from './payments.js';
 import { printSnapshot } from './invoice-print.js';
+import { openRecordPayment, paymentRows, paymentsForInvoice } from './payments.js';
 import {
-  billedAgainstSow,
+  deleteInvoice,
+  duplicateInvoice,
   issueInvoice,
+  loadClients,
   loadInvoice,
-  loadProjects,
-  loadTerms,
+  loadInvoiceSettings,
+  loadStudio,
+  markExpensesBilled,
   saveInvoice,
+  setStatus,
+  unbilledExpenses,
 } from './invoice-data.js';
-import { loadSettings } from './sow-data.js';
-import { reorderList, moveItem } from './reorder.js';
-import { attachAiRewrite } from './ai-rewrite.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const SAVE_DELAY_MS = 1200;
+
+const LIST_URL = '/portal/invoices/';
 
 const state = {
   id: null,
   invoice: null,
   client: null,
   items: [],
-  projects: [],
-  sow: null,
-  billed: 0,
+  clients: [],
+  studio: null,
   settings: null,
-  terms: null,
-  // The income accounts a line's revenue can be booked to, and the payments
-  // recorded against this invoice. Both are ledger business; the invoice only
-  // needs enough of each to offer a picker and to show what has arrived.
-  incomeAccounts: [],
   payments: [],
-  paymentContext: null,
   totals: null,
   problems: [],
   readOnly: false,
   dirty: false,
   saving: false,
+  // Whether the per-line taxable boxes are on screen, so a rate typed into
+  // the header can bring them out without a full re-render on every key.
+  taxShown: false,
 };
 
 const inputs = new Map();
@@ -110,12 +109,13 @@ function field(name, label, input, hint) {
   ]);
 }
 
-function textInput(name, { type = 'text', value = '', placeholder = '' } = {}) {
+function textInput(name, { type = 'text', value = '', placeholder = '', inputmode = null } = {}) {
   const input = el('input', {
     type,
     id: `inv-${name}`,
     name,
     placeholder: placeholder || null,
+    inputmode,
     oninput: touch,
     onchange: touch,
   });
@@ -132,18 +132,7 @@ function areaInput(name, { value = '', rows = 3, placeholder = '' } = {}) {
     oninput: touch,
   });
   input.value = value == null ? '' : value;
-  // This page sits behind bootstrap({ requireAdmin: true }).
-  attachAiRewrite(input, { isAdmin: true, surface: `invoice:${name}` });
   return input;
-}
-
-function selectInput(name, options, value) {
-  return el('select', { id: `inv-${name}`, name, onchange: touch },
-    options.map((option) => el('option', {
-      value: option.value,
-      text: option.label,
-      selected: String(option.value) === String(value == null ? '' : value),
-    })));
 }
 
 function valueOf(name) {
@@ -153,30 +142,86 @@ function valueOf(name) {
   return input.value.trim();
 }
 
-function touch() {
+function setValue(name, value) {
+  const input = inputs.get(name);
+  if (input) input.value = value == null ? '' : value;
+}
+
+/** Any edit to the header: read the form, redo the sums, queue the save. */
+function touch(event) {
   if (state.readOnly) return;
+  const changed = event && event.target ? event.target.name : '';
+
+  // The due date follows the terms. Typing a new date or a new Net N moves
+  // it; typing straight into the due date leaves the two alone.
+  if ((changed === 'issued_on' || changed === 'net_days') && valueOf('issued_on')) {
+    const net = Number(valueOf('net_days'));
+    if (Number.isFinite(net) && net >= 0) setValue('due_on', addDays(valueOf('issued_on'), net));
+  }
+
   state.dirty = true;
   readForm();
   recompute();
+
+  // A rate arriving or leaving changes what every line asks for.
+  const taxNow = centsOf(state.invoice.tax_rate_bp) > 0;
+  if (taxNow !== state.taxShown) renderLines();
+
   queueSave();
 }
 
 function readForm() {
   const invoice = state.invoice;
 
-  invoice.number = Number(valueOf('number')) || invoice.number;
-  invoice.stage = valueOf('stage') || 'other';
-  invoice.project_id = valueOf('project_id') || null;
-  invoice.project_name = valueOf('project_name');
+  invoice.number = valueOf('number');
   invoice.issued_on = valueOf('issued_on') || null;
   invoice.due_on = valueOf('due_on') || null;
+
+  const net = Number(valueOf('net_days'));
+  if (valueOf('net_days') !== '' && Number.isFinite(net) && net >= 0 && net <= 365) {
+    invoice.net_days = Math.round(net);
+  }
+
+  invoice.project_name = valueOf('project_name');
   invoice.purchase_order = valueOf('purchase_order');
   invoice.summary = valueOf('summary');
   invoice.notes = valueOf('notes');
 
-  // paid_cents is deliberately not read from the form any more. It is the sum
-  // of the payments recorded against this invoice, maintained by a trigger, and
-  // a second place to type it would be a second answer to "how much came in".
+  // Blank means no tax. A typo keeps the rate as it was rather than reading
+  // as "no tax" — the checks flag it either way.
+  const rateText = valueOf('tax_rate');
+  const rate = rateText === '' ? 0 : parseRate(rateText);
+  if (rate !== null) invoice.tax_rate_bp = rate;
+
+  // paid_cents is deliberately not read from the form. It is the sum of the
+  // payments recorded against this invoice, maintained by a trigger, and a
+  // second place to type it would be a second answer to "how much came in".
+}
+
+/** The client picker. Changing it saves at once and reloads the client row,
+ *  because the "Billed to" block and the hourly rate come off that row. */
+async function changeClient(clientId) {
+  if (state.readOnly || !clientId) return;
+  state.invoice.client_id = clientId;
+  state.dirty = true;
+  readForm();
+  recompute();
+
+  const saved = await save();
+  if (!saved) return;
+
+  try {
+    const loaded = await loadInvoice(state.id);
+    if (loaded) {
+      state.client = loaded.client;
+      state.invoice.client = loaded.client;
+    }
+  } catch (error) {
+    toast(errorMessage(error), 'error');
+    return;
+  }
+  renderHead();
+  recompute();
 }
 
 // The lines
@@ -184,7 +229,7 @@ function readForm() {
 
 // The lines live in memory until the debounced save writes the whole invoice,
 // so reordering them is an array move and nothing else — no position column,
-// no round trip. Only the grip is shared with the five database-backed lists.
+// no round trip. Only the grip is shared with the database-backed lists.
 const lineOrder = reorderList({
   noun: 'line',
   onReorder: (from, to) => {
@@ -196,7 +241,7 @@ const lineOrder = reorderList({
   },
 });
 
-function rowControls(index, render, label) {
+function rowControls(index, label) {
   return el('div', { class: 'btn-row' }, [
     el('button', {
       class: 'btn btn--ghost btn--tiny',
@@ -206,7 +251,7 @@ function rowControls(index, render, label) {
       onclick: () => {
         state.items.splice(index, 1);
         state.dirty = true;
-        render();
+        renderLines();
         recompute();
         queueSave();
       },
@@ -218,17 +263,22 @@ function rowControls(index, render, label) {
  * One line.
  *
  * Quantity and rate are separate inputs, and the amount is derived from them
- * rather than typed. That is the same rule the SOW's fee block follows for the
- * same reason: a total somebody can type is a total that can disagree with the
- * numbers above it.
+ * rather than typed: a total somebody can type is a total that can disagree
+ * with the numbers above it.
  */
 function lineRow(item, index) {
   const id = `line-${index}`;
 
-  const name = el('input', { type: 'text', id: `${id}-name`, value: item.name || '' });
+  const name = el('input', {
+    type: 'text',
+    id: `${id}-name`,
+    list: 'inv-line-presets',
+    value: item.name || '',
+  });
   name.addEventListener('input', () => {
     item.name = name.value;
     state.dirty = true;
+    recompute();
     queueSave();
   });
 
@@ -239,7 +289,6 @@ function lineRow(item, index) {
     state.dirty = true;
     queueSave();
   });
-  attachAiRewrite(description, { isAdmin: true, surface: 'invoice:line-description' });
 
   const quantity = el('input', {
     type: 'text',
@@ -251,6 +300,7 @@ function lineRow(item, index) {
     const parsed = Number(quantity.value.trim());
     item.quantity = Number.isFinite(parsed) ? parsed : 0;
     state.dirty = true;
+    amount.textContent = formatMoney(itemAmount(item));
     recompute();
     queueSave();
   });
@@ -265,6 +315,7 @@ function lineRow(item, index) {
     const parsed = parseMoney(unit.value);
     item.unit_cents = parsed === null ? 0 : parsed;
     state.dirty = true;
+    amount.textContent = formatMoney(itemAmount(item));
     recompute();
     queueSave();
   });
@@ -272,23 +323,7 @@ function lineRow(item, index) {
     if (item.unit_cents) unit.value = formatMoney(item.unit_cents).replace(/^\$/, '');
   });
 
-  // Which income account this line's revenue belongs to. Almost always right
-  // already — an invoice raised from a scope of work arrives with the studio's
-  // matching service line filled in — so it sits below the amounts rather than
-  // among them, and "the usual" is a real option rather than a blank.
-  const income = el('select', { id: `${id}-income` }, [
-    el('option', { value: '', text: 'The default income account' }),
-    ...state.incomeAccounts.map((row) => el('option', {
-      value: row.id,
-      text: accountLabel(row),
-      selected: row.id === item.income_account_id,
-    })),
-  ]);
-  income.addEventListener('change', () => {
-    item.income_account_id = income.value || null;
-    state.dirty = true;
-    queueSave();
-  });
+  const amount = el('p', { class: 'row-card__amount', text: formatMoney(itemAmount(item)) });
 
   // Per line, because one document routinely has both kinds on it: the design
   // work that is exempt and the printing bought on the client's behalf that is
@@ -307,7 +342,7 @@ function lineRow(item, index) {
   });
 
   return el('div', { class: 'row-card' }, [
-    state.readOnly ? null : lineOrder.handle(index, `line ${index + 1}`),
+    lineOrder.handle(index, item.name ? `${item.name}` : `line ${index + 1}`),
     el('div', { class: 'row-card__grid' }, [
       el('div', { class: 'form-field' }, [
         el('label', { for: `${id}-name`, text: `Line ${index + 1}` }),
@@ -323,88 +358,78 @@ function lineRow(item, index) {
       ]),
       el('div', { class: 'form-field' }, [
         el('span', { class: 'form-field__label', text: 'Amount' }),
-        el('p', { class: 'row-card__amount', text: formatMoney(lineAmount(item)) }),
+        amount,
       ]),
     ]),
     el('div', { class: 'form-field' }, [
       el('label', { for: `${id}-desc`, text: 'Description' }),
       description,
     ]),
-    state.incomeAccounts.length
-      ? el('div', { class: 'form-field' }, [
-        el('label', { for: `${id}-income`, text: 'Books to' }),
-        income,
-        el('span', {
-          class: 'progress__label',
-          text: 'Which line of the profit and loss this revenue shows up on.',
-        }),
-      ])
-      : null,
-    Number(state.invoice.tax_rate_bp)
+    state.taxShown
       ? el('div', { class: 'form-field form-field--check' }, [
         taxable,
         el('label', { for: `${id}-taxable`, text: 'Sales tax applies to this line' }),
       ])
       : null,
-    item.sow_item_id
-      ? el('p', { class: 'progress__label', text: 'From the scope of work. Edited freely from here.' })
-      : null,
-    state.readOnly ? null : rowControls(index, renderLines, `line ${index + 1}`),
+    rowControls(index, item.name ? `the line "${item.name}"` : `line ${index + 1}`),
   ]);
 }
 
 function renderLines() {
+  state.taxShown = centsOf(state.invoice.tax_rate_bp) > 0;
   mount(nodes.lineList, ...(state.items.length
     ? state.items.map(lineRow)
     : [el('p', {
       class: 'empty',
-      text: 'No lines yet. Add one — or, if this bills a scope of work, pick the '
-          + 'payment it is for from the list.',
+      text: 'No lines yet. Add one, bill hours at the client\'s rate, or pass on '
+          + 'the costs marked billable to them.',
     })]));
   lineOrder.attach(nodes.lineList);
 }
 
-function addBlankLine() {
-  state.items.push({ name: '', description: '', quantity: 1, unit_cents: 0 });
+function pushLines(newItems) {
+  state.items.push(...newItems);
   state.dirty = true;
   renderLines();
   recompute();
   queueSave();
 }
 
+function addBlankLine() {
+  pushLines([{ name: '', description: '', quantity: 1, unit_cents: 0, taxable: false }]);
+}
+
 /**
- * The out-of-scope shortcut.
+ * Hours at the rate.
  *
- * Hours at the agreed rate is the one calculation this screen does often enough
- * to be worth a button, and the rate is resolved exactly the way the scope of
- * work resolves it — this client's negotiated rate if they have one, the studio
- * settings row if they do not. Same function, resolveHourlyRate(), rather than
- * a second copy of the rule here.
- *
- * That shared resolver is the whole point. Until it existed this line read
- * `state.settings.hourly_rate_cents || 9500`, which is the studio rate and
- * nothing else — so an invoice would happily bill $95 an hour for work the
- * signed scope of work promised at $90, from the same screen, on the same
- * client, in the same week. Two documents disagreeing about a price is the
- * defect the client column was added to close, and it had two doors.
+ * The rate is this client's negotiated one if they have one, the business's
+ * standard rate from Admin → Business details if they do not — the same
+ * resolveHourlyRate() the client form explains. When neither exists the
+ * button refuses rather than pricing a line at $0.00 an hour, which is the
+ * kind of invoice that gets paid exactly as written.
  */
 async function addHours() {
-  const { cents: rate, negotiated } = resolveHourlyRate(
+  const { cents: rate, negotiated, missing } = resolveHourlyRate(
     state.client && state.client.hourly_rate_cents,
-    state.settings,
+    state.studio,
   );
+
+  if (missing) {
+    toast('There is no hourly rate to bill at. Set the standard rate under '
+        + 'Admin → Business details, or a negotiated rate on this client.', 'error');
+    return;
+  }
 
   await formModal({
     title: 'Bill hours',
     submitLabel: 'Add line',
     intro: negotiated
-      ? `Out-of-scope work, at the ${formatMoney(rate)} an hour negotiated with this `
-        + 'client and quoted on their scopes of work. Change the rate here if this '
-        + 'particular work was agreed at a different one.'
-      : `Out-of-scope work, at the ${formatMoney(rate)} an hour every scope of `
-        + 'work quotes. Change the rate here if this was agreed at a different one.',
+      ? `At the ${formatMoney(rate)} an hour negotiated with this client. Change `
+        + 'the rate here if this particular work was agreed at a different one.'
+      : `At the standard ${formatMoney(rate)} an hour. Change the rate here if this `
+        + 'work was agreed at a different one.',
     fields: [
-      { name: 'what', label: 'What the work was', type: 'text', required: true, placeholder: 'Extra landing page, agreed 12 August' },
+      { name: 'what', label: 'What the work was', type: 'text', required: true, placeholder: 'Marketing consulting, August' },
       { name: 'hours', label: 'Hours', type: 'text', inputmode: 'decimal', required: true, placeholder: '6' },
       {
         name: 'rate',
@@ -422,17 +447,107 @@ async function addHours() {
       const parsed = parseMoney(values.rate);
       if (parsed === null || parsed <= 0) throw new Error('That rate is not a number.');
 
-      state.items.push({
+      pushLines([{
         name: values.what,
-        description: 'Work outside the agreed scope, quoted and agreed before it began.',
+        description: `${hours} hour${hours === 1 ? '' : 's'} at ${formatMoney(parsed)} an hour.`,
         quantity: hours,
         unit_cents: parsed,
+        taxable: false,
+      }]);
+    },
+  });
+}
+
+/**
+ * Costs bought for this client and marked billable, passed on as lines.
+ *
+ * The expenses are stamped with this invoice only after the save that added
+ * the lines has gone through, so a failed save cannot leave a cost marked as
+ * billed on an invoice that does not carry it. The reverse — lines saved,
+ * stamp failed — is the safer mistake: the cost is offered again next time,
+ * and the person sees it twice rather than never.
+ */
+async function addExpenses() {
+  if (!state.client) {
+    toast('Pick a client first — the costs are theirs.', 'error');
+    return;
+  }
+
+  let rows;
+  try {
+    rows = await unbilledExpenses(state.client.id);
+  } catch (error) {
+    toast(errorMessage(error), 'error');
+    return;
+  }
+
+  if (!rows.length) {
+    toast('Nothing to pass on: no expense is marked billable to this client and '
+        + 'not yet on an invoice.', 'ok');
+    return;
+  }
+
+  const describe = (row) => {
+    const category = (row.category && row.category.name) || 'Expense';
+    const vendor = row.vendor_name || (row.vendor && row.vendor.name) || '';
+    return { category, vendor };
+  };
+
+  await formModal({
+    title: 'Add unbilled expenses',
+    submitLabel: 'Add as lines',
+    intro: 'One line per cost, at the amount paid. Edit the lines afterwards if '
+         + 'a markup was agreed. Each one is marked as billed on this invoice.',
+    fields: [{
+      name: 'expenses',
+      label: 'Costs to pass on',
+      type: 'checkboxes',
+      required: true,
+      value: rows.map((row) => row.id),
+      options: rows.map((row) => {
+        const { category, vendor } = describe(row);
+        return {
+          value: row.id,
+          label: [
+            fmtDate(row.spent_on),
+            vendor ? `${category} · ${vendor}` : category,
+            formatMoney(row.amount_cents),
+            row.description || null,
+          ].filter(Boolean).join(' — '),
+        };
+      }),
+    }],
+    onSubmit: async (values) => {
+      const picked = rows.filter((row) => values.expenses.includes(row.id));
+      if (!picked.length) throw new Error('Tick at least one.');
+
+      const added = picked.map((row) => {
+        const { category, vendor } = describe(row);
+        return {
+          name: vendor ? `${category} — ${vendor}` : category,
+          description: [row.description, longDate(row.spent_on)].filter(Boolean).join(' · '),
+          quantity: 1,
+          unit_cents: centsOf(row.amount_cents),
+          taxable: false,
+        };
       });
 
+      const before = state.items.length;
+      state.items.push(...added);
       state.dirty = true;
       renderLines();
       recompute();
-      queueSave();
+
+      const saved = await save();
+      if (!saved) {
+        state.items.splice(before, added.length);
+        renderLines();
+        recompute();
+        throw new Error('The lines could not be saved, so nothing was added. Try again.');
+      }
+
+      await markExpensesBilled(picked.map((row) => row.id), state.id);
+      toast(`${added.length} line${added.length === 1 ? '' : 's'} added.`, 'ok');
     },
   });
 }
@@ -447,43 +562,28 @@ function totalLine(label, value, className) {
   ]);
 }
 
-function renderTotals() {
-  const totals = state.totals;
+function feeBlock(totals, paidCents) {
+  const paid = Math.max(0, centsOf(paidCents));
+  const taxLabel = (state.settings && state.settings.tax_label) || 'Sales tax';
 
-  mount(nodes.totals,
-    el('div', { class: 'fee-block' }, [
-      totalLine('Subtotal', formatMoney(totals.subtotal)),
-      totals.tax > 0
-        ? totalLine(
-          `${(state.terms && state.terms.tax_label) || 'Sales tax'} at `
-          + `${formatRate(totals.taxRateBp)} on ${formatMoney(totals.taxable)}`,
-          formatMoney(totals.tax),
-        )
-        : null,
-      totals.paid > 0
-        ? totalLine('Already received', `− ${formatMoney(totals.paid)}`, 'fee-line--muted')
-        : null,
-      totalLine('Amount due', formatMoney(totals.due), 'fee-line--total fee-line--split'),
-    ]),
-    // What this scope of work has been billed in total, this invoice included.
-    // The number nobody has otherwise, and the one that stops a deposit going
-    // out twice.
-    //
-    // state.billed is what the *other* invoices come to; this one is added live
-    // so the figure moves as the lines are edited. A void invoice asks for
-    // nothing, so it contributes nothing.
-    state.sow
-      ? el('p', { class: 'progress__label' }, [
-        `Billed against SOW ${sowLabel(state.sow.number, state.sow.revision)}: `,
-        el('strong', {
-          text: formatMoney(
-            state.billed + (state.invoice.status === 'void' ? 0 : totals.total),
-          ),
-        }),
-        ` of ${formatMoney(state.sow.adjusted_fee_cents)} agreed.`,
-      ])
+  return el('div', { class: 'fee-block' }, [
+    totalLine('Subtotal', formatMoney(totals.subtotal_cents)),
+    totals.tax_cents > 0
+      ? totalLine(
+        `${taxLabel} at ${formatRate(state.invoice.tax_rate_bp)} on ${formatMoney(totals.taxable_cents)}`,
+        formatMoney(totals.tax_cents),
+      )
       : null,
-  );
+    totalLine('Total', formatMoney(totals.total_cents), paid > 0 ? '' : 'fee-line--total fee-line--split'),
+    paid > 0 ? totalLine('Paid', `− ${formatMoney(paid)}`, 'fee-line--muted') : null,
+    paid > 0
+      ? totalLine('Balance due', formatMoney(totals.total_cents - paid), 'fee-line--total fee-line--split')
+      : null,
+  ]);
+}
+
+function renderTotals() {
+  mount(nodes.totals, feeBlock(state.totals, state.invoice.paid_cents));
 }
 
 function renderProblems() {
@@ -514,25 +614,22 @@ function renderProblems() {
   );
 }
 
+/** Redo the sums, write them onto the row the way save_invoice will, and run
+ *  the checks against the result. */
 function recompute() {
-  state.totals = computeTotals(state.items, state.invoice.paid_cents,
-    state.invoice.tax_rate_bp);
+  const invoice = state.invoice;
+  state.totals = invoiceTotals(state.items, invoice.tax_rate_bp);
 
-  state.problems = validate({
-    invoice: state.invoice,
-    client: state.client,
-    items: state.items,
-    sow: state.sow
-      ? {
-        ...state.sow,
-        label: `SOW ${sowLabel(state.sow.number, state.sow.revision)}`,
-      }
-      : null,
-    billedCents: state.billed,
-  });
+  invoice.subtotal_cents = state.totals.subtotal_cents;
+  invoice.tax_cents = state.totals.tax_cents;
+  invoice.total_cents = state.totals.total_cents;
 
-  renderTotals();
-  renderProblems();
+  state.problems = validate(invoice, state.items, state.client);
+
+  if (!state.readOnly) {
+    renderTotals();
+    renderProblems();
+  }
 }
 
 // Saving
@@ -551,52 +648,67 @@ function payload() {
     id: state.id,
     invoice: {
       client_id: invoice.client_id,
-      project_id: invoice.project_id || '',
-      number: invoice.number,
-      stage: invoice.stage || 'other',
+      // A malformed number is left out so the database keeps the old one; the
+      // checks say why it will not issue. A well-formed duplicate comes back
+      // as "already exists" from the unique index.
+      number: isValidNumber(invoice.number) ? String(invoice.number).trim() : '',
       status: invoice.status,
       issued_on: invoice.issued_on || '',
       due_on: invoice.due_on || '',
+      net_days: invoice.net_days,
       project_name: invoice.project_name || '',
       purchase_order: invoice.purchase_order || '',
       summary: invoice.summary || '',
       notes: invoice.notes || '',
-      subtotal_cents: totals.subtotal,
-      tax_rate_bp: invoice.tax_rate_bp || 0,
-      tax_cents: totals.tax,
-      // Passed straight back rather than read off the form: the payments own it.
-      paid_cents: invoice.paid_cents || 0,
-      total_cents: totals.total,
+      subtotal_cents: totals.subtotal_cents,
+      tax_rate_bp: centsOf(invoice.tax_rate_bp),
+      tax_cents: totals.tax_cents,
+      total_cents: totals.total_cents,
     },
-    items: state.items.map((item) => ({
-      sow_item_id: item.sow_item_id || '',
+    items: state.items.map((item, index) => ({
       name: item.name || '',
       description: item.description || '',
       quantity: item.quantity == null ? 1 : item.quantity,
-      unit_cents: item.unit_cents || 0,
-      amount_cents: lineAmount(item),
-      income_account_id: item.income_account_id || '',
+      unit_cents: centsOf(item.unit_cents),
+      amount_cents: itemAmount(item),
       taxable: Boolean(item.taxable),
+      position: index,
     })),
   };
 }
 
-async function save() {
-  if (state.readOnly || state.saving) return;
+// The save in flight, if any. Saves are serialised rather than raced: a
+// second one waits for the first to land and then sends the state as it
+// stands, so the last write is always the newest one.
+let inflight = null;
 
-  state.saving = true;
-  setSaveState('Saving…');
+/** Write everything. Resolves true when it went through. */
+async function save() {
+  if (state.readOnly) return false;
+  while (inflight) await inflight;
+
+  inflight = (async () => {
+    state.saving = true;
+    setSaveState('Saving…');
+    try {
+      await saveInvoice(payload());
+      state.dirty = false;
+      setSaveState(`Saved ${fmtDateTime(new Date().toISOString())}`, 'ok');
+      return true;
+    } catch (error) {
+      // The form keeps everything typed: a failed save is not a lost edit.
+      setSaveState('Not saved — still on screen, try again', 'error');
+      toast(errorMessage(error), 'error');
+      return false;
+    } finally {
+      state.saving = false;
+    }
+  })();
 
   try {
-    await saveInvoice(payload());
-    state.dirty = false;
-    setSaveState(`Saved ${fmtDateTime(new Date().toISOString())}`, 'ok');
-  } catch (error) {
-    // The form keeps everything typed, for the same reason the SOW form does.
-    setSaveState('Not saved — still on screen, try again', 'error');
-    toast(errorMessage(error), 'error');
+    return await inflight;
   } finally {
-    state.saving = false;
+    inflight = null;
   }
 }
 
@@ -611,17 +723,8 @@ function flushOnHide() {
   if (state.dirty && !state.saving) save();
 }
 
-// Issuing
+// Issuing and printing
 // ---------------------------------------------------------------------------
-
-function todayIso() {
-  const now = new Date();
-  return [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-  ].join('-');
-}
 
 function clientName() {
   const client = state.client || {};
@@ -631,30 +734,43 @@ function clientName() {
 function snapshotNow() {
   return assemble({
     invoice: state.invoice,
-    client: state.client,
     items: state.items,
+    client: state.client,
+    studio: state.studio,
     settings: state.settings,
-    terms: state.terms,
-    today: todayIso(),
+  });
+}
+
+/** The document as it was frozen. A fresh assembly only when the stored one
+ *  is missing, which it never is after issue_invoice has run. */
+function storedSnapshot() {
+  const stored = state.invoice.snapshot;
+  return stored && stored.kind === 'invoice' ? stored : snapshotNow();
+}
+
+async function print(snapshot) {
+  await printSnapshot(snapshot, invoiceFilename(state.invoice, clientName()), {
+    paidCents: state.invoice.paid_cents,
   });
 }
 
 /** Preview prints the same document issuing does, and changes nothing. It
  *  exists so the first look at an invoice is not also the act that freezes it. */
-async function preview(button) {
-  button.disabled = true;
+async function preview() {
   try {
-    const snapshot = snapshotNow();
-    await printSnapshot(snapshot, invoiceFilename(state.invoice, clientName(), todayIso()));
+    await print(snapshotNow());
   } catch (error) {
     toast(errorMessage(error), 'error');
-  } finally {
-    button.disabled = false;
   }
 }
 
-async function issue(button) {
-  if (state.dirty) await save();
+/** Save → check → assemble → hash → issue_invoice → re-render → print. */
+async function issue() {
+  window.clearTimeout(saveTimer);
+  if (state.dirty || state.saving) {
+    const saved = await save();
+    if (!saved) return;
+  }
 
   const stopping = blockers(state.problems);
   if (stopping.length) {
@@ -664,30 +780,157 @@ async function issue(button) {
   }
 
   const confirmed = await confirmModal({
-    title: `Issue INV ${invoiceLabel(state.invoice.number)} for ${formatMoney(state.totals.due)}?`,
+    title: `Issue ${invoiceLabel(state.invoice.number)} for ${formatMoney(state.totals.total_cents)}?`,
     body: 'This freezes the document. An issued invoice cannot be edited — to change '
         + 'it you void it and raise a new one.',
     confirmLabel: 'Issue invoice',
   });
   if (!confirmed) return;
 
-  button.disabled = true;
-  button.textContent = 'Issuing…';
-
+  let snapshot;
   try {
-    const snapshot = snapshotNow();
+    snapshot = snapshotNow();
     const hash = await digest(snapshot);
-
     await issueInvoice({ id: state.id, snapshot, hash });
-    await printSnapshot(snapshot, invoiceFilename(state.invoice, clientName(), todayIso()));
-
-    toast('Issued and frozen.', 'ok');
-    window.location.reload();
+    await reload();
   } catch (error) {
     toast(errorMessage(error), 'error');
-    button.disabled = false;
-    button.textContent = 'Issue and download';
+    return;
   }
+
+  toast('Issued and frozen.', 'ok');
+
+  try {
+    await print(storedSnapshot());
+  } catch (error) {
+    toast(errorMessage(error), 'error');
+  }
+}
+
+// Status and lifecycle
+// ---------------------------------------------------------------------------
+
+/** Re-read the invoice, its client and its lines, and render from scratch. */
+async function reload() {
+  const loaded = await loadInvoice(state.id);
+  if (!loaded) throw new Error('That invoice is no longer there.');
+
+  state.invoice = loaded.invoice;
+  state.client = loaded.client;
+  state.items = loaded.items;
+  state.readOnly = Boolean(loaded.invoice.issued_at);
+  state.dirty = false;
+  state.payments = state.readOnly ? await paymentsForInvoice(state.id) : [];
+
+  renderPage();
+}
+
+async function markSent() {
+  try {
+    await setStatus(state.id, 'sent');
+    await reload();
+  } catch (error) {
+    toast(errorMessage(error), 'error');
+    return;
+  }
+  toast('Marked sent.', 'ok');
+}
+
+async function voidInvoice() {
+  const ok = await confirmModal({
+    title: `Void ${invoiceLabel(state.invoice.number)}?`,
+    body: [
+      'The number stays used and the document stays on file, but nothing is owed '
+      + 'on it and it drops out of what is outstanding.',
+      'To bill the same work again, duplicate it into a new draft.',
+    ],
+    confirmLabel: 'Void invoice',
+    tone: 'danger',
+  });
+  if (!ok) return;
+
+  try {
+    await setStatus(state.id, 'void');
+    await reload();
+  } catch (error) {
+    toast(errorMessage(error), 'error');
+    return;
+  }
+  toast('Voided.', 'ok');
+}
+
+async function removeDraft() {
+  const ok = await confirmModal({
+    title: `Delete draft ${invoiceLabel(state.invoice.number)}?`,
+    body: 'The lines go with it. This cannot be undone.',
+    confirmLabel: 'Delete draft',
+    tone: 'danger',
+  });
+  if (!ok) return;
+
+  window.clearTimeout(saveTimer);
+  state.dirty = false;
+
+  try {
+    await deleteInvoice(state.id);
+  } catch (error) {
+    toast(errorMessage(error), 'error');
+    return;
+  }
+  window.location.assign(LIST_URL);
+}
+
+async function duplicate() {
+  window.clearTimeout(saveTimer);
+  if (state.dirty && !state.readOnly) {
+    const saved = await save();
+    if (!saved) return;
+  }
+
+  let fresh;
+  try {
+    fresh = await duplicateInvoice(state.id);
+  } catch (error) {
+    toast(errorMessage(error), 'error');
+    return;
+  }
+  window.location.assign(`/portal/invoice/?id=${encodeURIComponent(fresh)}`);
+}
+
+// Payments
+// ---------------------------------------------------------------------------
+
+async function takePayment() {
+  const recorded = await openRecordPayment(state.invoice);
+  if (!recorded) return;
+
+  await refreshPayments();
+  toast('Payment recorded.', 'ok');
+}
+
+/** Only the payments panel and the invoice's own header are re-rendered
+ *  afterwards; the document itself has not changed. */
+async function refreshPayments() {
+  try {
+    const [payments, loaded] = await Promise.all([
+      paymentsForInvoice(state.id),
+      loadInvoice(state.id),
+    ]);
+    state.payments = payments;
+    if (loaded) {
+      state.invoice.paid_cents = loaded.invoice.paid_cents;
+      state.invoice.paid_at = loaded.invoice.paid_at;
+      state.invoice.status = loaded.invoice.status;
+    }
+  } catch (error) {
+    toast(errorMessage(error), 'error');
+    return;
+  }
+  renderPage();
+}
+
+function renderPayments() {
+  mount(nodes.payments, ...paymentRows(state.payments, { onChange: refreshPayments }));
 }
 
 // Rendering the page
@@ -699,7 +942,7 @@ function notFound() {
       el('h1', { text: 'Invoice not found' }),
       el('p', { text: 'It may have been deleted.' }),
       el('p', {}, [
-        el('a', { class: 'btn btn--ghost btn--small', href: '/portal/admin/invoices/', text: 'Back to the list' }),
+        el('a', { class: 'btn btn--ghost btn--small', href: LIST_URL, text: 'Back to the list' }),
       ]),
     ]),
   );
@@ -718,43 +961,162 @@ function panel(title, children, lede, action) {
   ]);
 }
 
+function statusPill() {
+  const tone = statusTone(state.invoice.status);
+  return el('span', {
+    class: tone ? `pill pill--${tone}` : 'pill',
+    text: statusLabel(state.invoice.status),
+  });
+}
+
+function overdueTag() {
+  const late = overdueDays(state.invoice, isoToday());
+  if (!late) return null;
+  return el('span', { class: 'pill pill--red', text: `${late} day${late === 1 ? '' : 's'} overdue` });
+}
+
+const headNode = el('div', { class: 'page-head' });
+
+function renderHead() {
+  const invoice = state.invoice;
+
+  mount(headNode,
+    el('div', {}, [
+      el('h1', { text: invoiceLabel(invoice.number) }),
+      el('p', {}, state.readOnly
+        ? [
+          `${clientName()} · `,
+          statusPill(),
+          ' ',
+          overdueTag(),
+          ` · Issued ${fmtDate(invoice.issued_on || invoice.issued_at)}`,
+        ]
+        : [`${clientName()} · `, nodes.saveState]),
+    ]),
+    actionBar(),
+  );
+}
+
+function actionBar() {
+  const status = state.invoice.status;
+
+  if (state.readOnly) {
+    return el('div', { class: 'page-head__actions btn-row' }, [
+      el('button', {
+        class: 'btn btn--small',
+        type: 'button',
+        text: 'Download again',
+        onclick: busy(async () => {
+          try {
+            // The stored snapshot, not a fresh assembly: re-printing a frozen
+            // document has to give the document that was frozen, even if the
+            // letterhead or the terms have changed since.
+            await print(storedSnapshot());
+          } catch (error) {
+            toast(errorMessage(error), 'error');
+          }
+        }),
+      }),
+      status === 'issued'
+        ? el('button', {
+          class: 'btn btn--ghost btn--small',
+          type: 'button',
+          text: 'Mark sent',
+          onclick: busy(markSent, { label: 'Marking…' }),
+        })
+        : null,
+      el('button', {
+        class: 'btn btn--ghost btn--small',
+        type: 'button',
+        text: 'Duplicate',
+        onclick: busy(duplicate, { label: 'Copying…' }),
+      }),
+      ['issued', 'sent'].includes(status)
+        ? el('button', {
+          class: 'btn btn--danger btn--small',
+          type: 'button',
+          text: 'Void',
+          onclick: busy(voidInvoice),
+        })
+        : null,
+    ]);
+  }
+
+  return el('div', { class: 'page-head__actions btn-row' }, [
+    el('button', {
+      class: 'btn btn--ghost btn--small',
+      type: 'button',
+      text: 'Preview',
+      onclick: busy(preview),
+    }),
+    el('button', {
+      class: 'btn btn--ghost btn--small',
+      type: 'button',
+      text: 'Duplicate',
+      onclick: busy(duplicate, { label: 'Copying…' }),
+    }),
+    el('button', {
+      class: 'btn btn--danger btn--small',
+      type: 'button',
+      text: 'Delete draft',
+      onclick: busy(removeDraft),
+    }),
+    el('button', {
+      class: 'btn btn--small',
+      type: 'button',
+      text: 'Issue and download',
+      onclick: busy(issue, { label: 'Issuing…' }),
+    }),
+  ]);
+}
+
+/** The draft form. */
 function buildForm() {
   const invoice = state.invoice;
-  const readOnly = state.readOnly;
+  inputs.clear();
+
+  const clientSelect = el('select', { id: 'inv-client_id', name: 'client_id' }, [
+    ...(state.clients.some((row) => row.id === invoice.client_id)
+      ? []
+      : [el('option', { value: invoice.client_id || '', text: clientName() })]),
+    ...state.clients.map((row) => el('option', {
+      value: row.id,
+      text: row.status && row.status !== 'active' ? `${row.name} (${row.status})` : row.name,
+      selected: row.id === invoice.client_id,
+    })),
+  ]);
+  clientSelect.addEventListener('change', () => changeClient(clientSelect.value));
 
   const header = panel('Invoice', [
     el('div', { class: 'form-grid' }, [
-      field('number', 'Number', textInput('number', { type: 'number', value: invoice.number }),
-        'Editable, so an invoice already sent on paper can be matched by hand.'),
-      field('stage', 'This bills', selectInput('stage', STAGE_OPTIONS.map((option) => ({
-        value: option.value,
-        label: `${option.label} — ${option.hint}`,
-      })), invoice.stage)),
+      field('client_id', 'Client', clientSelect,
+        'The "Billed to" block, and the rate hours are billed at, come off the client record.'),
+      field('number', 'Number', textInput('number', { value: invoice.number }),
+        'The date it was raised and that day\'s sequence, like 20260901-1. Editable, and must stay unique.'),
       field('issued_on', 'Invoice date', textInput('issued_on', {
         type: 'date',
         value: invoice.issued_on || '',
       }), 'What the payment terms count from.'),
+      field('net_days', 'Terms (Net days)', textInput('net_days', {
+        type: 'number',
+        inputmode: 'numeric',
+        value: invoice.net_days == null ? '' : invoice.net_days,
+      }), 'Moves the due date. Net 15 for most clients, Net 30 for some.'),
       field('due_on', 'Due', textInput('due_on', { type: 'date', value: invoice.due_on || '' })),
-      field('project_name', 'Project', textInput('project_name', { value: invoice.project_name || '' })),
-      field('project_id', 'Linked project', selectInput('project_id', [
-        { value: '', label: 'Not linked to a project' },
-        ...state.projects.map((row) => ({ value: row.id, label: row.name })),
-      ], invoice.project_id || '')),
+      field('project_name', 'Project', textInput('project_name', {
+        value: invoice.project_name || '',
+        placeholder: 'What the work was called',
+      })),
       field('purchase_order', 'Purchase order', textInput('purchase_order', {
         value: invoice.purchase_order || '',
         placeholder: 'Only if they gave you one',
       }), 'Some clients will not pay an invoice without theirs on it.'),
+      field('tax_rate', 'Sales tax rate', textInput('tax_rate', {
+        inputmode: 'decimal',
+        placeholder: '0',
+        value: centsOf(invoice.tax_rate_bp) ? formatRate(invoice.tax_rate_bp).replace('%', '') : '',
+      }), 'Leave blank for none. With a rate set, each line says whether it applies.'),
     ]),
-    state.sow
-      ? el('p', { class: 'notice' }, [
-        `Billing against SOW ${sowLabel(state.sow.number, state.sow.revision)}`
-        + `${state.invoice.project_name ? ` — ${state.invoice.project_name}` : ''}. `,
-        el('a', {
-          href: `/portal/admin/sow/?id=${encodeURIComponent(state.sow.id)}`,
-          text: 'Open the scope of work',
-        }),
-      ])
-      : null,
   ]);
 
   const summary = panel('Summary', [
@@ -765,17 +1127,22 @@ function buildForm() {
     })),
   ], 'Optional, and worth the thirty seconds on anything that is not obvious from the lines.');
 
-  const lines = panel('Lines', [
+  const linesPanel = panel('Lines', [
+    el('datalist', { id: 'inv-line-presets' }, LINE_PRESETS.map((name) => el('option', { value: name }))),
     nodes.lineList,
-    readOnly ? null : el('div', { class: 'btn-row' }, [
+    el('div', { class: 'btn-row' }, [
       el('button', { class: 'btn btn--small', type: 'button', text: 'Add line', onclick: addBlankLine }),
       el('button', { class: 'btn btn--ghost btn--small', type: 'button', text: 'Bill hours', onclick: addHours }),
+      el('button', {
+        class: 'btn btn--ghost btn--small',
+        type: 'button',
+        text: 'Add unbilled expenses',
+        onclick: busy(addExpenses),
+      }),
     ]),
   ], 'Quantity times rate. The amount is worked out, never typed.');
 
-  const totals = panel('Total', [nodes.totals],
-    'There are no discounts here on purpose — everything that came off was '
-    + 'agreed on the scope of work, and is already in these numbers.');
+  const totals = panel('Total', [nodes.totals]);
 
   const notes = panel('Notes', [
     field('notes', 'Anything else on the document', areaInput('notes', {
@@ -787,121 +1154,172 @@ function buildForm() {
 
   const checks = panel('Before issuing', [nodes.problems]);
 
-  // Only on an issued invoice, because the database refuses a payment against a
-  // draft — there is nothing to pay yet.
-  const payments = state.readOnly
-    ? panel('Payments', [nodes.payments],
-      'What has actually arrived. Each one posts itself to the books: the '
-      + 'account it landed in goes up, and what this client owes goes down.',
-      el('button', {
-        class: 'btn btn--small',
-        type: 'button',
-        text: 'Record a payment',
-        onclick: takePayment,
-      }))
+  return [header, summary, linesPanel, totals, notes, checks];
+}
+
+/** The frozen document, on screen. What has been paid is rendered beside it
+ *  from the row, not from the snapshot, so it moves as payments are recorded. */
+function documentView() {
+  const snapshot = storedSnapshot();
+  const from = snapshot.from || {};
+  const to = snapshot.billed_to;
+  const tax = snapshot.tax || {};
+  const totals = {
+    subtotal_cents: snapshot.subtotal_cents,
+    taxable_cents: 0,
+    tax_cents: tax.cents,
+    total_cents: snapshot.total_cents,
+  };
+
+  const partyBlock = (label, party) => el('div', { class: 'detail-block' }, [
+    el('div', { class: 'progress__label', text: label }),
+    el('div', { text: party.name || '' }),
+    ...(party.address || []).map((line) => el('div', { class: 'progress__label', text: line })),
+    party.contactName ? el('div', { class: 'progress__label', text: `Attn: ${party.contactName}` }) : null,
+    party.contactEmail ? el('div', { class: 'progress__label', text: party.contactEmail }) : null,
+  ]);
+
+  const facts = [
+    ['Issued', longDate(snapshot.issued_on)],
+    ['Due', longDate(snapshot.due_on)],
+    ['Terms', snapshot.net_days == null ? '' : `Net ${snapshot.net_days}`],
+    ['Purchase order', snapshot.purchase_order],
+    ['Project', snapshot.project_name],
+  ].filter(([, value]) => Boolean(value));
+
+  const rows = (snapshot.lines || []).map((line) => {
+    const qty = Number(line.quantity);
+    const working = Number.isFinite(qty) && qty !== 1 ? `${qty} × ${formatMoney(line.unit_cents)}` : '—';
+    return el('tr', {}, [
+      el('td', {}, [
+        el('span', { class: 'row-cell__name', text: line.name }),
+        line.description ? el('span', { class: 'row-cell__desc', text: line.description }) : null,
+      ]),
+      el('td', { class: 'is-tight', text: working }),
+      el('td', { class: 'is-numeric', text: formatMoney(line.amount_cents) }),
+    ]);
+  });
+
+  const taxLine = tax.cents > 0
+    ? `${tax.label || 'Sales tax'} at ${formatRate(tax.rate_bp)}`
+      + (tax.registration ? ` · Permit ${tax.registration}` : '')
     : null;
 
-  return [header, summary, lines, totals, payments, notes, checks].filter(Boolean);
-}
-
-/**
- * Money in.
- *
- * Only the payments panel and the invoice's own header are re-rendered
- * afterwards. A full rebuild would be simpler and would also throw away
- * anything half-typed elsewhere on the form.
- */
-async function takePayment() {
-  const recorded = await openRecordPayment(state.invoice, state.paymentContext);
-  if (!recorded) return;
-
-  await refreshPayments();
-  toast('Payment recorded, and posted to the books.', 'ok');
-}
-
-async function refreshPayments() {
-  try {
-    const [payments, invoice] = await Promise.all([
-      paymentsForInvoice(state.id),
-      loadInvoice(state.id),
-    ]);
-    state.payments = payments;
-    if (invoice && invoice.invoice) state.invoice.paid_cents = invoice.invoice.paid_cents;
-    if (invoice && invoice.invoice) state.invoice.status = invoice.invoice.status;
-  } catch (error) {
-    toast(errorMessage(error), 'error');
-    return;
-  }
-  renderPayments();
-  recompute();
-}
-
-function renderPayments() {
-  mount(nodes.payments, ...paymentRows(state.payments, { onChange: refreshPayments }));
-}
-
-function actionBar() {
-  if (state.readOnly) {
-    return el('div', { class: 'page-head__actions' }, [
-      el('button', {
-        class: 'btn btn--ghost btn--small',
-        type: 'button',
-        text: 'Download again',
-        onclick: async (event) => {
-          const button = event.currentTarget;
-          button.disabled = true;
-          try {
-            // The stored snapshot, not a fresh assembly: re-printing a frozen
-            // document has to give the document that was frozen, even if the
-            // terms or the party block have changed since.
-            const stored = state.invoice.snapshot;
-            await printSnapshot(stored || snapshotNow(),
-              invoiceFilename(state.invoice, clientName(),
-                state.invoice.issued_on || state.invoice.issued_at || todayIso()));
-          } catch (error) {
-            toast(errorMessage(error), 'error');
-          } finally {
-            button.disabled = false;
-          }
-        },
-      }),
-    ]);
-  }
-
-  return el('div', { class: 'page-head__actions' }, [
-    el('button', {
-      class: 'btn btn--ghost btn--small',
-      type: 'button',
-      text: 'Preview',
-      onclick: (event) => preview(event.currentTarget),
-    }),
-    el('button', {
-      class: 'btn btn--small',
-      type: 'button',
-      text: 'Issue and download',
-      onclick: (event) => issue(event.currentTarget),
-    }),
-  ]);
+  return panel('Document', [
+    el('div', { class: 'form-grid' }, [
+      partyBlock('From', from),
+      to ? partyBlock('Billed to', to) : null,
+    ]),
+    el('dl', { class: 'detail-list' }, facts.map(([label, value]) => el('div', { class: 'detail-row' }, [
+      el('dt', { class: 'detail-row__label', text: label }),
+      el('dd', { class: 'detail-row__value', text: value }),
+    ]))),
+    snapshot.summary ? el('p', { text: snapshot.summary }) : null,
+    table(['Description', 'Qty × rate', 'Amount'], rows),
+    el('div', { class: 'fee-block' }, [
+      totalLine('Subtotal', formatMoney(totals.subtotal_cents)),
+      taxLine ? totalLine(taxLine, formatMoney(tax.cents)) : null,
+      totalLine('Total', formatMoney(totals.total_cents),
+        centsOf(state.invoice.paid_cents) > 0 ? '' : 'fee-line--total fee-line--split'),
+      centsOf(state.invoice.paid_cents) > 0
+        ? totalLine('Paid', `− ${formatMoney(state.invoice.paid_cents)}`, 'fee-line--muted')
+        : null,
+      centsOf(state.invoice.paid_cents) > 0
+        ? totalLine('Balance due',
+          formatMoney(centsOf(totals.total_cents) - centsOf(state.invoice.paid_cents)),
+          'fee-line--total fee-line--split')
+        : null,
+    ]),
+    snapshot.payment_details
+      ? el('dl', { class: 'detail-list' }, [
+        el('div', { class: 'detail-row' }, [
+          el('dt', { class: 'detail-row__label', text: 'How to pay' }),
+          el('dd', { class: 'detail-row__value' }, [
+            el('div', { class: 'detail-block' },
+              textLines(snapshot.payment_details).map((line) => el('div', { text: line }))),
+          ]),
+        ]),
+        snapshot.late_note
+          ? el('div', { class: 'detail-row' }, [
+            el('dt', { class: 'detail-row__label', text: 'Late payment' }),
+            el('dd', { class: 'detail-row__value', text: snapshot.late_note }),
+          ])
+          : null,
+      ])
+      : null,
+    snapshot.notes
+      ? el('ul', { class: 'problem-list' }, textLines(snapshot.notes).map((line) => (
+        el('li', { class: 'problem-list__item is-warning', text: line })
+      )))
+      : null,
+  ], 'The document as it was issued. Payments are shown beside it and move as they are recorded.');
 }
 
 function frozenNotice() {
-  if (!state.readOnly) return null;
+  const invoice = state.invoice;
+  const isVoid = invoice.status === 'void';
 
   return el('div', { class: 'panel panel--frozen' }, [
-    el('h2', { text: 'Issued and frozen' }),
+    el('h2', { text: isVoid ? 'Voided' : 'Issued and frozen' }),
     el('p', {
-      text: `Issued ${fmtDateTime(state.invoice.issued_at)}. This invoice cannot be `
-          + 'edited — a client is holding a copy of it. To change what is owed, '
-          + 'void it from the list and raise a new one.',
+      text: isVoid
+        ? 'Nothing is owed on this invoice. It stays on file because its number was '
+          + 'used; duplicate it to bill the work again.'
+        : `Issued ${fmtDateTime(invoice.issued_at)}. This invoice cannot be edited — `
+          + 'a client is holding a copy of it. To change what is owed, void it and '
+          + 'raise a new one.',
     }),
-    state.invoice.snapshot_hash
+    invoice.snapshot_hash
       ? el('p', { class: 'progress__label' }, [
         'Content hash ',
-        el('code', { text: state.invoice.snapshot_hash.slice(0, 16) }),
+        el('code', { text: invoice.snapshot_hash.slice(0, 16) }),
         ' — the document as it was issued.',
       ])
       : null,
   ]);
+}
+
+function paymentsPanel() {
+  const status = state.invoice.status;
+  return panel('Payments', [nodes.payments],
+    'What has actually arrived. The invoice is marked paid once the payments cover '
+    + 'the total, and goes back to sent if one is removed.',
+    status === 'void'
+      ? null
+      : el('button', {
+        class: 'btn btn--small',
+        type: 'button',
+        text: 'Record a payment',
+        onclick: takePayment,
+      }));
+}
+
+function renderPage() {
+  window.clearTimeout(saveTimer);
+  renderHead();
+
+  if (state.readOnly) {
+    mount(byId('portal-root'),
+      el('p', { class: 'breadcrumb' }, [el('a', { href: LIST_URL, text: '← Invoices' })]),
+      headNode,
+      frozenNotice(),
+      documentView(),
+      paymentsPanel(),
+    );
+    renderPayments();
+    recompute();
+    return;
+  }
+
+  mount(byId('portal-root'),
+    el('p', { class: 'breadcrumb' }, [el('a', { href: LIST_URL, text: '← Invoices' })]),
+    headNode,
+    ...buildForm(),
+  );
+
+  setSaveState('Saved');
+  renderLines();
+  recompute();
 }
 
 async function main() {
@@ -914,9 +1332,8 @@ async function main() {
     return;
   }
 
-  let loaded;
   try {
-    loaded = await loadInvoice(id);
+    const loaded = await loadInvoice(id);
     if (!loaded) {
       notFound();
       return;
@@ -926,70 +1343,25 @@ async function main() {
     state.invoice = loaded.invoice;
     state.client = loaded.client;
     state.items = loaded.items;
-    state.sow = loaded.sow;
     state.readOnly = Boolean(loaded.invoice.issued_at);
 
-    const [settings, terms, projects, billed, accounts, deposits, payments] =
-      await Promise.all([
-        loadSettings(),
-        loadTerms(),
-        loadProjects(loaded.invoice.client_id),
-        // What is already billed against the scope of work, this invoice
-        // excluded — otherwise a draft would be counted against itself and every
-        // invoice would look like an overrun.
-        billedAgainstSow(loaded.invoice.sow_id),
-        loadAccounts({ includeArchived: false }),
-        paymentContext(),
-        state.readOnly ? paymentsForInvoice(id) : Promise.resolve([]),
-      ]);
+    const [studio, settings, clients, payments] = await Promise.all([
+      loadStudio(),
+      loadInvoiceSettings(),
+      state.readOnly ? Promise.resolve([]) : loadClients(),
+      state.readOnly ? paymentsForInvoice(id) : Promise.resolve([]),
+    ]);
 
+    state.studio = studio;
     state.settings = settings;
-    state.terms = terms;
-    state.projects = projects;
-    state.incomeAccounts = accounts.filter((row) => row.type === 'income');
-    state.paymentContext = deposits;
+    state.clients = clients;
     state.payments = payments;
-    state.billed = Math.max(0, billed - (loaded.invoice.status === 'void'
-      ? 0
-      : Number(loaded.invoice.total_cents) || 0));
   } catch (error) {
     renderError(error);
     return;
   }
 
-  mount(byId('portal-root'),
-    el('p', { class: 'breadcrumb' }, [
-      el('a', { href: '/portal/admin/invoices/', text: '← Invoices' }),
-    ]),
-    el('div', { class: 'page-head' }, [
-      el('div', {}, [
-        el('h1', { text: `INV ${invoiceLabel(state.invoice.number)}` }),
-        el('p', {}, [
-          `${clientName()} · ${stageLabel(state.invoice.stage)} · `,
-          state.readOnly
-            ? `Issued ${fmtDate(state.invoice.issued_at)}`
-            : nodes.saveState,
-        ]),
-      ]),
-      actionBar(),
-    ]),
-    frozenNotice(),
-    ...buildForm(),
-  );
-
-  // Read-only means read-only: the form renders with real values so the
-  // document can be checked, and every control in it is disabled.
-  if (state.readOnly) {
-    byId('portal-root').querySelectorAll('input, textarea, select').forEach((node) => {
-      node.disabled = true;
-    });
-  } else {
-    setSaveState('Saved');
-  }
-
-  renderLines();
-  if (state.readOnly) renderPayments();
-  recompute();
+  renderPage();
 
   window.addEventListener('pagehide', flushOnHide);
   window.addEventListener('beforeunload', (event) => {

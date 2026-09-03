@@ -1,21 +1,41 @@
 // ---------------------------------------------------------------------------
-// Every query the invoice builder makes.
+// Every query the invoice screens make.
 //
-// Kept apart from the two screens for the same reason sow-data.js is: the
-// editor and the list are about their own behaviour, and the shape of what
-// comes back off the wire is stated once. The writes that have to be
-// all-or-nothing go through the RPCs in supabase/schema.sql.
+// Kept apart from the two screens so the shape of what comes back off the
+// wire is stated once. The writes that have to be all-or-nothing go through
+// the RPCs in supabase/schema.sql: create_invoice decides the number, the
+// terms and the tax rate; save_invoice rewrites the lines with the header;
+// issue_invoice freezes the document; duplicate_invoice copies one.
+//
+// Column names are the law of supabase/schema.sql. A select that names a
+// column that is not there is a PostgREST 400 that blanks the page, so every
+// list below is checked against that file rather than remembered.
 // ---------------------------------------------------------------------------
 
 import { supabase, errorMessage } from './client.js';
-import { CLIENT_COLUMNS } from './sow-data.js';
+import { filterInvoices } from './invoice-catalog.js';
 
+/** The client as the document needs it: the "Billed to" block, the rate a
+ *  "Bill hours" line is priced at, and the terms the due date came from. */
+export const CLIENT_COLUMNS = `
+  id, name, legal_name, contact_name, contact_email, contact_phone,
+  address_line1, address_line2, city, region, postal_code, country,
+  hourly_rate_cents, net_days, status
+`;
+
+/**
+ * Every column of `invoices` except `snapshot`, plus the client embed. The
+ * snapshot is the whole frozen document as JSON and belongs to one screen,
+ * so loadInvoice() asks for it by name and the list never carries it.
+ */
 export const INVOICE_COLUMNS = `
-  id, client_id, project_id, sow_id, number, stage, status,
-  issued_on, due_on, sow_label, project_name, purchase_order,
-  summary, notes,
+  id, client_id, number, status,
+  issued_on, due_on, net_days,
+  project_name, purchase_order, summary, notes,
   subtotal_cents, tax_rate_bp, tax_cents, paid_cents, total_cents, currency,
-  paid_at, issued_at, snapshot_hash, created_at, updated_at
+  paid_at, issued_at, snapshot_hash,
+  created_by, created_at, updated_at,
+  client:clients(${CLIENT_COLUMNS})
 `;
 
 function unwrap(result) {
@@ -23,123 +43,101 @@ function unwrap(result) {
   return result.data;
 }
 
-export async function loadTerms() {
-  return unwrap(await supabase.from('invoice_settings').select('*').limit(1).maybeSingle());
+// Singletons
+// ---------------------------------------------------------------------------
+
+/** The business's own details: the letterhead and the standard hourly rate. */
+export async function loadStudio() {
+  return unwrap(await supabase.from('studio_settings').select('*').eq('id', true).maybeSingle());
 }
 
-export async function saveTerms(patch) {
-  unwrap(await supabase.from('invoice_settings').update(patch).eq('id', true));
+/** How invoices are worded: how to pay, the late note, the tax defaults. */
+export async function loadInvoiceSettings() {
+  return unwrap(await supabase.from('invoice_settings').select('*').eq('id', true).maybeSingle());
 }
 
-/** The list view: every invoice with the client name, newest number first. */
-export async function loadInvoices() {
+/** The clients an invoice can be addressed to, for the pickers. */
+export async function loadClients() {
   return unwrap(await supabase
-    .from('invoices')
-    .select(`${INVOICE_COLUMNS}, clients(name, legal_name)`)
-    .order('number', { ascending: false })) || [];
+    .from('clients')
+    .select('id, name, legal_name, net_days, hourly_rate_cents, status')
+    .order('name')) || [];
 }
 
-/** One invoice and its lines, in a single round trip. */
+// Reading invoices
+// ---------------------------------------------------------------------------
+
+/**
+ * The list: newest first, with the client name. Status and client narrow the
+ * query; the search runs over the rows that come back, because the client
+ * name lives in an embed PostgREST cannot filter on with `ilike`, and one
+ * rule in invoice-catalog.js is better than one and a half.
+ */
+export async function loadInvoices({ status = '', clientId = '', search = '' } = {}) {
+  let query = supabase
+    .from('invoices')
+    .select(INVOICE_COLUMNS)
+    // Newest first by creation, not by number: the number is text, and
+    // '20260901-10' sorts before '20260901-2' as a string.
+    .order('created_at', { ascending: false });
+
+  if (status) query = query.eq('status', status);
+  if (clientId) query = query.eq('client_id', clientId);
+
+  const rows = unwrap(await query) || [];
+  return search ? filterInvoices(rows, { search }) : rows;
+}
+
+/** One invoice, its client and its lines in order. Null when it is gone. */
 export async function loadInvoice(id) {
   const invoice = unwrap(await supabase
     .from('invoices')
-    .select(`${INVOICE_COLUMNS}, snapshot, clients(${CLIENT_COLUMNS})`)
+    .select(`${INVOICE_COLUMNS}, snapshot`)
     .eq('id', id)
     .maybeSingle());
 
   if (!invoice) return null;
 
   const items = unwrap(await supabase
-    .from('invoice_items').select('*').eq('invoice_id', id).order('position'));
-
-  // The scope of work behind it, where there is one. Only the columns the
-  // builder's checks read: this is for "has it been signed, and what was it
-  // worth", not for re-reading the document.
-  let sow = null;
-  if (invoice.sow_id) {
-    sow = unwrap(await supabase
-      .from('sows')
-      .select('id, number, revision, status, exported_at, adjusted_fee_cents, deposit_cents, balance_cents')
-      .eq('id', invoice.sow_id)
-      .maybeSingle());
-  }
+    .from('invoice_items')
+    .select('id, invoice_id, name, description, quantity, unit_cents, amount_cents, taxable, position')
+    .eq('invoice_id', id)
+    .order('position'));
 
   return {
     invoice,
-    client: invoice.clients || null,
+    client: invoice.client || null,
     items: items || [],
-    sow,
   };
 }
 
-/** What a scope of work has already been billed. Voids excluded — see the
- *  function's comment in schema.sql for why this advises rather than forbids. */
-export async function billedAgainstSow(sowId) {
-  if (!sowId) return 0;
-  const value = unwrap(await supabase.rpc('sow_billed_cents', { p_sow_id: sowId }));
-  return Number(value) || 0;
-}
-
-/** Every invoice raised against one scope of work, for the panel on the SOW. */
-export async function invoicesForSow(sowId) {
-  if (!sowId) return [];
-  return unwrap(await supabase
-    .from('invoices')
-    .select('id, number, stage, status, issued_on, due_on, total_cents, paid_cents, issued_at')
-    .eq('sow_id', sowId)
-    .order('number')) || [];
-}
-
-/** Every invoice for one client, for the two panels on the client record: the
- *  ledger, and the paperwork trail — which needs paid_at, because "Paid" with a
- *  date on it is the answer and "Paid" on its own is only half of one. */
+/** Every invoice for one client, for the panel on the client record. */
 export async function invoicesForClient(clientId) {
   if (!clientId) return [];
   return unwrap(await supabase
     .from('invoices')
-    .select('id, number, stage, status, issued_on, due_on, total_cents, paid_cents, paid_at, sow_label, project_name')
+    .select('id, client_id, number, status, issued_on, due_on, total_cents, paid_cents, paid_at, issued_at, project_name')
     .eq('client_id', clientId)
-    .order('number', { ascending: false })) || [];
+    .order('created_at', { ascending: false })) || [];
 }
 
-/** Raise one from a frozen scope of work. The RPC is what decides whether the
- *  SOW is in a state that can be billed. */
-export async function createInvoiceFromSow({ sowId, stage, issuedOn = null, dueOn = null }) {
-  return unwrap(await supabase.rpc('create_invoice_from_sow', {
-    p_sow_id: sowId,
-    p_stage: stage,
-    p_issued_on: issuedOn,
-    p_due_on: dueOn,
-  }));
+// Writing invoices
+// ---------------------------------------------------------------------------
+
+/** Raise a blank draft. The database decides the number, copies the terms and
+ *  the tax rate as they stand today, and returns the new id. */
+export async function createInvoice(clientId, issuedOn = null) {
+  const args = { p_client_id: clientId };
+  if (issuedOn) args.p_issued_on = String(issuedOn).slice(0, 10);
+  return unwrap(await supabase.rpc('create_invoice', args));
 }
 
-/** One that did not come from a scope of work: out-of-scope hours, an ad-hoc
- *  job, a Support Plan year. Inserted directly, because there is no document to
- *  copy figures out of and therefore nothing for an RPC to keep consistent. */
-export async function createBlankInvoice({
-  clientId, projectId = null, issuedOn, dueOn, taxRateBp = 0,
-}) {
-  const rows = unwrap(await supabase
-    .from('invoices').select('number').order('number', { ascending: false }).limit(1));
-  const highest = Array.isArray(rows) ? rows[0] : rows;
-  const number = (highest && Number(highest.number) ? Number(highest.number) : 0) + 1;
-
-  const row = unwrap(await supabase.from('invoices').insert({
-    client_id: clientId,
-    project_id: projectId,
-    number,
-    stage: 'other',
-    issued_on: issuedOn || null,
-    due_on: dueOn || null,
-    // The standing rate travels with the invoice, exactly as create_invoice_from_sow
-    // does it — so a rate change next April cannot restate a document already sent.
-    // No line is taxable yet, so it charges nothing until one is ticked.
-    tax_rate_bp: taxRateBp || 0,
-  }).select('id').single());
-
-  return row.id;
+/** Copy an invoice into a new draft with today's number. */
+export async function duplicateInvoice(id) {
+  return unwrap(await supabase.rpc('duplicate_invoice', { p_id: id }));
 }
 
+/** The header and every line, as one statement. */
 export async function saveInvoice({ id, invoice, items }) {
   return unwrap(await supabase.rpc('save_invoice', {
     p_id: id,
@@ -148,6 +146,7 @@ export async function saveInvoice({ id, invoice, items }) {
   }));
 }
 
+/** Freeze it. Returns the issued_at timestamp the database stamped. */
 export async function issueInvoice({ id, snapshot, hash }) {
   return unwrap(await supabase.rpc('issue_invoice', {
     p_id: id,
@@ -156,47 +155,107 @@ export async function issueInvoice({ id, snapshot, hash }) {
   }));
 }
 
-export async function deleteInvoice(id) {
-  unwrap(await supabase.from('invoices').delete().eq('id', id));
+/**
+ * The two statuses a person sets by hand. Anything else is refused here,
+ * before it reaches a database that would refuse it too: 'paid' follows the
+ * payments, and 'issued' follows issuing.
+ */
+export async function setStatus(id, status) {
+  if (!['sent', 'void'].includes(status)) {
+    throw new Error('Only "sent" and "void" are set by hand. Paid follows the payments.');
+  }
+  unwrap(await supabase.from('invoices').update({ status }).eq('id', id));
 }
 
 /**
- * Move an invoice's status by hand, and record the payment when it is marked
- * paid. Those two belong together: an invoice marked Paid with no paid_at is a
- * row that cannot answer "when did the money arrive", which is the question the
- * status was set to answer.
+ * Delete a draft. The `issued_at is null` clause is the belt to the screens'
+ * braces: an issued invoice is a business record, and a request that slips
+ * past the buttons deletes nothing rather than something.
  */
-export async function setStatus(id, status, { paidCents = null, paidOn = null } = {}) {
-  const patch = { status };
+export async function deleteInvoice(id) {
+  const rows = unwrap(await supabase
+    .from('invoices')
+    .delete()
+    .eq('id', id)
+    .is('issued_at', null)
+    .select('id'));
 
-  if (status === 'paid') {
-    patch.paid_at = paidOn ? `${String(paidOn).slice(0, 10)}T12:00:00Z` : new Date().toISOString();
-    if (paidCents !== null) patch.paid_cents = paidCents;
+  if (!rows || !rows.length) {
+    throw new Error('Only a draft can be deleted. An issued invoice is voided instead.');
   }
-
-  unwrap(await supabase.from('invoices').update(patch).eq('id', id));
 }
 
-export async function loadClients() {
-  return unwrap(await supabase.from('clients').select(CLIENT_COLUMNS).order('name')) || [];
-}
+// Payments
+// ---------------------------------------------------------------------------
 
-export async function loadProjects(clientId) {
-  if (!clientId) return [];
+/** What has been recorded against one invoice, latest first. */
+export async function paymentsForInvoice(invoiceId) {
+  if (!invoiceId) return [];
   return unwrap(await supabase
-    .from('projects').select('id, name')
-    .eq('client_id', clientId)
+    .from('payments')
+    .select('id, invoice_id, client_id, received_on, amount_cents, method, reference, notes, created_at')
+    .eq('invoice_id', invoiceId)
+    .order('received_on', { ascending: false })
     .order('created_at', { ascending: false })) || [];
 }
 
-/** The frozen scopes of work a client has, for the "bill against" picker. */
-export async function billableSows(clientId) {
+/**
+ * Money in. client_id is deliberately not sent: the trigger copies it from
+ * the invoice, refuses a draft, and recomputes the invoice's paid_cents,
+ * paid_at and status. Never write those three from here.
+ */
+export async function recordPayment({
+  invoice_id: invoiceId, received_on: receivedOn, amount_cents: amountCents,
+  method, reference = null, notes = null,
+}) {
+  unwrap(await supabase.from('payments').insert({
+    invoice_id: invoiceId,
+    received_on: receivedOn,
+    amount_cents: amountCents,
+    method,
+    reference: reference || null,
+    notes: notes || null,
+  }));
+}
+
+export async function deletePayment(id) {
+  unwrap(await supabase.from('payments').delete().eq('id', id));
+}
+
+// Expenses billed back to a client
+// ---------------------------------------------------------------------------
+//
+// The expenses table belongs to the Expenses page; this is the one small read
+// and the one small write the invoice editor needs from it. Columns read:
+// id, spent_on, vendor_id, vendor_name, category_id, amount_cents,
+// description, client_id, billable, billed_invoice_id, plus the names off
+// expense_categories and vendors. Column written: billed_invoice_id.
+
+/** The costs marked billable to this client that no invoice has picked up. */
+export async function unbilledExpenses(clientId) {
   if (!clientId) return [];
   return unwrap(await supabase
-    .from('sows')
-    .select('id, number, revision, status, project_name, adjusted_fee_cents, deposit_cents, balance_cents')
+    .from('expenses')
+    .select(`
+      id, spent_on, vendor_id, vendor_name, category_id, amount_cents,
+      description, client_id, billable, billed_invoice_id,
+      category:expense_categories(name),
+      vendor:vendors(name)
+    `)
     .eq('client_id', clientId)
-    .not('exported_at', 'is', null)
-    .neq('status', 'void')
-    .order('number', { ascending: false })) || [];
+    .eq('billable', true)
+    .is('billed_invoice_id', null)
+    .order('spent_on')) || [];
+}
+
+/** Stamp the invoice on the expenses whose lines it now carries, so none of
+ *  them can be passed on twice. Called only after the save that added the
+ *  lines has succeeded. */
+export async function markExpensesBilled(expenseIds, invoiceId) {
+  const ids = (expenseIds || []).filter(Boolean);
+  if (!ids.length) return;
+  unwrap(await supabase
+    .from('expenses')
+    .update({ billed_invoice_id: invoiceId })
+    .in('id', ids));
 }

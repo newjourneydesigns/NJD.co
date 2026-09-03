@@ -1,10 +1,9 @@
 // ---------------------------------------------------------------------------
-// The client add/edit form, shared by Admin and the client record page.
+// The client add/edit form, shared by the Clients list and the client record.
 //
 // One form rather than two: a record corrected from the page you read it on
-// must be the same record Admin edits, or the two screens drift apart a field
-// at a time. Admin opens it from the clients table and from "convert this form
-// entry"; the client record page opens it from its Details panel.
+// must be the same record the list adds, or the two screens drift apart a
+// field at a time.
 //
 // Duplicating a client is the same form again, opened empty-handed with an
 // existing record poured into it (openClientDuplicateForm below) — a copy you
@@ -12,18 +11,18 @@
 // your back and fixed afterwards.
 //
 // Resolves to null on cancel, 'deleted' after a delete, or { id, created }
-// after a save — id so the convert-a-lead flow can link the entry to the
-// client it just made. Toasts happen here, so the wording exists once; the
-// caller only has to re-fetch whatever it is displaying.
+// after a save. Toasts happen here, so the wording exists once; the caller
+// only has to re-fetch whatever it is displaying.
 // ---------------------------------------------------------------------------
 
 import { supabase, errorMessage } from './client.js';
-import { formatMoney, parseMoney } from './sow-fees.js';
+import { DOCUMENTS_BUCKET } from './config.js';
+import { formatMoney, parseMoney } from './money.js';
 import { toast, formModal } from './ui.js';
 
-// Where a client sits with the studio. Ordered the way a record moves through
-// it, not alphabetically.
-const CLIENT_STATUS_OPTIONS = [
+// Where a client sits with the business. Ordered the way a record moves through
+// it, not alphabetically. The list's status filter shows the same three.
+export const CLIENT_STATUS_OPTIONS = [
   { value: 'lead', label: 'Lead' },
   { value: 'active', label: 'Active' },
   { value: 'past', label: 'Past' },
@@ -33,7 +32,7 @@ const CLIENT_STATUS_OPTIONS = [
  * People type `acme.com`, so assume https rather than rejecting them — but only
  * after the URL parser has agreed it is a web address. That is what keeps a
  * `javascript:` value out of the column, whether or not this page ever renders
- * it as a link; the project page might.
+ * it as a link; the record page does.
  *
  * Throws on anything unusable, which formModal shows without closing.
  */
@@ -61,12 +60,93 @@ function normalizeWebsite(value) {
 }
 
 /**
+ * Payment terms as typed — "15", "Net 30", "" — as a number of days or null.
+ *
+ * Blank means the standard terms from invoice_settings, and that is the right
+ * answer for most clients, so it is not an error. Anything else has to be a
+ * whole number of days the database will accept (clients_net_days_range is
+ * 0–365); a typo stops the save rather than quietly putting the client back
+ * on standard terms.
+ */
+export function parseNetDays(input) {
+  const raw = String(input == null ? '' : input).trim();
+  if (!raw) return null;
+  const match = /^(?:net\s*)?(\d{1,3})$/i.exec(raw);
+  if (!match) throw new Error('Payment terms are a number of days, like 15 or 30. Leave it blank for the standard terms.');
+  const days = Number(match[1]);
+  if (days > 365) throw new Error('Payment terms cannot be more than 365 days.');
+  return days;
+}
+
+/**
+ * What the delete confirmation says, shared by the form's own Delete button
+ * and the Delete action on the record page so the two never disagree.
+ *
+ * The cascade is worth naming: contacts, notes and every filed document go
+ * with the client. Invoices do not — the database refuses to delete a client
+ * that has any (invoices.client_id is `on delete restrict`), because an issued
+ * invoice is a business record with a seven-year life.
+ */
+export function clientDeleteWarning(client) {
+  return {
+    title: `Delete ${client.name}?`,
+    body: [
+      'This also permanently deletes their contacts, notes and every document '
+        + 'filed under them.',
+      'A client with invoices cannot be deleted. Mark them Past instead, and '
+        + 'the record stays without reading as current.',
+    ],
+  };
+}
+
+/**
+ * Delete a client, throwing a sentence a person can act on when the database
+ * refuses. The confirmation is the caller's job (see clientDeleteWarning).
+ *
+ * The row goes first and the files second. The other way round would strip a
+ * client's documents out of storage and then find out they have invoices and
+ * cannot be deleted at all — a record nobody asked to change, missing its
+ * files. Object cleanup after a successful row delete is best-effort: the
+ * rows are already gone, so a leftover object is a storage bill, not a
+ * broken record.
+ */
+export async function deleteClient(client) {
+  // Ask before trying, so the refusal names the reason rather than arriving
+  // as the generic "something else still refers to this".
+  const { count, error: countError } = await supabase
+    .from('invoices')
+    .select('id', { count: 'exact', head: true })
+    .eq('client_id', client.id);
+  if (countError) throw new Error(errorMessage(countError));
+  if (count > 0) {
+    throw new Error(
+      `${client.name} has ${count === 1 ? 'an invoice' : `${count} invoices`}, so the record `
+      + 'cannot be deleted. Mark them Past instead.',
+    );
+  }
+
+  const { error } = await supabase.from('clients').delete().eq('id', client.id);
+  // 23503 — the restrict on invoices or payments, in case one landed between
+  // the check above and this — maps to a sentence in errorMessage.
+  if (error) throw new Error(errorMessage(error));
+
+  try {
+    const folder = String(client.id);
+    const listed = await supabase.storage.from(DOCUMENTS_BUCKET).list(folder, { limit: 1000 });
+    const names = (listed.data || []).map((entry) => `${folder}/${entry.name}`);
+    if (names.length) await supabase.storage.from(DOCUMENTS_BUCKET).remove(names);
+  } catch (cleanupError) {
+    // The record is gone either way; a stranded object is not worth an error
+    // in front of the person who just deleted a client on purpose.
+  }
+}
+
+/**
  * Add or edit a client.
  *
- * `prefill` seeds the fields when adding — it is how an form entry becomes a
- * client without anyone retyping it, and how a duplicate starts life as a copy.
- * `chrome` overrides the modal's own words for a caller doing neither of the
- * two things the default wording describes.
+ * `prefill` seeds the fields when adding — it is how a duplicate starts life
+ * as a copy. `chrome` overrides the modal's own words for a caller doing
+ * something other than the two things the default wording describes.
  */
 export async function openClientForm(client, prefill = null, chrome = {}) {
   const editing = Boolean(client);
@@ -79,9 +159,10 @@ export async function openClientForm(client, prefill = null, chrome = {}) {
 
   // Only `name` is required, so a client captured in thirty seconds still
   // saves. The order does the grouping — who they are, how to reach them,
-  // where they are, then notes. Sub-headings would read better, but formModal
-  // takes a flat field list and a bare <h3> in a dialog lands at the same size
-  // as the dialog's own title, which reads worse than no heading at all.
+  // where they are, how they are billed, then notes. Sub-headings would read
+  // better, but formModal takes a flat field list and a bare <h3> in a dialog
+  // lands at the same size as the dialog's own title, which reads worse than
+  // no heading at all.
   const result = await formModal({
     title: chrome.title || (editing ? 'Edit client' : 'Add client'),
     submitLabel: chrome.submitLabel || (editing ? 'Save client' : 'Add client'),
@@ -98,6 +179,15 @@ export async function openClientForm(client, prefill = null, chrome = {}) {
         placeholder: 'Acme Roofing',
       },
       {
+        name: 'legal_name',
+        label: 'Legal name',
+        type: 'text',
+        value: current('legal_name'),
+        placeholder: 'Acme Roofing LLC',
+        hint: 'What goes in the "Billed to" block of an invoice, when it differs '
+            + 'from what you call them. Blank means the business name above is used.',
+      },
+      {
         name: 'contact_name',
         label: 'Contact name',
         type: 'text',
@@ -106,35 +196,11 @@ export async function openClientForm(client, prefill = null, chrome = {}) {
         hint: 'The person you actually talk to.',
       },
       {
-        name: 'industry',
-        label: 'Industry',
-        type: 'text',
-        value: current('industry'),
-        placeholder: 'Roofing & exteriors',
-      },
-      {
-        name: 'status',
-        label: 'Status',
-        type: 'select',
-        value: current('status', prefill ? 'lead' : 'active'),
-        options: CLIENT_STATUS_OPTIONS,
-        hint: 'Lead while you are still winning the work. Past keeps the record '
-            + 'without them reading as current.',
-      },
-      {
-        name: 'source',
-        label: 'How they found you',
-        type: 'text',
-        value: current('source'),
-        placeholder: 'Referral from the Hendersons',
-        hint: 'The only record you will have of what is actually bringing work in.',
-      },
-      {
         name: 'contact_email',
         label: 'Contact email',
         type: 'email',
         value: current('contact_email'),
-        hint: 'Where message notifications go until someone on their team has an account.',
+        hint: 'Tap it on the record to open a mail to them. Nothing is ever sent from here.',
       },
       {
         name: 'contact_phone',
@@ -184,47 +250,14 @@ export async function openClientForm(client, prefill = null, chrome = {}) {
         value: current('postal_code'),
       },
       { name: 'country', label: 'Country', type: 'text', value: current('country') },
-      // The contracting half of the record. Everything below here exists for the
-      // SOW builder: it is what a document has to say that a CRM never needed.
       {
-        name: 'legal_name',
-        label: 'Legal name',
-        type: 'text',
-        value: current('legal_name'),
-        placeholder: 'Acme Roofing LLC',
-        hint: 'What goes on a contract, when it differs from what you call them. '
-            + 'Blank means the business name above is used.',
-      },
-      {
-        name: 'entity_type',
-        label: 'Entity type',
-        type: 'text',
-        value: current('entity_type'),
-        placeholder: 'a Texas limited liability company',
-      },
-      {
-        name: 'contact_title',
-        label: 'Contact title',
-        type: 'text',
-        value: current('contact_title'),
-        placeholder: 'Owner',
-        hint: 'Printed under their name on the signature block.',
-      },
-      {
-        name: 'msa_signed_on',
-        label: 'MSA signed on',
-        type: 'date',
-        value: current('msa_signed_on'),
-        hint: 'The date the master agreement was signed. Every scope of work '
-            + 'incorporates it by this date, and one issued without it has no effect. '
-            + 'The signed copy itself is uploaded on the client record page.',
-      },
-      {
-        name: 'msa_version',
-        label: 'MSA version',
-        type: 'text',
-        value: current('msa_version'),
-        placeholder: 'v1',
+        name: 'status',
+        label: 'Status',
+        type: 'select',
+        value: current('status', prefill ? 'lead' : 'active'),
+        options: CLIENT_STATUS_OPTIONS,
+        hint: 'Lead while you are still winning the work. Past keeps the record '
+            + 'without them reading as current.',
       },
       {
         name: 'hourly_rate',
@@ -238,17 +271,22 @@ export async function openClientForm(client, prefill = null, chrome = {}) {
           ? formatMoney(source.hourly_rate_cents).replace(/^\$/, '')
           : '',
         placeholder: '90.00',
-        hint: 'Leave blank unless this client negotiated their own rate for '
-            + 'out-of-scope work. Blank means the studio rate — whatever it is '
-            + 'at the time — which is right for almost everybody. A number here '
-            + 'is what their scopes of work and invoices will quote instead, and '
-            + 'it does not move when the studio rate does.',
+        hint: 'Leave blank unless this client negotiated their own rate. Blank '
+            + 'means the standard rate from Admin — whatever it is at the time. '
+            + 'A number here is what "Bill hours" on their invoices will use '
+            + 'instead, and it does not move when the standard rate does.',
       },
       {
-        name: 'nonprofit',
-        label: 'Nonprofit or church',
-        type: 'checkbox',
-        value: Boolean(source.nonprofit),
+        name: 'net_days',
+        label: 'Payment terms',
+        type: 'text',
+        inputmode: 'numeric',
+        value: source.net_days == null ? '' : String(source.net_days),
+        placeholder: '15',
+        hint: 'Days until an invoice falls due. Blank means the standard terms '
+            + 'from Admin; 30 makes this a Net 30 client. Copied onto each '
+            + 'invoice when it is raised, so changing it later never moves a '
+            + 'due date already printed.',
       },
       {
         name: 'notes',
@@ -256,25 +294,27 @@ export async function openClientForm(client, prefill = null, chrome = {}) {
         type: 'textarea',
         rows: 3,
         value: current('notes'),
-        hint: 'Staff-only. Clients never see this.',
+        hint: 'Background on the record itself. Dated notes go on the record page.',
       },
     ],
     onSubmit: async (values) => {
       // Blank and a typo both come back from parseMoney as null, and they mean
-      // opposite things: blank is "the studio rate, deliberately", a typo is
+      // opposite things: blank is "the standard rate, deliberately", a typo is
       // "somebody meant to negotiate something". So the difference is decided on
       // the raw string before parseMoney is consulted, and a typo stops the save
-      // rather than quietly putting the client back on the studio rate. Zero and
-      // negatives are refused here as well as by the database, because the
-      // message a person can act on is the one shown next to the field.
+      // rather than quietly putting the client back on the standard rate. Zero
+      // and negatives are refused here as well as by the database
+      // (clients_hourly_rate_positive), because the message a person can act on
+      // is the one shown next to the field.
       const rateTyped = String(values.hourly_rate || '').trim();
       const rateCents = rateTyped ? parseMoney(rateTyped) : null;
       if (rateTyped && (rateCents === null || rateCents <= 0)) {
-        throw new Error('That hourly rate is not an amount. Leave it blank for the studio rate.');
+        throw new Error('That hourly rate is not an amount. Leave it blank for the standard rate.');
       }
 
       const patch = {
         name: values.name,
+        legal_name: values.legal_name || null,
         contact_name: values.contact_name || null,
         contact_email: values.contact_email || null,
         contact_phone: values.contact_phone || null,
@@ -287,16 +327,10 @@ export async function openClientForm(client, prefill = null, chrome = {}) {
         region: values.region || null,
         postal_code: values.postal_code || null,
         country: values.country || null,
-        industry: values.industry || null,
-        source: values.source || null,
         status: values.status,
-        legal_name: values.legal_name || null,
-        entity_type: values.entity_type || null,
-        contact_title: values.contact_title || null,
-        msa_signed_on: values.msa_signed_on || null,
-        msa_version: values.msa_version || null,
         hourly_rate_cents: rateCents,
-        nonprofit: values.nonprofit,
+        // Throws on anything that is not a number of days.
+        net_days: parseNetDays(values.net_days),
         notes: values.notes || null,
       };
 
@@ -312,25 +346,10 @@ export async function openClientForm(client, prefill = null, chrome = {}) {
       createdId = data.id;
     },
     deleteLabel: 'Delete client',
-    // The generic wording cannot name the cascade, and the cascade is the
-    // whole reason this one deserves a second thought.
     // Guarded: an argument's template literal runs at the call, so unguarded
-    // this threw on every path that creates a client — including converting a
-    // lead from Form Entries. See the note in person-form.js.
-    confirmDelete: editing ? {
-      title: `Delete ${client.name}?`,
-      body: [
-        'This also permanently deletes every project for this client, along '
-          + 'with all of their waypoints, board cards, documents and messages.',
-        'Their sign-in accounts stay, but will have nothing to see.',
-      ],
-    } : undefined,
-    onDelete: editing
-      ? async () => {
-        const { error } = await supabase.from('clients').delete().eq('id', client.id);
-        if (error) throw error;
-      }
-      : null,
+    // this would throw on every path that creates a client.
+    confirmDelete: editing ? clientDeleteWarning(client) : undefined,
+    onDelete: editing ? () => deleteClient(client) : null,
   });
 
   if (!result) return null;
@@ -348,31 +367,23 @@ export async function openClientForm(client, prefill = null, chrome = {}) {
 // ---------------------------------------------------------------------------
 
 /**
- * What a copy carries over: the CRM half of the record, plus the contracting
- * details that describe the same kind of company rather than one signature.
+ * What a copy carries over: who they are and how to reach them, which is what
+ * the second location, the sister company and the landlord's fourth building
+ * have in common with the first.
  *
- * The master agreement is deliberately not on the list. `msa_signed_on`,
- * `msa_version` and the uploaded copy say that *this* client signed *that*
- * agreement on that day — a claim a second record cannot inherit by being
- * typed from the first, and one every scope of work leans on. The new client
- * starts with no MSA on file, which is the truth until they sign one. `id`,
- * `created_at` and `updated_at` belong to the database, and the storage
- * columns are not on the form at all, so neither can ride along.
- *
- * `hourly_rate_cents` is off the list for the same reason and it is the sharper
- * case, because this one is a price. A negotiated rate is the record of a
- * conversation with one client; copied onto a second record it becomes a
- * discount nobody agreed to, printed in a contract, and traceable to nothing
- * but a duplicate button. The copy starts on the studio rate — the truth until
- * somebody negotiates otherwise — and the form is right there to set it if they
- * have.
+ * `hourly_rate_cents` and `net_days` are deliberately off the list, and the
+ * rate is the sharper case because it is a price. A negotiated rate is the
+ * record of a conversation with one client; copied onto a second record it
+ * becomes a discount nobody agreed to, printed on an invoice, and traceable to
+ * nothing but a duplicate button. The copy starts on the standard rate and
+ * standard terms — the truth until somebody negotiates otherwise — and the
+ * form is right there to set them if they have. `id`, `created_at` and
+ * `updated_at` belong to the database.
  */
 const DUPLICATED_FIELDS = [
-  'contact_name', 'contact_email', 'contact_phone', 'website',
+  'legal_name', 'contact_name', 'contact_email', 'contact_phone', 'website',
   'address_line1', 'address_line2', 'city', 'region', 'postal_code', 'country',
-  'industry', 'source', 'status',
-  'legal_name', 'entity_type', 'contact_title', 'nonprofit',
-  'notes',
+  'status', 'notes',
 ];
 
 /** A copy of `client` shaped for the Add form. The name is suffixed rather
@@ -403,9 +414,9 @@ export async function openClientDuplicateForm(client) {
     title: 'Duplicate client',
     submitLabel: 'Create client',
     intro: `A new client, prefilled from ${client.name} and yours to change before `
-         + 'it exists. Only what is on this form comes across: their projects, '
-         + 'contacts, documents, notes, scopes of work, invoices and master '
-         + 'agreement all stay where they are.',
+         + 'it exists. Only what is on this form comes across: their contacts, '
+         + 'documents, notes, invoices and expenses all stay where they are, and '
+         + 'the copy starts on the standard rate and terms.',
     savedToast: 'Client duplicated.',
   });
 }

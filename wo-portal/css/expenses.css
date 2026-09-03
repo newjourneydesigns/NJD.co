@@ -1,0 +1,42 @@
+/* ==========================================================================
+   Expenses page — the receipt gallery.
+
+   Everything else on /portal/expenses/ reuses portal.css: .filters, .figure,
+   .table, .receipt*, .pill*. This file only adds what the gallery modal
+   needs and portal.css does not have: larger tiles than the row-sized strip,
+   and a tile that is a link rather than a button.
+
+   Tokens only — the palette lives in styles.css / portal.css.
+   ========================================================================== */
+
+/* The row strip is 3.25rem on purpose (recognise, don't read); a gallery is
+   where the receipt is read, so the tiles are big enough to make out. */
+.receipt-strip--gallery .receipt {
+  width: 7.5rem;
+  height: 7.5rem;
+}
+
+/* An <a> wearing .receipt: no underline on an image, and a focus ring that
+   is the same orange every other control on the page uses. */
+a.receipt {
+  text-decoration: none;
+  color: inherit;
+}
+
+a.receipt:focus-visible {
+  outline: 2px solid var(--color-orange);
+  outline-offset: 2px;
+}
+
+/* The gallery's own remove button is always visible: the hover reveal that
+   works on a desktop row is invisible on a phone, and in a modal there is
+   nothing else for the tap to hit by mistake. */
+.receipt-strip--gallery .receipt__remove {
+  opacity: 1;
+}
+
+/* An archived vendor still prints (the 1099 report needs its name), just
+   quieter than the live ones. */
+.table tr.is-archived td {
+  color: var(--color-ink-soft);
+}

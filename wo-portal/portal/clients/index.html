@@ -3,48 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Dashboard — New Journey Designs</title>
+  <title>Clients — Walter Ochenski LLC</title>
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#FF5100">
-  <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="/assets/img/app-icon-192.png">
-  <!-- Home-screen icons are full-bleed and opaque on purpose: the platform masks
-       them itself, so a transparent margin lands as a black frame around the art.
-       Regenerate with tools/icons/generate.py. -->
-  <link rel="apple-touch-icon" href="/assets/img/app-icon-180.png">
+  <link rel="icon" type="image/svg+xml" href="/assets/img/wo-mark.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/wo-favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/img/wo-app-icon-180.png">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Dashboard">
+  <meta name="apple-mobile-web-app-title" content="Clients">
   <link rel="manifest" href="/portal/site.webmanifest">
-  <!-- Self-hosted Inter. Preloaded because the @font-face lives inside
-       styles.css, so the browser cannot discover the font until that
-       stylesheet has parsed. -->
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/inter-latin.woff2" crossorigin>
-  <link rel="stylesheet" href="/css/styles.css?v=26">
-  <link rel="stylesheet" href="/css/portal.css?v=53">
-  <link rel="stylesheet" href="/css/print.css?v=5">
+  <link rel="stylesheet" href="/css/styles.css?v=1">
+  <link rel="stylesheet" href="/css/portal.css?v=1">
+  <link rel="stylesheet" href="/css/print.css?v=1">
 </head>
 <body class="portal">
   <a class="skip-link" href="#main">Skip to content</a>
-
   <header class="portal-header">
     <div class="container portal-header__inner" id="portal-nav"></div>
   </header>
-
   <main class="portal-main" id="main">
     <div class="container" id="portal-root">
       <p class="skeleton">Loading…</p>
     </div>
   </main>
-
   <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
-
-  <!-- The Supabase client, self-hosted rather than pulled from a CDN so the
-       portal is up exactly when the rest of the site is. Classic scripts and
-       module scripts are both deferred and run in document order, so this has
-       already defined window.supabase by the time the module below runs.
-       See js/vendor/README.md. -->
   <script src="/js/vendor/supabase-2.111.0.js"></script>
-  <script type="module" src="/js/portal/dashboard.js?v=11"></script>
+  <script type="module" src="/js/portal/clients.js?v=2"></script>
 </body>
 </html>

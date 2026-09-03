@@ -15,14 +15,26 @@ step, Supabase Postgres with Row Level Security as the only authorization, one N
 - `tools/portal/` — `syntax-check.sh` (every module parses), `schema-check.sh` (the schema
   applies twice and its rules hold, on a local Postgres), `*.test.mjs` (`node --test`).
 - `tools/icons/render.mjs` — rasterises the WO mark into the icon set with headless Chromium.
+- `CLAUDE.md` — **R2**, the portal's AI operator: what it is, what it may do on
+  its own, and the kill switch. R2 is an ordinary sign-in (`profiles.role =
+  'owner'`, password in Supabase Vault) held to the same Row Level Security as
+  anyone else, and everything it does lands in `activity_log`, which takes
+  inserts and nothing else. `.claude/skills/portal-ops/SKILL.md` is its recipes.
 
 ## Before you push
 
 ```
 bash tools/portal/syntax-check.sh          # every module parses
-node --test "tools/portal/*.test.mjs"      # the pure modules
+node --test "tools/portal/*.test.mjs"      # the pure modules, and the deploy config
 node tools/portal/smoke.mjs                # every page renders, in a browser
 bash tools/portal/schema-check.sh          # the schema applies twice and its rules hold
+```
+
+Against the live project, when you need it:
+
+```
+WO_CHECK_USER=… WO_CHECK_PASSWORD=… node tools/portal/live-check.mjs
+WO_R2_PASSWORD=… node tools/portal/operator-check.mjs   # R2 signs in; its limits hold
 ```
 
 `smoke.mjs` is hermetic: `tools/portal/stub-client.js` stands in for Supabase, so
@@ -58,3 +70,5 @@ http://localhost:8000/portal/ (it will talk to the real Supabase project).
 - Bump `?v=` on a stylesheet or module when you change it; nothing fails loudly if you forget.
 - Money is integer cents. Dates are `YYYY-MM-DD` strings.
 - The business name is Walter Ochenski LLC.
+- Anything added at this folder's root is a public URL until `netlify.toml` says
+  otherwise. `tools/portal/deploy.test.mjs` fails until it does.

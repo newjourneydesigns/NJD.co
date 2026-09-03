@@ -75,6 +75,32 @@
   status = 404
   force = true
 
+# R2's rulebook, and the operating recipes under .claude/. No secrets in
+# either — the credential lives in Supabase Vault and the service-role key in
+# Netlify's environment — but they describe the portal's internals in detail,
+# and there is no reason to publish the operator's instructions to the world.
+[[redirects]]
+  from = "/CLAUDE.md"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.claude/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+# This file. It sits in the publish directory like everything else here, and
+# it is the map of what this origin does and does not serve. Netlify may well
+# exclude it on its own — but "may well" is not a security property, and the
+# rule costs one round trip to nothing.
+[[redirects]]
+  from = "/netlify.toml"
+  to = "/404.html"
+  status = 404
+  force = true
+
 [[headers]]
   for = "/*"
   [headers.values]

@@ -511,6 +511,32 @@ select refuses(
   $$ insert into expense_categories (code, name) values ('meals', 'Duplicate') $$,
   'two categories cannot share a code');
 
+\echo 'The activity log'
+
+-- R2's work has to be answerable, which means the log cannot be edited or
+-- removed by the account that writes it. There is no update policy and no
+-- delete policy on the table, and with RLS on, an operation with no policy is
+-- refused — so the absence IS the rule, and these prove it rather than
+-- trusting that nobody adds one later.
+do $$
+declare
+  ops text[];
+begin
+  select array_agg(distinct cmd::text order by cmd::text) into ops
+    from pg_policies where schemaname = 'public' and tablename = 'activity_log';
+  perform assert(ops <@ array['SELECT', 'INSERT'],
+    format('the log has select and insert policies and no others (%s)', ops));
+end $$;
+
+select assert(
+  not has_table_privilege('authenticated', 'activity_log', 'UPDATE')
+  and not has_table_privilege('authenticated', 'activity_log', 'DELETE'),
+  'and the browser role is not granted UPDATE or DELETE on it at all');
+
+select assert(
+  not has_table_privilege('anon', 'activity_log', 'SELECT'),
+  'an unauthenticated caller is granted nothing');
+
 \echo 'RLS: who sees what'
 
 do $$
@@ -652,6 +678,26 @@ select assert(
   'but can change their own name');
 
 select assert(count(*) = 3, 'staff can see every profile — there are three of them') from profiles;
+
+-- The log, from a real seat. A row must be signed by whoever wrote it.
+insert into activity_log (actor_id, action, detail)
+values ((select books from people), 'check', '{"why": "proving the append works"}'::jsonb);
+select assert(count(*) = 1, 'staff can append to the activity log')
+  from activity_log where action = 'check';
+
+select refuses(
+  format($$insert into activity_log (actor_id, action) values (%L, 'forged')$$,
+         (select boss from people)),
+  'but cannot log work as somebody else');
+
+select refuses(
+  $$update activity_log set detail = '{}'::jsonb where action = 'check'$$,
+  'and cannot rewrite what it already logged');
+
+select refuses(
+  $$delete from activity_log where action = 'check'$$,
+  'or delete it');
+
 
 -- Somebody else's row matches no update policy for staff, so this is silently
 -- zero rows rather than an error. The proof is the role still being owner,

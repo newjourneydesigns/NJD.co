@@ -455,6 +455,34 @@ create table if not exists documents (
 create index if not exists documents_client_id_idx
   on documents (client_id, created_at desc);
 
+-- What R2 did.
+--
+-- R2 is the portal's AI operator: a sign-in like any other (see CLAUDE.md),
+-- which is exactly why this table exists. An assistant that can raise an
+-- invoice and set a password is one whose work has to be answerable in the
+-- same way a person's is, and "what has it been doing" must be a query rather
+-- than a matter of trust or recollection.
+--
+-- Insert-only by construction: there is no update policy and no delete
+-- policy, so a row cannot be edited or removed by anybody reaching the
+-- database through the portal's key — including R2 itself. A log its author
+-- can quietly rewrite is not a log.
+--
+-- One row per batch of work, not per statement. `action` is a short slug
+-- ('raise-invoice', 'record-expenses', 'add-client'); `detail` is whatever
+-- makes the row answerable later — which rows, and why.
+create table if not exists activity_log (
+  id         uuid primary key default gen_random_uuid(),
+  actor_id   uuid references profiles (id) on delete set null,
+  action     text not null,
+  detail     jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  constraint activity_log_action_shape check (action <> '' and length(action) <= 80)
+);
+
+create index if not exists activity_log_created_idx
+  on activity_log (created_at desc);
+
 -- Which seed blocks have run. RLS on with no policies so nobody but this file
 -- can see or touch it.
 create table if not exists seeds_applied (
@@ -507,11 +535,17 @@ grant select, insert, update, delete on
   recurring_expenses, documents
   to authenticated;
 
+-- Written once and read forever: no UPDATE, no DELETE, for anyone. The policy
+-- below narrows the read to staff; this is what stops the row being edited
+-- even by the account that wrote it.
+revoke all on table activity_log from authenticated;
+grant select, insert on activity_log to authenticated;
+
 revoke all on table
   clients, profiles, invites, client_contacts, client_notes,
   studio_settings, invoice_settings, invoices, invoice_items, payments,
   expense_categories, vendors, expenses, expense_receipts,
-  recurring_expenses, documents, seeds_applied
+  recurring_expenses, documents, activity_log, seeds_applied
   from anon;
 
 -- ---------------------------------------------------------------------------
@@ -560,6 +594,7 @@ alter table expenses           enable row level security;
 alter table expense_receipts   enable row level security;
 alter table recurring_expenses enable row level security;
 alter table documents          enable row level security;
+alter table activity_log       enable row level security;
 
 -- The safety net for a table added later: RLS goes on for any table created
 -- in `public` from now on, whether by this file, a migration, or the
@@ -694,6 +729,20 @@ create policy recurring_expenses_admin_all on recurring_expenses for all to auth
 drop policy if exists documents_admin_all on documents;
 create policy documents_admin_all on documents for all to authenticated
   using (is_admin()) with check (is_admin());
+
+-- The log is readable by staff and appendable by staff, and that is all it
+-- is. No update policy and no delete policy exist on purpose: with RLS on,
+-- an operation with no policy is refused, so the absence is the rule.
+drop policy if exists activity_log_read on activity_log;
+create policy activity_log_read on activity_log for select to authenticated
+  using (is_admin());
+
+-- A row must be signed by whoever wrote it. Nobody can log work as somebody
+-- else, which is the half of attribution a comment in a rulebook cannot
+-- enforce.
+drop policy if exists activity_log_append on activity_log;
+create policy activity_log_append on activity_log for insert to authenticated
+  with check (is_admin() and actor_id = auth.uid());
 
 -- ---------------------------------------------------------------------------
 -- Invoices: numbering, saving, freezing

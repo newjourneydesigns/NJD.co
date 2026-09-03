@@ -15,8 +15,9 @@ step, Supabase Postgres with Row Level Security as the only authorization, one N
 - `tools/portal/` — `syntax-check.sh` (every module parses), `schema-check.sh` (the schema
   applies twice and its rules hold, on a local Postgres), `*.test.mjs` (`node --test`).
 - `tools/icons/render.mjs` — rasterises the WO mark into the icon set with headless Chromium.
-- `CLAUDE.md` — **R2**, the portal's AI operator: what it is, what it may do on
-  its own, and the kill switch. R2 is an ordinary sign-in (`profiles.role =
+- `CLAUDE.md` — **Arthur Detwo**, the portal's AI operator, who Walter calls
+  **R2**: what it is, what it may do on its own, and the kill switch. An
+  ordinary sign-in (username `r2`, `profiles.role =
   'owner'`, password in Supabase Vault) held to the same Row Level Security as
   anyone else, and everything it does lands in `activity_log`, which takes
   inserts and nothing else. `.claude/skills/portal-ops/SKILL.md` is its recipes.
@@ -34,7 +35,7 @@ Against the live project, when you need it:
 
 ```
 WO_CHECK_USER=… WO_CHECK_PASSWORD=… node tools/portal/live-check.mjs
-WO_R2_PASSWORD=… node tools/portal/operator-check.mjs   # R2 signs in; its limits hold
+WO_R2_PASSWORD=… node tools/portal/operator-check.mjs   # the operator signs in; limits hold
 ```
 
 `smoke.mjs` is hermetic: `tools/portal/stub-client.js` stands in for Supabase, so

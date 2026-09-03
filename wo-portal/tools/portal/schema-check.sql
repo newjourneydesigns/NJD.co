@@ -513,7 +513,7 @@ select refuses(
 
 \echo 'The activity log'
 
--- R2's work has to be answerable, which means the log cannot be edited or
+-- The operator's work has to be answerable, which means the log cannot be edited or
 -- removed by the account that writes it. There is no update policy and no
 -- delete policy on the table, and with RLS on, an operation with no policy is
 -- refused — so the absence IS the rule, and these prove it rather than

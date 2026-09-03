@@ -455,9 +455,10 @@ create table if not exists documents (
 create index if not exists documents_client_id_idx
   on documents (client_id, created_at desc);
 
--- What R2 did.
+-- What the operator did.
 --
--- R2 is the portal's AI operator: a sign-in like any other (see CLAUDE.md),
+-- Arthur Detwo — R2 to Walter — is the portal's AI operator: a sign-in like
+-- any other (see CLAUDE.md),
 -- which is exactly why this table exists. An assistant that can raise an
 -- invoice and set a password is one whose work has to be answerable in the
 -- same way a person's is, and "what has it been doing" must be a query rather
@@ -465,7 +466,7 @@ create index if not exists documents_client_id_idx
 --
 -- Insert-only by construction: there is no update policy and no delete
 -- policy, so a row cannot be edited or removed by anybody reaching the
--- database through the portal's key — including R2 itself. A log its author
+-- database through the portal's key — including the operator itself. A log its author
 -- can quietly rewrite is not a log.
 --
 -- One row per batch of work, not per statement. `action` is a short slug

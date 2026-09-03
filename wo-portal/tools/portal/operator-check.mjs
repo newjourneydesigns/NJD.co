@@ -1,11 +1,13 @@
 // ---------------------------------------------------------------------------
-// Is R2 still a real sign-in, and are its limits still real?
+// Is the operator still a real sign-in, and are its limits still real?
 //
 //   WO_R2_PASSWORD=… node tools/portal/operator-check.mjs
 //
-// R2 is the portal's AI operator (CLAUDE.md). It is deliberately not
-// special-cased: it signs in at the same password endpoint as a person, and
-// the same Row Level Security decides what it can see. This check proves both
+// Arthur Detwo — R2 to Walter — is the portal's AI operator (CLAUDE.md). The
+// name is the profile's; the handle `r2` is the username, the address behind
+// it and the Vault secret, and the two are deliberately different things. It
+// is not special-cased: it signs in at the same password endpoint as a person,
+// and the same Row Level Security decides what it can see. This check proves both
 // halves of that claim against the live project — that the account works, and
 // that the two things it must not be able to do are refused by the database
 // rather than by a promise in a rulebook.
@@ -59,16 +61,17 @@ async function main() {
   });
   const session = await login.json();
   if (!login.ok) {
-    console.error('R2 could not sign in:', session.error_description || session.msg || session);
+    console.error('The operator could not sign in:', session.error_description || session.msg || session);
     console.error('If the password was rotated, take the current one from Vault.');
     process.exit(1);
   }
   token = session.access_token;
-  ok(Boolean(token), 'R2 signs in at the same endpoint a person does');
+  ok(Boolean(token), 'the operator signs in at the same endpoint a person does');
 
   const me = await rest(`profiles?select=id,full_name,role&id=eq.${session.user.id}`);
   const profile = me.data?.[0];
-  ok(profile?.full_name === 'R2', `the profile is R2 (${profile?.full_name})`);
+  ok(profile?.full_name === 'Arthur Detwo', `the profile is Arthur Detwo (${profile?.full_name})`);
+  ok(email === 'r2@wo-portal.invalid', `signed in on the handle r2, which is a separate thing (${email})`);
   ok(profile?.role === 'owner', `with full rights (${profile?.role})`);
 
   // It reaches the portal's data the way a page does — not through a back
@@ -97,16 +100,16 @@ async function main() {
     body: {
       actor_id: session.user.id,
       action: 'operator-check',
-      detail: { why: 'proving R2 can sign in and that its limits hold' },
+      detail: { why: 'proving the operator can sign in and that its limits hold' },
     },
   });
   ok(logged.status === 201, 'and can log its own work, signed as itself');
 
   const history = await rest('activity_log?select=action,created_at&order=created_at.desc&limit=5');
   ok(history.status === 200 && history.data.length > 0,
-    `"what has R2 been doing" is a query (${history.data?.length} recent rows)`);
+    `what the operator has been doing is a query (${history.data?.length} recent rows)`);
 
-  console.log(failures ? `\n${failures} FAILED` : '\nOperator check OK — R2 is a real sign-in with real limits.');
+  console.log(failures ? `\n${failures} FAILED` : '\nOperator check OK — a real sign-in with real limits.');
   process.exit(failures ? 1 : 0);
 }
 

@@ -1,11 +1,11 @@
 ---
 name: portal-ops
-description: Operate the Walter Ochenski LLC portal as R2 — clients, invoices, payments, expenses, receipts, documents, reports and sign-ins. Use for any request to look something up in the portal, raise or issue an invoice, record a payment or an expense, file a document, add a client, run a tax-year figure, or manage who can sign in. Read it before writing any SQL against the portal's database.
+description: Operate the Walter Ochenski LLC portal as Arthur Detwo (R2) — clients, invoices, payments, expenses, receipts, documents, reports and sign-ins. Use for any request to look something up in the portal, raise or issue an invoice, record a payment or an expense, file a document, add a client, run a tax-year figure, or manage who can sign in. Read it before writing any SQL against the portal's database.
 ---
 
 # Operating the portal
 
-You are **R2** (`CLAUDE.md`). This is how the work is actually done, so you do
+You are **Arthur Detwo**, who Walter calls **R2** (`CLAUDE.md`). This is how the work is actually done, so you do
 not rediscover the schema every session.
 
 Project ref `gkzhspoqokjjnvhziivt`. Read `supabase/schema.sql` for anything not
@@ -19,7 +19,7 @@ runs as the database owner — which means it bypasses Row Level Security and
 every guard. Fine for reads. For writes it will happily do things the portal
 is built to refuse.
 
-**Acting as R2:** sign in and use the REST API. What you can do is exactly what
+**Acting as yourself:** sign in and use the REST API. What you can do is exactly what
 Walter could do at the same screen, and the work is attributable.
 
 ```bash
@@ -217,7 +217,7 @@ Through `Admin → People` in the portal, or the function:
 
 ```bash
 curl -sS -X POST https://<site>/.netlify/functions/admin-users \
-  -H "Authorization: Bearer <R2's access token>" \
+  -H "Authorization: Bearer <your access token>" \
   -H 'Content-Type: application/json' \
   -d '{"action":"create","username":"books","full_name":"…","role":"staff","password":"…"}'
 ```

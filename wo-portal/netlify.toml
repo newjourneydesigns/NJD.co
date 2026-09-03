@@ -75,7 +75,7 @@
   status = 404
   force = true
 
-# R2's rulebook, and the operating recipes under .claude/. No secrets in
+# The operator's rulebook, and the recipes under .claude/. No secrets in
 # either — the credential lives in Supabase Vault and the service-role key in
 # Netlify's environment — but they describe the portal's internals in detail,
 # and there is no reason to publish the operator's instructions to the world.
